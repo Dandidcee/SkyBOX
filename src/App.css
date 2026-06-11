@@ -1,0 +1,51 @@
+.app-layout {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--color-background);
+}
+
+.app-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: row; /* Berubah menjadi row untuk menampung jendela berdampingan */
+  overflow-x: auto; /* Memungkinkan horizontal scroll jika jumlah akun melebihi kapasitas layar */
+  overflow-y: hidden;
+  background-color: #000000; /* Hitam pekat agar pemisah layarnya sangat jelas */
+  gap: 3px; /* Jarak 3px antar layar (Grid Separator) */
+  scroll-snap-type: x mandatory; /* Memastikan snap saat scroll antar jendela */
+  scroll-behavior: smooth;
+  --max-columns: 1; /* Default Mobile */
+}
+
+@media (min-width: 768px) {
+  .main-content { --max-columns: 2; }
+}
+
+@media (min-width: 1024px) {
+  .main-content { --max-columns: 3; }
+}
+
+@media (min-width: 1440px) {
+  .main-content { --max-columns: 4; }
+}
+
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column;
+  }
+  
+  .main-content {
+    /* Leave 60px room for bottom nav bar on mobile */
+    height: calc(100vh - 60px);
+    flex: none;
+  }
+}

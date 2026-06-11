@@ -1,0 +1,71 @@
+.conf-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.conf-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--font-size-sm);
+}
+
+.conf-label {
+  width: 180px;
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.conf-track {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background-color: var(--color-background);
+  overflow: hidden;
+}
+
+.conf-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.conf-value {
+  width: 90px;
+  text-align: right;
+  flex-shrink: 0;
+  color: var(--color-text-primary);
+}
+
+.analytics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.analytics-table th,
+.analytics-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.analytics-table th {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.analytics-table td:not(:first-child),
+.analytics-table th:not(:first-child) {
+  text-align: center;
+}
+
+.acc-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+}
