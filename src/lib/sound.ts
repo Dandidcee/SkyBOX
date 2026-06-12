@@ -40,15 +40,18 @@ const patterns: Record<string, Pattern> = {
 
 /** Daftar tone untuk dropdown di Settings. `file` = pakai file audio dari /public/sounds. */
 export const TONES: { id: string; label: string; file?: string }[] = [
-  { id: 'tritone', label: 'Tri-tone (default)' },
-  { id: 'ding', label: 'Ding' },
-  { id: 'chime', label: 'Chime' },
-  { id: 'pop', label: 'Pop' },
-  { id: 'bell', label: 'Bell' },
-  { id: 'blip', label: 'Blip' },
-  { id: 'custom1', label: 'Custom 1 (file)', file: '/sounds/custom1.mp3' },
-  { id: 'custom2', label: 'Custom 2 (file)', file: '/sounds/custom2.mp3' },
-  { id: 'custom3', label: 'Custom 3 (file)', file: '/sounds/custom3.mp3' },
+  { id: 'alert', label: 'Alert', file: '/sounds/alert.wav' },
+  { id: 'bell', label: 'Bell Notification', file: '/sounds/bell%20notification.wav' },
+  { id: 'confirmation', label: 'Confirmation', file: '/sounds/confirmation.wav' },
+  { id: 'interface', label: 'Interface Back', file: '/sounds/interface%20back.wav' },
+  { id: 'quick', label: 'Quick Tone', file: '/sounds/quick%20tone.wav' },
+  { id: 'simple', label: 'Simple Tone', file: '/sounds/simple%20tone.wav' },
+  // Nada sintesis (cadangan, tanpa file)
+  { id: 'tritone', label: 'Tri-tone (sintesis)' },
+  { id: 'ding', label: 'Ding (sintesis)' },
+  { id: 'chime', label: 'Chime (sintesis)' },
+  { id: 'pop', label: 'Pop (sintesis)' },
+  { id: 'blip', label: 'Blip (sintesis)' },
 ];
 
 /** Mainkan tone berdasarkan id. Aman dipanggil berkali-kali. */

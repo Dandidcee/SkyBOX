@@ -107,6 +107,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange 
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
 
   const resolvedConversationId =
     activeConversationId && conversations.some(c => c.id === activeConversationId)
@@ -118,6 +119,12 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange 
   const { data: messages = [], isLoading: msgLoading } = useMessages(resolvedConversationId ?? undefined);
   const { data: orders = [] } = useOrders(resolvedConversationId ?? undefined);
   const latestOrder = orders[0] ?? null;
+
+  // Auto-scroll ke pesan terbaru saat ada pesan baru / ganti percakapan.
+  useEffect(() => {
+    const el = timelineRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages.length, resolvedConversationId]);
 
   const showToast = (msg: React.ReactNode) => {
     setToastMessage(msg);
@@ -198,6 +205,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange 
       await setConversationHandler(account, {
         conversationId: activeConversation.id,
         phone: activeConversation.customerPhone,
+        chatId: activeConversation.chatId,
         handler: newHandler,
       });
       showToast(switchingToHuman ? 'Diambil alih: Mode Manusia aktif' : 'Dikembalikan ke AI: Mode AI aktif');
@@ -215,6 +223,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange 
       await sendTextMessage(account, {
         conversationId: activeConversation.id,
         phone: activeConversation.customerPhone,
+        chatId: activeConversation.chatId,
         text,
       });
       setMessageText('');
@@ -245,6 +254,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange 
       await sendMedia(account, {
         conversationId: activeConversation.id,
         phone: activeConversation.customerPhone,
+        chatId: activeConversation.chatId,
         mediaType: isImage ? 'image' : 'document',
         filename: file.name,
         dataBase64,
@@ -412,7 +422,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange 
           </div>
         </div>
 
-        <div className="chat-timeline">
+        <div className="chat-timeline" ref={timelineRef}>
           {latestOrder && (
             <div style={{
               alignSelf: 'center',

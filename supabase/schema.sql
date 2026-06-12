@@ -165,3 +165,49 @@ create policy "own orders select" on orders for select to authenticated
 drop policy if exists "own notifications select" on notifications;
 create policy "own notifications select" on notifications for select to authenticated
   using (account_id is null or account_id in (select id from accounts where owner_id = auth.uid()));
+
+-- ============================================================
+-- TAMBAHAN: Katalog Produk & Basis Pengetahuan (per akun WA)
+-- Murni additive: tabel baru, tidak menyentuh tabel/alur lama.
+-- N8N (service_role) membaca ini untuk konteks AI; admin kelola dari dashboard.
+-- ============================================================
+
+create table if not exists products (
+  id uuid primary key default gen_random_uuid(),
+  account_id uuid not null references accounts(id) on delete cascade, -- barang milik nomor WA ini
+  name text not null,
+  description text default '',
+  price numeric,
+  sku text default '',
+  stock int,
+  image_url text default '',
+  category text default '',
+  is_active boolean not null default true,
+  created_at timestamptz default now()
+);
+
+create table if not exists knowledge (
+  id uuid primary key default gen_random_uuid(),
+  account_id uuid not null references accounts(id) on delete cascade,
+  title text not null,
+  content text not null default '',
+  tags text default '',
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_products_account on products(account_id);
+create index if not exists idx_knowledge_account on knowledge(account_id);
+
+-- RLS: admin hanya kelola produk/knowledge milik akunnya (pola sama seperti conversations).
+alter table products enable row level security;
+alter table knowledge enable row level security;
+
+drop policy if exists "own products all" on products;
+create policy "own products all" on products for all to authenticated
+  using (account_id in (select id from accounts where owner_id = auth.uid()))
+  with check (account_id in (select id from accounts where owner_id = auth.uid()));
+
+drop policy if exists "own knowledge all" on knowledge;
+create policy "own knowledge all" on knowledge for all to authenticated
+  using (account_id in (select id from accounts where owner_id = auth.uid()))
+  with check (account_id in (select id from accounts where owner_id = auth.uid()));

@@ -54,7 +54,7 @@ async function callN8n(
 /** Ambil alih / kembalikan ke AI untuk satu percakapan */
 export function setConversationHandler(
   account: Account,
-  payload: { conversationId: string; phone: string; handler: ConversationHandler }
+  payload: { conversationId: string; phone: string; chatId: string; handler: ConversationHandler }
 ): Promise<void> {
   return callN8n(account, 'toggle', payload);
 }
@@ -62,7 +62,7 @@ export function setConversationHandler(
 /** Kirim balasan teks ke pelanggan via N8N -> WAHA */
 export function sendTextMessage(
   account: Account,
-  payload: { conversationId: string; phone: string; text: string }
+  payload: { conversationId: string; phone: string; chatId: string; text: string }
 ): Promise<void> {
   return callN8n(account, 'sendMessage', payload);
 }
@@ -71,7 +71,7 @@ export function sendTextMessage(
  *  Frontend kirim base64 (data URL) tanpa menyimpan file; N8N yang unggah/teruskan ke WAHA. */
 export function sendMedia(
   account: Account,
-  payload: { conversationId: string; phone: string; mediaType: MediaType; filename: string; dataBase64: string; caption?: string }
+  payload: { conversationId: string; phone: string; chatId: string; mediaType: MediaType; filename: string; dataBase64: string; caption?: string }
 ): Promise<void> {
   return callN8n(account, 'sendMedia', payload);
 }

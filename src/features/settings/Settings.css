@@ -152,7 +152,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--spacing-sm);
-  padding: 0 var(--spacing-lg) 18px;
+  padding: var(--spacing-lg);
 }
 
 .cp-input-wrap {
@@ -164,8 +164,8 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-background);
-  flex: 1;
-  min-width: 200px;
+  flex: 0 1 240px;
+  max-width: 240px;
 }
 
 .cp-input-wrap:focus-within {

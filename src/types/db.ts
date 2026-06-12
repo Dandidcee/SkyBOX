@@ -40,6 +40,8 @@ export interface Conversation {
   accountId: string;
   customerPhone: string;
   customerName: string;
+  /** JID/@lid asli WAHA untuk balas pesan (payload.from) */
+  chatId: string;
   handler: Handler;
   orderStatus: OrderStatus;
   confidence: number;
@@ -88,6 +90,7 @@ export interface ConversationRow {
   account_id: string;
   customer_phone: string;
   customer_name: string;
+  chat_id: string;
   handler: Handler;
   order_status: OrderStatus;
   confidence: number;
@@ -121,5 +124,50 @@ export interface NotificationRow {
   account_id: string | null;
   level: NotificationLevel;
   message: string;
+  created_at: string;
+}
+
+// ---------- Produk & Knowledge (per akun WA) ----------
+export interface Product {
+  id: string;
+  accountId: string;
+  name: string;
+  description: string;
+  price: number | null;
+  sku: string;
+  stock: number | null;
+  imageUrl: string;
+  category: string;
+  isActive: boolean;
+}
+
+export interface ProductRow {
+  id: string;
+  account_id: string;
+  name: string;
+  description: string;
+  price: number | null;
+  sku: string;
+  stock: number | null;
+  image_url: string;
+  category: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface Knowledge {
+  id: string;
+  accountId: string;
+  title: string;
+  content: string;
+  tags: string;
+}
+
+export interface KnowledgeRow {
+  id: string;
+  account_id: string;
+  title: string;
+  content: string;
+  tags: string;
   created_at: string;
 }

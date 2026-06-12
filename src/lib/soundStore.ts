@@ -16,9 +16,9 @@ interface SoundState {
 }
 
 const DEFAULT: Record<SoundEvent, SoundPref> = {
-  incoming: { tone: 'tritone', enabled: true },
-  lowConfidence: { tone: 'chime', enabled: true },
-  error: { tone: 'blip', enabled: true },
+  incoming: { tone: 'bell', enabled: true },
+  lowConfidence: { tone: 'quick', enabled: true },
+  error: { tone: 'alert', enabled: true },
 };
 
 const KEY = 'skybox_sound_prefs';

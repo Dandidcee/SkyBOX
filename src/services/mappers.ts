@@ -6,6 +6,8 @@ import type {
   Conversation, ConversationRow,
   Message, MessageRow,
   Order, OrderRow,
+  Product, ProductRow,
+  Knowledge, KnowledgeRow,
 } from '../types/db';
 
 export const mapAccountRow = (r: AccountRow): Account => ({
@@ -27,6 +29,7 @@ export const mapConversationRow = (r: ConversationRow): Conversation => ({
   accountId: r.account_id,
   customerPhone: r.customer_phone,
   customerName: r.customer_name,
+  chatId: r.chat_id,
   handler: r.handler,
   orderStatus: r.order_status,
   confidence: r.confidence,
@@ -53,4 +56,25 @@ export const mapOrderRow = (r: OrderRow): Order => ({
   status: r.status,
   address: r.address,
   amount: r.amount,
+});
+
+export const mapProductRow = (r: ProductRow): Product => ({
+  id: r.id,
+  accountId: r.account_id,
+  name: r.name,
+  description: r.description,
+  price: r.price,
+  sku: r.sku,
+  stock: r.stock,
+  imageUrl: r.image_url,
+  category: r.category,
+  isActive: r.is_active,
+});
+
+export const mapKnowledgeRow = (r: KnowledgeRow): Knowledge => ({
+  id: r.id,
+  accountId: r.account_id,
+  title: r.title,
+  content: r.content,
+  tags: r.tags,
 });

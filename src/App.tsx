@@ -5,6 +5,7 @@ import Inbox from './features/inbox/Inbox';
 import Dashboard from './features/dashboard/Dashboard';
 import Integrations from './features/integrations/Integrations';
 import Analytics from './features/analytics/Analytics';
+import Catalog from './features/catalog/Catalog';
 import Settings from './features/settings/Settings';
 import Notifications from './features/notifications/Notifications';
 import Login from './features/auth/Login';
@@ -156,6 +157,8 @@ function App() {
           <Dashboard accounts={accounts} />
         ) : activeView === 'analytics' ? (
           <Analytics accounts={accounts} />
+        ) : activeView === 'catalog' ? (
+          <Catalog accounts={accounts} />
         ) : activeView === 'notifications' ? (
           <Notifications accounts={accounts} />
         ) : activeView === 'settings' ? (

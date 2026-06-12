@@ -792,3 +792,11 @@
 .btn-primary.icon-only:hover {
   background-color: var(--color-primary-dark);
 }
+
+/* Pastikan ikon kirim (paper plane) center & ukuran konsisten */
+.btn-primary.icon-only svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  margin-left: 2px; /* optical centering: paper-plane condong ke kiri */
+}

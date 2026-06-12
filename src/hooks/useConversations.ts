@@ -63,9 +63,10 @@ export function useConversations(accountId: string | undefined) {
         }
       )
       .subscribe((status) => {
+        // CLOSED = teardown sengaja (ganti akun/view, StrictMode) → jangan tandai putus.
         if (status === 'SUBSCRIBED') setRealtime('connected');
-        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') setRealtime('disconnected');
-        else setRealtime('connecting');
+        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setRealtime('disconnected');
+        else if (status !== 'CLOSED') setRealtime('connecting');
       });
 
     return () => {

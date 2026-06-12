@@ -237,6 +237,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--spacing-xs);
 }
 
 .user-profile {
@@ -281,41 +282,33 @@
   color: var(--color-sidebar-text-muted);
 }
 
-.theme-toggle {
+/* Tombol footer (tema & logout). Di-scope ke .sidebar-footer agar menang
+   spesifisitas dari aturan global .icon-btn (Inbox.css) yang bikin ikon kusam. */
+.sidebar-footer .theme-toggle,
+.sidebar-footer .logout-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
   background: transparent;
-  color: white; /* Ikon warna putih by default */
+  color: var(--color-sidebar-text);
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
-  border-radius: 50%;
-  transition: all 0.2s ease;
-}
-
-.theme-toggle:hover {
-  background-color: white; /* Background jadi putih */
-  color: var(--color-header-dark); /* Ikon jadi warna background sidebar */
-}
-
-.logout-btn {
-  background: transparent;
-  color: white;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px;
   border-radius: 50%;
   transition: all 0.2s ease;
   flex-shrink: 0;
 }
 
-.logout-btn:hover {
+.sidebar-footer .theme-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: var(--color-sidebar-text);
+}
+
+.sidebar-footer .logout-btn:hover {
   background-color: var(--color-error);
-  color: white;
+  color: #fff;
 }
 
 /* Mobile Responsiveness */
