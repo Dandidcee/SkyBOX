@@ -30,6 +30,18 @@ const fmtTime = (iso: string) => {
   return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 };
 
+// Ubah link Google Drive jadi URL lh3.googleusercontent (Google CDN) yang bisa di-embed
+// sebagai <img> dari domain lain. URL non-Drive dibiarkan apa adanya.
+const toEmbeddableUrl = (url: string | null) => {
+  if (!url) return url ?? '';
+  if (url.includes('lh3.googleusercontent.com')) return url; // sudah CDN
+  if (url.includes('drive.google.com')) {
+    const m = url.match(/(?:id=|\/d\/)([\w-]+)/);
+    if (m) return `https://lh3.googleusercontent.com/d/${m[1]}=w1000`;
+  }
+  return url;
+};
+
 const fileToBase64 = (file: File) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -66,12 +78,13 @@ interface InboxProps {
   account?: Account;
   isMultiView?: boolean;
   colWidth?: string;
+  onMobileChatOpenChange?: (open: boolean) => void;
 }
 
 type TabKey = 'all' | 'ai' | 'human' | 'lead' | 'waiting_payment' | 'closing';
 type FilterKey = 'all' | 'confidence_high' | 'confidence_med' | 'confidence_low';
 
-const Inbox = ({ account, isMultiView = false, colWidth }: InboxProps) => {
+const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange }: InboxProps) => {
   const qc = useQueryClient();
   const accountId = account?.id;
 
@@ -339,7 +352,7 @@ const Inbox = ({ account, isMultiView = false, colWidth }: InboxProps) => {
               <div
                 key={conv.id}
                 className={`chat-item ${activeConversation?.id === conv.id ? 'active' : ''}`}
-                onClick={() => { setActiveConversationId(conv.id); setIsMobileChatOpen(true); }}
+                onClick={() => { setActiveConversationId(conv.id); setIsMobileChatOpen(true); onMobileChatOpenChange?.(true); }}
               >
                 <ProgressAvatar name={conv.customerName || conv.customerPhone} confidence={conv.confidence} />
                 <div className="chat-info">
@@ -364,7 +377,7 @@ const Inbox = ({ account, isMultiView = false, colWidth }: InboxProps) => {
       <div className={`chat-area ${!isMobileChatOpen ? 'mobile-hidden' : ''}`}>
         <div className="chat-header">
           <div className="chat-header-info">
-            <button className="icon-btn mobile-only-btn" onClick={() => setIsMobileChatOpen(false)}>
+            <button className="icon-btn mobile-only-btn" onClick={() => { setIsMobileChatOpen(false); onMobileChatOpenChange?.(false); }}>
               <MdArrowBack size={24} />
             </button>
             <div className="chat-avatar" style={{ backgroundColor: 'var(--color-primary)' }}>
@@ -425,12 +438,17 @@ const Inbox = ({ account, isMultiView = false, colWidth }: InboxProps) => {
           ) : (
             messages.map(m => (
               <div key={m.id} className={`bubble-wrapper ${m.direction === 'out' ? 'sent' : 'received'}`}>
-                <div className="bubble">
+                <div className={`bubble ${m.type === 'image' && m.mediaUrl ? 'has-media' : ''}`}>
                   {m.type === 'image' && m.mediaUrl && (
-                    <img src={m.mediaUrl} alt="media" style={{ maxWidth: '100%', borderRadius: 8, marginBottom: 4, display: 'block' }} />
+                    <img
+                      src={toEmbeddableUrl(m.mediaUrl)}
+                      alt="media"
+                      onClick={() => window.open(toEmbeddableUrl(m.mediaUrl), '_blank')}
+                      style={{ width: '100%', borderRadius: 6, marginBottom: 4, display: 'block', cursor: 'pointer' }}
+                    />
                   )}
                   {m.type === 'document' && m.mediaUrl && (
-                    <a href={m.mediaUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary-dark)' }}>📄 Buka dokumen</a>
+                    <a href={toEmbeddableUrl(m.mediaUrl)} target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary-dark)' }}>📄 Buka dokumen</a>
                   )}
                   {m.body && <span className="bubble-text">{m.body}</span>}
                   <span className="bubble-time">{fmtTime(m.createdAt)}</span>
@@ -483,7 +501,7 @@ const Inbox = ({ account, isMultiView = false, colWidth }: InboxProps) => {
               <MdMic size={24} />
             </button>
           </div>
-          <button className="btn-primary icon-only" onClick={handleSendText}><MdSend size={20} /></button>
+          <button className="btn-primary icon-only" onClick={handleSendText}><MdSend size={22} /></button>
         </div>
 
         {toastMessage && <div className="custom-toast">{toastMessage}</div>}

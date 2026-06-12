@@ -1,6 +1,7 @@
 .inbox-container {
   display: flex;
   height: 100%;
+  position: relative;
   /* Lebar dikontrol langsung oleh inline style dari React (colWidth prop) */
   /* Fallback jika hanya 1 akun / tidak ada colWidth */
   flex: 1 1 auto;
@@ -409,10 +410,21 @@
 
 .bubble {
   max-width: 70%;
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: 6px 10px;
   border-radius: var(--radius-md);
   position: relative;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Bubble dengan gambar: lebar mengikuti gambar (caption ikut wrap ke lebar ini) */
+.bubble.has-media {
+  width: 240px;
+  max-width: 75%;
+  padding: 4px;
+}
+
+.bubble.has-media .bubble-text {
+  padding: 2px 6px 4px;
 }
 
 .received .bubble {
@@ -656,14 +668,14 @@
 }
 
 .bubble-text {
-  font-size: var(--font-size-base);
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.4;
   display: block;
   margin-bottom: 4px;
 }
 
 .bubble-time {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--color-text-secondary);
   float: right;
   margin-top: 4px;

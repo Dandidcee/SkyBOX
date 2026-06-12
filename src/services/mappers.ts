@@ -10,6 +10,7 @@ import type {
 
 export const mapAccountRow = (r: AccountRow): Account => ({
   id: r.id,
+  ownerId: r.owner_id,
   name: r.name,
   phone: r.phone,
   color: r.color,

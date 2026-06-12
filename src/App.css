@@ -48,4 +48,12 @@
     height: calc(100vh - 60px);
     flex: none;
   }
+
+  /* Saat chat dibuka di HP: sembunyikan navbar bawah biar kolom ketik tidak terhalang */
+  .app-layout.mobile-chat-open .sidebar {
+    display: none;
+  }
+  .app-layout.mobile-chat-open .main-content {
+    height: 100vh;
+  }
 }

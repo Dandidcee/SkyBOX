@@ -1,9 +1,7 @@
-// Mendengarkan tabel `notifications` Supabase (diisi N8N, mis. workflow error)
-// dan memunculkannya sebagai toast di dashboard via Realtime.
-// Toast diberi prefix nama akun bila notifikasi terkait akun tertentu.
 import { useEffect } from 'react';
 import { getSupabase, isSupabaseConfigured } from '../services/supabase';
 import { useUiStore } from '../lib/uiStore';
+import { playEventSound } from '../lib/soundStore';
 import type { Account, NotificationRow } from '../types/db';
 
 export function useSystemNotifications(accounts: Account[]) {
@@ -20,6 +18,7 @@ export function useSystemNotifications(accounts: Account[]) {
           const row = payload.new as NotificationRow;
           const accName = row.account_id ? accounts.find((a) => a.id === row.account_id)?.name : undefined;
           notify(accName ? `[${accName}] ${row.message}` : row.message, row.level);
+          if (row.level === 'error' || row.level === 'warn') playEventSound('error');
         }
       )
       .subscribe();

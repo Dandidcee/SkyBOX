@@ -1,11 +1,13 @@
 -- Skema database SkyBox (Supabase / PostgreSQL)
 -- Jalankan di SQL Editor Supabase. Penulisan data dilakukan N8N (service_role, bypass RLS).
--- Frontend hanya membaca via anon key + policy SELECT di bawah.
+-- Frontend: admin login (Supabase Auth) + RLS berbasis kepemilikan (accounts.owner_id = auth.uid()).
+-- Tiap admin hanya melihat akun WA miliknya beserta percakapan/pesan/order/notifikasinya.
 
 -- ========== TABEL ==========
 
 create table if not exists accounts (
   id uuid primary key default gen_random_uuid(),
+  owner_id uuid references auth.users(id) on delete cascade, -- admin pemilik nomor WA ini
   name text not null,
   phone text not null,
   color text default '#25D366',
@@ -18,11 +20,16 @@ create table if not exists accounts (
   created_at timestamptz default now()
 );
 
+-- Tambah kolom owner_id bila tabel accounts sudah ada sebelum fitur auth.
+alter table accounts add column if not exists owner_id uuid references auth.users(id) on delete cascade;
+create index if not exists idx_accounts_owner on accounts(owner_id);
+
 create table if not exists conversations (
   id uuid primary key default gen_random_uuid(),
   account_id uuid not null references accounts(id) on delete cascade,
   customer_phone text not null,
   customer_name text default '',
+  chat_id text default '',  -- JID/@lid asli WAHA untuk balas pesan (payload.from)
   handler text not null default 'ai' check (handler in ('ai','human')),
   order_status text not null default 'none' check (order_status in ('none','lead','waiting_payment','closing')),
   confidence int not null default 100 check (confidence between 0 and 100),
@@ -68,6 +75,17 @@ create index if not exists idx_conversations_account on conversations(account_id
 create index if not exists idx_messages_conversation on messages(conversation_id, created_at);
 create index if not exists idx_orders_conversation on orders(conversation_id);
 
+-- Naikkan unread + update preview/waktu secara atomic (dipanggil N8N saat pesan masuk).
+create or replace function bump_unread(conv_id uuid, preview text)
+returns void language sql as $$
+  update conversations
+  set unread = unread + 1,
+      last_preview = preview,
+      last_time = now(),
+      updated_at = now()
+  where id = conv_id;
+$$;
+
 -- ========== REALTIME ==========
 -- REPLICA IDENTITY FULL agar payload Realtime menyertakan baris lama (deteksi transisi handler/unread/order).
 alter table conversations replica identity full;
@@ -91,31 +109,59 @@ begin
 end $$;
 
 -- ========== ROW LEVEL SECURITY ==========
--- anon hanya boleh BACA. Tidak ada policy insert/update untuk anon pada
--- conversations/messages/orders (R13). N8N memakai service_role.
+-- Multi-admin: tiap admin (auth.users) hanya melihat akun WA miliknya (accounts.owner_id)
+-- beserta conversations/messages/orders/notifications dari akun tsb.
+-- N8N memakai service_role (BYPASS RLS) untuk menulis semua data.
 alter table accounts enable row level security;
 alter table conversations enable row level security;
 alter table messages enable row level security;
 alter table orders enable row level security;
 alter table notifications enable row level security;
 
+-- Bersihkan policy anon lama (era 1 CS tanpa auth).
 drop policy if exists "anon read accounts" on accounts;
 drop policy if exists "anon read conversations" on conversations;
 drop policy if exists "anon read messages" on messages;
 drop policy if exists "anon read orders" on orders;
 drop policy if exists "anon read notifications" on notifications;
-create policy "anon read accounts" on accounts for select to anon using (true);
-create policy "anon read conversations" on conversations for select to anon using (true);
-create policy "anon read messages" on messages for select to anon using (true);
-create policy "anon read orders" on orders for select to anon using (true);
-create policy "anon read notifications" on notifications for select to anon using (true);
-
--- Pengecualian terbatas (tool internal 1 CS, belum ada auth): anon boleh KELOLA accounts
--- (config webhook/session) dari halaman Integrations. conversations/messages/orders TETAP read-only.
--- Perketat saat autentikasi CS ditambahkan.
 drop policy if exists "anon insert accounts" on accounts;
 drop policy if exists "anon update accounts" on accounts;
 drop policy if exists "anon delete accounts" on accounts;
-create policy "anon insert accounts" on accounts for insert to anon with check (true);
-create policy "anon update accounts" on accounts for update to anon using (true) with check (true);
-create policy "anon delete accounts" on accounts for delete to anon using (true);
+
+-- accounts: admin CRUD hanya akun miliknya sendiri.
+drop policy if exists "own accounts select" on accounts;
+drop policy if exists "own accounts insert" on accounts;
+drop policy if exists "own accounts update" on accounts;
+drop policy if exists "own accounts delete" on accounts;
+create policy "own accounts select" on accounts for select to authenticated using (owner_id = auth.uid());
+create policy "own accounts insert" on accounts for insert to authenticated with check (owner_id = auth.uid());
+create policy "own accounts update" on accounts for update to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+create policy "own accounts delete" on accounts for delete to authenticated using (owner_id = auth.uid());
+
+-- conversations: hanya milik akun admin (read-only dari frontend; N8N service_role yang menulis).
+drop policy if exists "own conversations select" on conversations;
+create policy "own conversations select" on conversations for select to authenticated
+  using (account_id in (select id from accounts where owner_id = auth.uid()));
+
+-- messages: hanya dari conversation pada akun admin.
+drop policy if exists "own messages select" on messages;
+create policy "own messages select" on messages for select to authenticated
+  using (conversation_id in (
+    select c.id from conversations c
+    join accounts a on a.id = c.account_id
+    where a.owner_id = auth.uid()
+  ));
+
+-- orders: hanya dari conversation pada akun admin.
+drop policy if exists "own orders select" on orders;
+create policy "own orders select" on orders for select to authenticated
+  using (conversation_id in (
+    select c.id from conversations c
+    join accounts a on a.id = c.account_id
+    where a.owner_id = auth.uid()
+  ));
+
+-- notifications: milik akun admin, plus notif global (account_id null) untuk semua admin.
+drop policy if exists "own notifications select" on notifications;
+create policy "own notifications select" on notifications for select to authenticated
+  using (account_id is null or account_id in (select id from accounts where owner_id = auth.uid()));

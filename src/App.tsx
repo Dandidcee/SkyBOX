@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import Sidebar from './components/layout/Sidebar';
 import Inbox from './features/inbox/Inbox';
 import Dashboard from './features/dashboard/Dashboard';
@@ -6,11 +7,14 @@ import Integrations from './features/integrations/Integrations';
 import Analytics from './features/analytics/Analytics';
 import Settings from './features/settings/Settings';
 import Notifications from './features/notifications/Notifications';
+import Login from './features/auth/Login';
 import LoadingScreen from './components/LoadingScreen';
 import NotificationHost from './components/NotificationHost';
 import { useAccounts, useAccountMutations } from './hooks/useAccounts';
 import { useSystemNotifications } from './hooks/useSystemNotifications';
 import { isSupabaseConfigured } from './services/supabase';
+import { getSession, onAuthChange, signOut } from './services/auth';
+import type { Session } from '@supabase/supabase-js';
 import type { Account, OrderStatus } from './types/db';
 import './App.css';
 
@@ -28,7 +32,11 @@ function App() {
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [activeAccountIds, setActiveAccountIds] = useState<string[]>([]);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [mobileChatOpen, setMobileChatOpen] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
 
+  const queryClient = useQueryClient();
   const { data: accounts = [], isLoading: accountsLoading, isError: accountsError, refetch } = useAccounts();
   const { add, update, remove } = useAccountMutations();
 
@@ -39,6 +47,27 @@ function App() {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  // Auth: muat session awal + dengarkan perubahan login/logout.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    getSession()
+      .then(setSession)
+      .finally(() => setAuthReady(true));
+    const unsub = onAuthChange((s) => {
+      setSession(s);
+      queryClient.invalidateQueries(); // refetch data dgn JWT yang baru
+    });
+    return unsub;
+  }, [queryClient]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+    } catch {
+      /* abaikan */
+    }
+  };
 
   // Pilih akun aktif default saat daftar akun termuat / berubah.
   const maxCols = windowWidth >= 1440 ? 4 : windowWidth >= 1024 ? 3 : windowWidth >= 768 ? 2 : 1;
@@ -89,8 +118,18 @@ function App() {
     );
   }
 
+  // Belum siap cek auth → tampilkan loading singkat.
+  if (!authReady) {
+    return <div style={stateStyle}>Memuat…</div>;
+  }
+
+  // Belum login → halaman Login.
+  if (!session) {
+    return <Login />;
+  }
+
   return (
-    <div className="app-layout">
+    <div className={`app-layout ${mobileChatOpen ? 'mobile-chat-open' : ''}`}>
       <NotificationHost />
       <Sidebar
         isVisible={isSidebarVisible}
@@ -101,6 +140,8 @@ function App() {
         onRenameAccount={(id, name) => update.mutate({ id, patch: { name } })}
         activeView={activeView}
         setActiveView={setActiveView}
+        userEmail={session.user?.email ?? ''}
+        onLogout={handleLogout}
       />
       <main className="main-content">
         {activeView === 'dashboard' ? (
@@ -135,6 +176,7 @@ function App() {
                 account={account}
                 isMultiView={activeAccounts.length > 1}
                 colWidth={colWidthPct}
+                onMobileChatOpenChange={setMobileChatOpen}
               />
             ))
           )

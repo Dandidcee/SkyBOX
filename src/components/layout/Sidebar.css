@@ -243,6 +243,8 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
+  flex: 1;
+  min-width: 0;
 }
 
 .avatar {
@@ -261,12 +263,17 @@
 .user-info {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .user-name {
   font-weight: 600;
   font-size: var(--font-size-sm);
   line-height: 1.2;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .user-role {
@@ -290,6 +297,25 @@
 .theme-toggle:hover {
   background-color: white; /* Background jadi putih */
   color: var(--color-header-dark); /* Ikon jadi warna background sidebar */
+}
+
+.logout-btn {
+  background: transparent;
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.logout-btn:hover {
+  background-color: var(--color-error);
+  color: white;
 }
 
 /* Mobile Responsiveness */

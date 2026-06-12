@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSupabase, isSupabaseConfigured } from '../services/supabase';
 import { mapConversationRow } from '../services/mappers';
 import { useUiStore } from '../lib/uiStore';
+import { playEventSound } from '../lib/soundStore';
 import type { Conversation, ConversationRow } from '../types/db';
 
 export function conversationsKey(accountId?: string) {
@@ -46,10 +47,12 @@ export function useConversations(accountId: string | undefined) {
             // Pesan masuk baru (unread naik)
             if ((newRow.unread ?? 0) > (oldRow.unread ?? 0)) {
               notify(`Pesan baru dari ${labelOf(newRow)}`, 'info');
+              playEventSound('incoming');
             }
             // AI menyerahkan ke manusia
             if (oldRow.handler === 'ai' && newRow.handler === 'human') {
               notify(`${labelOf(newRow)} butuh penanganan manusia`, 'warn');
+              playEventSound('lowConfidence');
             }
             // Order masuk menunggu pembayaran (TF)
             if (oldRow.order_status !== 'waiting_payment' && newRow.order_status === 'waiting_payment') {

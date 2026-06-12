@@ -27,3 +27,10 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+
+# Kiro IDE (steering, specs, hooks) — tidak ikut ke repo publik
+.kiro/
+
+# Dokumen internal: hanya README.md yang dipublikasikan
+*.md
+!README.md

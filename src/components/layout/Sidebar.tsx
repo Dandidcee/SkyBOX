@@ -13,7 +13,8 @@ import {
   MdDarkMode,
   MdLightMode,
   MdChevronLeft,
-  MdChevronRight
+  MdChevronRight,
+  MdLogout
 } from 'react-icons/md';
 import type { Account } from '../../App';
 import './Sidebar.css';
@@ -36,8 +37,10 @@ interface SidebarProps {
   onRenameAccount: (id: string, name: string) => void;
   activeView: string;
   setActiveView: (view: string) => void;
+  userEmail?: string;
+  onLogout?: () => void;
 }
-const Sidebar = ({ isVisible = true, toggleSidebar, accounts, activeAccountIds, toggleAccount, onRenameAccount, activeView, setActiveView }: SidebarProps) => {
+const Sidebar = ({ isVisible = true, toggleSidebar, accounts, activeAccountIds, toggleAccount, onRenameAccount, activeView, setActiveView, userEmail, onLogout }: SidebarProps) => {
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -179,18 +182,25 @@ const Sidebar = ({ isVisible = true, toggleSidebar, accounts, activeAccountIds, 
       
       <div className="sidebar-footer">
         <div className="user-profile">
-          <div className="avatar">AD</div>
+          <div className="avatar">{(userEmail?.[0] || 'A').toUpperCase()}</div>
           <div className="user-info">
-            <span className="user-name">Admin User</span>
-            <span className="user-role">Superadmin</span>
+            <span className="user-name" title={userEmail}>{userEmail || 'Admin'}</span>
+            <span className="user-role">Admin</span>
           </div>
         </div>
-        <button 
-          className="icon-btn theme-toggle" 
+        <button
+          className="icon-btn theme-toggle"
           onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
           title="Toggle Dark/Light Mode"
         >
           {theme === 'light' ? <MdDarkMode size={20} /> : <MdLightMode size={20} />}
+        </button>
+        <button
+          className="icon-btn logout-btn"
+          onClick={onLogout}
+          title="Keluar"
+        >
+          <MdLogout size={20} />
         </button>
       </div>
     </aside>

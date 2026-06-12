@@ -16,6 +16,8 @@ export type NotificationLevel = 'info' | 'success' | 'warn' | 'error';
 // ---------- Tipe domain (frontend) ----------
 export interface Account {
   id: string; // uuid Supabase
+  /** uuid admin pemilik (auth.users). Diisi otomatis saat membuat akun. */
+  ownerId?: string | null;
   name: string;
   phone: string;
   color: string;
@@ -69,6 +71,7 @@ export interface Order {
 // ---------- Tipe baris DB (snake_case, sesuai Supabase) ----------
 export interface AccountRow {
   id: string;
+  owner_id: string | null;
   name: string;
   phone: string;
   color: string;

@@ -14,7 +14,13 @@ export const isSupabaseConfigured = Boolean(url && anonKey);
  * Komponen sebaiknya memakai guard `isSupabaseConfigured` sebelum memakai klien.
  */
 export const supabase: SupabaseClient | null = isSupabaseConfigured
-  ? createClient(url, anonKey)
+  ? createClient(url, anonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    })
   : null;
 
 /** Mengembalikan klien atau melempar error bila belum dikonfigurasi. */

@@ -1,12 +1,54 @@
 import { useState } from 'react';
-import { MdDarkMode, MdLightMode, MdHub, MdCloudDone, MdCloudOff } from 'react-icons/md';
+import {
+  MdDarkMode, MdLightMode, MdHub, MdCloudDone, MdCloudOff,
+  MdPlayArrow, MdVolumeUp, MdVolumeOff,
+} from 'react-icons/md';
 import { isSupabaseConfigured } from '../../services/supabase';
+import { useSoundStore, type SoundEvent } from '../../lib/soundStore';
+import { TONES, playTone } from '../../lib/sound';
 import '../dashboard/Dashboard.css';
 import './Settings.css';
 
 interface SettingsProps {
   setActiveView: (view: string) => void;
 }
+
+const SoundRow = ({ event, label, desc }: { event: SoundEvent; label: string; desc: string }) => {
+  const pref = useSoundStore((s) => s.prefs[event]);
+  const setTone = useSoundStore((s) => s.setTone);
+  const setEnabled = useSoundStore((s) => s.setEnabled);
+
+  return (
+    <div className="settings-row">
+      <div>
+        <div className="settings-label">{label}</div>
+        <div className="settings-desc">{desc}</div>
+      </div>
+      <div className="sound-controls">
+        <select
+          className="settings-select"
+          value={pref.tone}
+          disabled={!pref.enabled}
+          onChange={(e) => setTone(event, e.target.value)}
+        >
+          {TONES.map((t) => (
+            <option key={t.id} value={t.id}>{t.label}</option>
+          ))}
+        </select>
+        <button className="settings-icon-btn" title="Coba suara" onClick={() => playTone(pref.tone)}>
+          <MdPlayArrow size={18} />
+        </button>
+        <button
+          className={`settings-icon-btn ${pref.enabled ? 'on' : 'off'}`}
+          title={pref.enabled ? 'Matikan suara' : 'Aktifkan suara'}
+          onClick={() => setEnabled(event, !pref.enabled)}
+        >
+          {pref.enabled ? <MdVolumeUp size={18} /> : <MdVolumeOff size={18} />}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const Settings = ({ setActiveView }: SettingsProps) => {
   const [theme, setTheme] = useState(document.documentElement.getAttribute('data-theme') || 'light');
@@ -56,6 +98,13 @@ const Settings = ({ setActiveView }: SettingsProps) => {
             <span>Buka Integrations</span>
           </button>
         </div>
+      </div>
+
+      <h3 className="settings-section-title">Notifikasi Suara</h3>
+      <div className="settings-card">
+        <SoundRow event="incoming" label="Pesan Masuk" desc="Bunyi saat ada chat baru dari pelanggan." />
+        <SoundRow event="lowConfidence" label="Confidence AI Rendah" desc="Bunyi saat chat dialihkan otomatis ke manusia." />
+        <SoundRow event="error" label="Error / Workflow Gagal" desc="Bunyi saat ada notifikasi error dari sistem." />
       </div>
 
       <div className="settings-about">

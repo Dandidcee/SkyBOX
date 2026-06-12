@@ -1,6 +1,6 @@
 // CRUD akun WhatsApp ke tabel Supabase `accounts`.
-// Catatan keamanan: butuh policy RLS anon untuk insert/update/delete pada `accounts`
-// (tool internal 1 CS). Tabel lain tetap read-only dari frontend.
+// Keamanan: RLS berbasis kepemilikan (accounts.owner_id = auth.uid()). Admin hanya
+// bisa mengelola akun miliknya. insertAccount mengisi owner_id dari user yang login.
 
 import { getSupabase } from './supabase';
 import { mapAccountRow } from './mappers';
@@ -33,7 +33,11 @@ function toRow(a: Partial<Omit<Account, 'id'>>): Record<string, unknown> {
 }
 
 export async function insertAccount(data: Omit<Account, 'id'>): Promise<void> {
-  const { error } = await getSupabase().from(TABLE).insert(toRow(data));
+  const sb = getSupabase();
+  const { data: userData } = await sb.auth.getUser();
+  const ownerId = userData.user?.id;
+  if (!ownerId) throw new Error('Harus login untuk menambah akun.');
+  const { error } = await sb.from(TABLE).insert({ ...toRow(data), owner_id: ownerId });
   if (error) throw error;
 }
 

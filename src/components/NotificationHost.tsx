@@ -17,9 +17,9 @@ const NotificationHost = () => {
         ))}
       </div>
 
-      {realtime !== 'connected' && (
-        <div className={`realtime-pill ${realtime}`}>
-          {realtime === 'connecting' ? 'Menyambungkan realtime…' : 'Realtime terputus — mencoba menyambung…'}
+      {realtime === 'disconnected' && (
+        <div className="realtime-pill disconnected">
+          Realtime terputus — menyambung ulang…
         </div>
       )}
     </>
