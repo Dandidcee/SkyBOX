@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { MdReceiptLong, MdSearch, MdVerified, MdCheck, MdChatBubbleOutline } from 'react-icons/md';
+import { MdReceiptLong, MdSearch, MdVerified, MdCheck, MdChatBubbleOutline, MdPictureAsPdf, MdGridOn } from 'react-icons/md';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Account } from '../../types/db';
 import { useAllOrders } from '../../hooks/useAllOrders';
 import { setOrderVerified } from '../../services/orders';
+import { exportOrdersCSV, printOrdersPDF, type ExportOrderRow } from '../../lib/exportOrders';
 import '../dashboard/Dashboard.css';
 import './Orders.css';
 
@@ -59,6 +60,30 @@ const Orders = ({ accounts, onOpenChat }: OrdersProps) => {
     return true;
   });
 
+  const filterTitle: Record<FilterKey, string> = {
+    all: 'Tracking Order — Semua',
+    closing: 'Tracking Order — Closing',
+    waiting_payment: 'Tracking Order — Menunggu Bayar',
+    verified: 'Tracking Order — Terverifikasi',
+  };
+
+  const buildExportRows = (): ExportOrderRow[] => filtered.map(o => ({
+    createdAt: o.createdAt,
+    customerName: o.customerName,
+    customerPhone: o.customerPhone,
+    account: accName(o.accountId),
+    items: o.items,
+    address: o.address,
+    note: o.note,
+    method: o.type === 'tf' ? 'Transfer' : 'COD',
+    amount: o.amount,
+    phase: statusBadge[o.orderStatus] ?? o.orderStatus ?? '-',
+    verified: o.verified,
+  }));
+
+  const handleExportPDF = () => printOrdersPDF(buildExportRows(), filterTitle[filter]);
+  const handleExportCSV = () => exportOrdersCSV(buildExportRows(), `tracking-order-${filter}`);
+
   return (
     <div className="dashboard-container">
       <div className="dashboard-header">
@@ -75,6 +100,14 @@ const Orders = ({ accounts, onOpenChat }: OrdersProps) => {
         <div className="orders-search">
           <MdSearch size={18} />
           <input placeholder="Cari nama / barang / alamat…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <div className="orders-export">
+          <button className="orders-export-btn pdf" onClick={handleExportPDF} disabled={filtered.length === 0} title="Cetak PDF">
+            <MdPictureAsPdf size={16} /> PDF
+          </button>
+          <button className="orders-export-btn excel" onClick={handleExportCSV} disabled={filtered.length === 0} title="Export Excel (CSV)">
+            <MdGridOn size={16} /> Excel
+          </button>
         </div>
       </div>
 
