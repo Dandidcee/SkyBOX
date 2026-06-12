@@ -29,7 +29,8 @@ const emptyForm: AccountForm = {
   toggleWebhookUrl: '',
   sendMessageWebhookUrl: '',
   sendMediaWebhookUrl: '',
-  confidenceThreshold: 70,
+  analyzeWebhookUrl: '',
+  confidenceThreshold: 75,
   bankAccount: '',
 };
 
@@ -148,6 +149,13 @@ const Integrations = ({ accounts, onAdd, onUpdate, onDelete }: IntegrationsProps
                 </span>
               </div>
               <div className="config-row">
+                <MdWebhook size={16} className="config-icon" />
+                <span className="config-label">Webhook Analisis AI</span>
+                <span className={`config-value ${acc.analyzeWebhookUrl ? 'ok' : 'warn'}`}>
+                  {acc.analyzeWebhookUrl || 'belum diatur'}
+                </span>
+              </div>
+              <div className="config-row">
                 <MdSpeed size={16} className="config-icon" />
                 <span className="config-label">Batas Confidence</span>
                 <span className="config-value">{acc.confidenceThreshold}</span>
@@ -253,6 +261,16 @@ const Integrations = ({ accounts, onAdd, onUpdate, onDelete }: IntegrationsProps
                   value={form.sendMediaWebhookUrl}
                   onChange={e => setField('sendMediaWebhookUrl', e.target.value)}
                   placeholder="https://n8n.domain/webhook/kirim-media"
+                />
+              </label>
+
+              <label className="field">
+                <span className="field-label">Webhook Analisis AI (rangkum percakapan)</span>
+                <input
+                  className="field-input"
+                  value={form.analyzeWebhookUrl}
+                  onChange={e => setField('analyzeWebhookUrl', e.target.value)}
+                  placeholder="https://n8n.domain/webhook/analisis"
                 />
               </label>
 

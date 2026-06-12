@@ -1,0 +1,109 @@
+.orders-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+  margin-bottom: var(--spacing-md);
+}
+
+.orders-tabs { display: flex; gap: var(--spacing-sm); flex-wrap: wrap; }
+
+.orders-tab {
+  height: 34px;
+  padding: 0 var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+.orders-tab.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+
+.orders-search {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  height: 36px;
+  padding: 0 var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  min-width: 240px;
+}
+.orders-search input {
+  border: none; outline: none; background: transparent; flex: 1;
+  font-family: var(--font-family); font-size: var(--font-size-sm); color: var(--color-text-primary);
+}
+
+.orders-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  overflow: hidden;
+}
+
+.orders-empty {
+  padding: var(--spacing-2xl);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.orders-table-wrap { width: 100%; overflow-x: auto; }
+
+.orders-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
+.orders-table th, .orders-table td {
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+.orders-table th {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: var(--font-size-caption);
+  white-space: nowrap;
+  background: var(--color-background);
+}
+.orders-table tr:last-child td { border-bottom: none; }
+.orders-table tbody tr:hover { background: var(--color-background); }
+
+.ord-date { white-space: nowrap; color: var(--color-text-secondary); }
+.ord-cust { font-weight: 600; }
+.ord-phone { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+.ord-phone-col { white-space: nowrap; color: var(--color-text-secondary); }
+.ord-items { min-width: 160px; }
+.ord-addr, .ord-note { min-width: 180px; color: var(--color-text-secondary); white-space: pre-wrap; }
+.ord-amount { white-space: nowrap; font-weight: 600; }
+
+.ord-acc { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ord-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+
+.ord-method {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.ord-method.tf { background: color-mix(in srgb, var(--color-primary) 16%, transparent); color: var(--color-primary-dark); }
+.ord-method.cod { background: color-mix(in srgb, var(--color-warning) 18%, transparent); color: var(--color-warning); }
+
+.ord-phase {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+.ord-phase.closing { background: color-mix(in srgb, var(--color-primary) 16%, transparent); color: var(--color-primary-dark); border-color: transparent; }
+.ord-phase.waiting_payment { background: color-mix(in srgb, var(--color-warning) 18%, transparent); color: var(--color-warning); border-color: transparent; }

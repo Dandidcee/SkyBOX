@@ -131,13 +131,34 @@
 .inbox-tabs-container {
   padding: 0 var(--spacing-lg) var(--spacing-md);
   border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
+
+.tab-scroll {
+  flex-shrink: 0;
+  width: 24px;
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.tab-scroll:hover { border-color: var(--color-primary); color: var(--color-primary); }
 
 .inbox-tabs {
   display: flex;
   gap: 8px;
   overflow-x: auto;
   scrollbar-width: none; /* Firefox */
+  flex: 1;
+  scroll-behavior: smooth;
 }
 
 .inbox-tabs::-webkit-scrollbar {
@@ -672,6 +693,16 @@
   line-height: 1.4;
   display: block;
   margin-bottom: 4px;
+  white-space: pre-wrap;     /* hormati \n / enter biar rapi seperti WA */
+  overflow-wrap: anywhere;   /* teks/URL panjang tetap wrap, tidak melebar */
+}
+
+.bubble-text .wa-mono {
+  font-family: ui-monospace, 'Courier New', monospace;
+  font-size: 0.92em;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 1px 4px;
+  border-radius: 4px;
 }
 
 .bubble-time {
@@ -680,6 +711,21 @@
   float: right;
   margin-top: 4px;
   margin-left: 12px;
+}
+
+/* Ikon status kirim (ala WA) */
+.msg-ack {
+  vertical-align: middle;
+  margin-left: 3px;
+}
+.msg-ack.sent { color: #53bdeb; }       /* ✓✓ biru = terkirim */
+.msg-ack.sending { color: var(--color-text-secondary); } /* jam = mengirim */
+.msg-ack.is-failed { color: var(--color-error); }        /* ! merah = gagal */
+
+/* Bubble gagal kirim */
+.bubble.is-failed {
+  border: 1px solid var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 8%, var(--color-bubble-sent));
 }
 
 .chat-input-area {
@@ -764,7 +810,8 @@
 .message-input {
   flex: 1;
   min-height: 40px;
-  padding: 8px 4px;
+  max-height: 120px;
+  padding: 9px 4px;
   border: none;
   border-radius: 0;
   background-color: transparent;
@@ -773,6 +820,9 @@
   color: var(--color-text-primary);
   outline: none;
   min-width: 0;
+  resize: none;
+  overflow-y: auto;
+  line-height: 1.4;
 }
 
 .btn-primary.icon-only {

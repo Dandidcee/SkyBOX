@@ -11,12 +11,13 @@ export type ConversationHandler = 'ai' | 'human';
 export type MediaType = 'image' | 'document';
 
 /** Aksi yang tersedia, dipetakan ke field URL webhook pada Account */
-export type N8nAction = 'toggle' | 'sendMessage' | 'sendMedia';
+export type N8nAction = 'toggle' | 'sendMessage' | 'sendMedia' | 'analyze';
 
 const WEBHOOK_FIELD: Record<N8nAction, keyof Account> = {
   toggle: 'toggleWebhookUrl',
   sendMessage: 'sendMessageWebhookUrl',
   sendMedia: 'sendMediaWebhookUrl',
+  analyze: 'analyzeWebhookUrl',
 };
 
 /**
@@ -74,4 +75,32 @@ export function sendMedia(
   payload: { conversationId: string; phone: string; chatId: string; mediaType: MediaType; filename: string; dataBase64: string; caption?: string }
 ): Promise<void> {
   return callN8n(account, 'sendMedia', payload);
+}
+
+/** Minta N8N (AI agent) merangkum/menganalisis percakapan.
+ *  Mengembalikan teks ringkasan dari respons webhook (butuh CORS `*` di N8N). */
+export async function analyzeConversation(
+  account: Account,
+  payload: { conversationId: string; phone: string; chatId: string }
+): Promise<string> {
+  const url = account.analyzeWebhookUrl?.trim();
+  if (!url) {
+    throw new Error(`Webhook "analyze" untuk akun "${account.name}" belum diatur. Lengkapi di menu Integrations.`);
+  }
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'analyze',
+      accountId: account.id,
+      accountPhone: account.phone,
+      wahaSession: account.wahaSession,
+      ...payload,
+    }),
+  });
+  if (!res.ok) throw new Error(`Analisis gagal (HTTP ${res.status})`);
+  const data = await res.json().catch(() => null);
+  if (data == null) return '';
+  if (typeof data === 'string') return data;
+  return data.summary ?? data.result ?? data.text ?? data.output ?? JSON.stringify(data);
 }

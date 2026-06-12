@@ -29,10 +29,16 @@ export interface Account {
   sendMessageWebhookUrl: string;
   /** Webhook N8N: kirim media (gambar/PDF) */
   sendMediaWebhookUrl: string;
+  /** Webhook N8N: analisis/rangkum percakapan (AI agent) */
+  analyzeWebhookUrl: string;
   /** Batas confidence: di bawah ini AI auto-serahkan ke human (0-100) */
   confidenceThreshold: number;
   /** Nomor rekening untuk alur pembayaran TF */
   bankAccount: string;
+  /** Cek ongkir: ID kota/subdistrict asal (sesuai API ongkir) */
+  originCityId?: string;
+  /** Cek ongkir: label kota asal (tampilan) */
+  originLabel?: string;
 }
 
 export interface Conversation {
@@ -68,6 +74,8 @@ export interface Order {
   status: string;
   address: string | null;
   amount: number | null;
+  items: string;
+  note: string;
 }
 
 // ---------- Tipe baris DB (snake_case, sesuai Supabase) ----------
@@ -81,6 +89,7 @@ export interface AccountRow {
   toggle_webhook_url: string;
   send_message_webhook_url: string;
   send_media_webhook_url: string;
+  analyze_webhook_url: string;
   confidence_threshold: number;
   bank_account: string;
 }
@@ -117,6 +126,9 @@ export interface OrderRow {
   status: string;
   address: string | null;
   amount: number | null;
+  items: string;
+  note: string;
+  created_at: string;
 }
 
 export interface NotificationRow {

@@ -20,6 +20,7 @@ export const mapAccountRow = (r: AccountRow): Account => ({
   toggleWebhookUrl: r.toggle_webhook_url,
   sendMessageWebhookUrl: r.send_message_webhook_url,
   sendMediaWebhookUrl: r.send_media_webhook_url,
+  analyzeWebhookUrl: r.analyze_webhook_url,
   confidenceThreshold: r.confidence_threshold,
   bankAccount: r.bank_account,
 });
@@ -56,6 +57,8 @@ export const mapOrderRow = (r: OrderRow): Order => ({
   status: r.status,
   address: r.address,
   amount: r.amount,
+  items: r.items,
+  note: r.note,
 });
 
 export const mapProductRow = (r: ProductRow): Product => ({

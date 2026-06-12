@@ -6,6 +6,8 @@ import Dashboard from './features/dashboard/Dashboard';
 import Integrations from './features/integrations/Integrations';
 import Analytics from './features/analytics/Analytics';
 import Catalog from './features/catalog/Catalog';
+import Orders from './features/orders/Orders';
+import Ongkir from './features/ongkir/Ongkir';
 import Settings from './features/settings/Settings';
 import Notifications from './features/notifications/Notifications';
 import Login from './features/auth/Login';
@@ -159,6 +161,10 @@ function App() {
           <Analytics accounts={accounts} />
         ) : activeView === 'catalog' ? (
           <Catalog accounts={accounts} />
+        ) : activeView === 'orders' ? (
+          <Orders accounts={accounts} />
+        ) : activeView === 'ongkir' ? (
+          <Ongkir />
         ) : activeView === 'notifications' ? (
           <Notifications accounts={accounts} />
         ) : activeView === 'settings' ? (

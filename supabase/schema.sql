@@ -15,7 +15,7 @@ create table if not exists accounts (
   toggle_webhook_url text default '',
   send_message_webhook_url text default '',
   send_media_webhook_url text default '',
-  confidence_threshold int not null default 70 check (confidence_threshold between 0 and 100),
+  confidence_threshold int not null default 75 check (confidence_threshold between 0 and 100),
   bank_account text default '',
   created_at timestamptz default now()
 );
@@ -211,3 +211,19 @@ drop policy if exists "own knowledge all" on knowledge;
 create policy "own knowledge all" on knowledge for all to authenticated
   using (account_id in (select id from accounts where owner_id = auth.uid()))
   with check (account_id in (select id from accounts where owner_id = auth.uid()));
+
+-- ============================================================
+-- TAMBAHAN: dukungan Cek Ongkir (RajaOngkir/Komerce)
+-- origin (asal kirim) per akun + weight (gram) per produk.
+-- Dipakai N8N untuk hitung ongkir; API key ongkir hanya di N8N.
+-- ============================================================
+alter table accounts add column if not exists origin_city_id text default ''; -- ID kota/subdistrict asal (sesuai API ongkir)
+alter table accounts add column if not exists origin_label text default '';   -- label kota asal (tampilan)
+alter table products add column if not exists weight int;                      -- berat gram (untuk hitung ongkir)
+
+-- TAMBAHAN: webhook analisis/rangkum percakapan (AI agent) per akun.
+alter table accounts add column if not exists analyze_webhook_url text default '';
+
+-- TAMBAHAN: detail order untuk Tracking Order (diisi N8N saat closing).
+alter table orders add column if not exists items text default '';  -- barang yang dipesan
+alter table orders add column if not exists note text default '';   -- catatan pengiriman

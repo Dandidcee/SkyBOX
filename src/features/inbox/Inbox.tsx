@@ -8,6 +8,11 @@ import {
   MdSend,
   MdArrowBack,
   MdFilterList,
+  MdChevronLeft,
+  MdChevronRight,
+  MdDoneAll,
+  MdAccessTime,
+  MdErrorOutline,
 } from 'react-icons/md';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -16,6 +21,8 @@ import { useConversations, conversationsKey } from '../../hooks/useConversations
 import { useMessages } from '../../hooks/useMessages';
 import { useOrders } from '../../hooks/useOrders';
 import { setConversationHandler, sendTextMessage, sendMedia } from '../../services/n8n';
+import ContactPanel from './ContactPanel';
+import { renderWaText } from '../../lib/waText';
 
 const getConfidenceColor = (percent: number) => {
   if (percent >= 85) return '#3B82F6';
@@ -84,6 +91,15 @@ interface InboxProps {
 type TabKey = 'all' | 'ai' | 'human' | 'lead' | 'waiting_payment' | 'closing';
 type FilterKey = 'all' | 'confidence_high' | 'confidence_med' | 'confidence_low';
 
+/** Pesan optimistik (sedang dikirim dari dashboard) sebelum tersimpan di DB. */
+type PendingMsg = {
+  id: string;
+  conversationId: string;
+  body: string;
+  status: 'sending' | 'sent' | 'failed';
+  createdAt: string;
+};
+
 const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange }: InboxProps) => {
   const qc = useQueryClient();
   const accountId = account?.id;
@@ -102,12 +118,18 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange 
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [toastMessage, setToastMessage] = useState<React.ReactNode | null>(null);
+  const [isContactOpen, setIsContactOpen] = useState(false);
+  const [pending, setPending] = useState<PendingMsg[]>([]);
 
   const listRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const tempIdRef = useRef(0);
+
+  const scrollTabs = (dir: number) => tabsRef.current?.scrollBy({ left: dir * 160, behavior: 'smooth' });
 
   const resolvedConversationId =
     activeConversationId && conversations.some(c => c.id === activeConversationId)
@@ -120,11 +142,17 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange 
   const { data: orders = [] } = useOrders(resolvedConversationId ?? undefined);
   const latestOrder = orders[0] ?? null;
 
-  // Auto-scroll ke pesan terbaru saat ada pesan baru / ganti percakapan.
+  // Pesan optimistik untuk conversation aktif; sembunyikan yang sudah tersimpan di DB (dedup by body).
+  const outBodies = new Set(messages.filter(m => m.direction === 'out').map(m => m.body));
+  const visiblePending = pending.filter(
+    p => p.conversationId === resolvedConversationId && (p.status === 'failed' || !outBodies.has(p.body))
+  );
+
+  // Auto-scroll ke pesan terbaru saat ada pesan baru / ganti percakapan / kirim.
   useEffect(() => {
     const el = timelineRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, resolvedConversationId]);
+  }, [messages.length, resolvedConversationId, pending]);
 
   const showToast = (msg: React.ReactNode) => {
     setToastMessage(msg);
@@ -215,10 +243,14 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange 
     }
   };
 
-  // Kirim balasan teks via webhook N8N.
+  // Kirim balasan teks via webhook N8N (optimistik + status kirim).
   const handleSendText = async () => {
     const text = messageText.trim();
     if (!text || !activeConversation || !account) return;
+    const tempId = `tmp-${tempIdRef.current++}`;
+    const convId = activeConversation.id;
+    setPending(prev => [...prev, { id: tempId, conversationId: convId, body: text, status: 'sending', createdAt: new Date().toISOString() }]);
+    setMessageText('');
     try {
       await sendTextMessage(account, {
         conversationId: activeConversation.id,
@@ -226,8 +258,9 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange 
         chatId: activeConversation.chatId,
         text,
       });
-      setMessageText('');
+      setPending(prev => prev.map(m => (m.id === tempId ? { ...m, status: 'sent' } : m)));
     } catch (err) {
+      setPending(prev => prev.map(m => (m.id === tempId ? { ...m, status: 'failed' } : m)));
       showToast(err instanceof Error ? err.message : 'Gagal mengirim pesan.');
     }
   };
@@ -338,7 +371,12 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange 
         </div>
 
         <div className="inbox-tabs-container">
-          <div className="inbox-tabs">
+          <button className="tab-scroll" onClick={() => scrollTabs(-1)} title="Geser kiri"><MdChevronLeft size={18} /></button>
+          <div
+            className="inbox-tabs"
+            ref={tabsRef}
+            onWheel={(e) => { if (tabsRef.current) tabsRef.current.scrollLeft += e.deltaY; }}
+          >
             <button className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>All</button>
             <button className={`tab-btn ${activeTab === 'ai' ? 'active' : ''}`} onClick={() => setActiveTab('ai')}>AI Handled</button>
             <button className={`tab-btn ${activeTab === 'human' ? 'active' : ''}`} onClick={() => setActiveTab('human')}>Human</button>
@@ -346,6 +384,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange 
             <button className={`tab-btn ${activeTab === 'waiting_payment' ? 'active' : ''}`} onClick={() => setActiveTab('waiting_payment')}>Waiting Payment</button>
             <button className={`tab-btn ${activeTab === 'closing' ? 'active' : ''}`} onClick={() => setActiveTab('closing')}>Closing</button>
           </div>
+          <button className="tab-scroll" onClick={() => scrollTabs(1)} title="Geser kanan"><MdChevronRight size={18} /></button>
         </div>
 
         <div className="list-items">
@@ -386,8 +425,13 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange 
       {/* Column 2: Chat Area */}
       <div className={`chat-area ${!isMobileChatOpen ? 'mobile-hidden' : ''}`}>
         <div className="chat-header">
-          <div className="chat-header-info">
-            <button className="icon-btn mobile-only-btn" onClick={() => { setIsMobileChatOpen(false); onMobileChatOpenChange?.(false); }}>
+          <div
+            className="chat-header-info"
+            onClick={() => { if (activeConversation) setIsContactOpen(true); }}
+            style={{ cursor: activeConversation ? 'pointer' : 'default' }}
+            title={activeConversation ? 'Lihat info kontak' : undefined}
+          >
+            <button className="icon-btn mobile-only-btn" onClick={(e) => { e.stopPropagation(); setIsMobileChatOpen(false); onMobileChatOpenChange?.(false); }}>
               <MdArrowBack size={24} />
             </button>
             <div className="chat-avatar" style={{ backgroundColor: 'var(--color-primary)' }}>
@@ -441,30 +485,48 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange 
           )}
           {!activeConversation ? (
             <div style={{ margin: 'auto', color: 'var(--color-text-secondary)', fontSize: 13 }}>Pilih percakapan untuk melihat pesan.</div>
-          ) : msgLoading ? (
+          ) : msgLoading && messages.length === 0 ? (
             <div style={{ margin: 'auto', color: 'var(--color-text-secondary)', fontSize: 13 }}>Memuat pesan…</div>
-          ) : messages.length === 0 ? (
+          ) : messages.length === 0 && visiblePending.length === 0 ? (
             <div style={{ margin: 'auto', color: 'var(--color-text-secondary)', fontSize: 13 }}>Belum ada pesan.</div>
           ) : (
-            messages.map(m => (
-              <div key={m.id} className={`bubble-wrapper ${m.direction === 'out' ? 'sent' : 'received'}`}>
-                <div className={`bubble ${m.type === 'image' && m.mediaUrl ? 'has-media' : ''}`}>
-                  {m.type === 'image' && m.mediaUrl && (
-                    <img
-                      src={toEmbeddableUrl(m.mediaUrl)}
-                      alt="media"
-                      onClick={() => window.open(toEmbeddableUrl(m.mediaUrl), '_blank')}
-                      style={{ width: '100%', borderRadius: 6, marginBottom: 4, display: 'block', cursor: 'pointer' }}
-                    />
-                  )}
-                  {m.type === 'document' && m.mediaUrl && (
-                    <a href={toEmbeddableUrl(m.mediaUrl)} target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary-dark)' }}>📄 Buka dokumen</a>
-                  )}
-                  {m.body && <span className="bubble-text">{m.body}</span>}
-                  <span className="bubble-time">{fmtTime(m.createdAt)}</span>
+            <>
+              {messages.map(m => (
+                <div key={m.id} className={`bubble-wrapper ${m.direction === 'out' ? 'sent' : 'received'}`}>
+                  <div className={`bubble ${m.type === 'image' && m.mediaUrl ? 'has-media' : ''}`}>
+                    {m.type === 'image' && m.mediaUrl && (
+                      <img
+                        src={toEmbeddableUrl(m.mediaUrl)}
+                        alt="media"
+                        onClick={() => window.open(toEmbeddableUrl(m.mediaUrl), '_blank')}
+                        style={{ width: '100%', borderRadius: 6, marginBottom: 4, display: 'block', cursor: 'pointer' }}
+                      />
+                    )}
+                    {m.type === 'document' && m.mediaUrl && (
+                      <a href={toEmbeddableUrl(m.mediaUrl)} target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary-dark)' }}>📄 Buka dokumen</a>
+                    )}
+                    {m.body && <span className="bubble-text">{renderWaText(m.body)}</span>}
+                    <span className="bubble-time">
+                      {fmtTime(m.createdAt)}
+                      {m.direction === 'out' && <MdDoneAll size={14} className="msg-ack sent" />}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))
+              ))}
+              {visiblePending.map(p => (
+                <div key={p.id} className="bubble-wrapper sent">
+                  <div className={`bubble ${p.status === 'failed' ? 'is-failed' : ''}`}>
+                    <span className="bubble-text">{renderWaText(p.body)}</span>
+                    <span className="bubble-time">
+                      {fmtTime(p.createdAt)}
+                      {p.status === 'sending' && <MdAccessTime size={13} className="msg-ack sending" />}
+                      {p.status === 'sent' && <MdDoneAll size={14} className="msg-ack sent" />}
+                      {p.status === 'failed' && <MdErrorOutline size={13} className="msg-ack is-failed" />}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </>
           )}
         </div>
 
@@ -484,13 +546,38 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange 
             <button ref={emojiButtonRef} className="icon-btn text-secondary" onClick={() => setIsEmojiOpen(!isEmojiOpen)}>
               <MdInsertEmoticon size={24} />
             </button>
-            <input
-              type="text"
+            <textarea
               placeholder="Ketik pesan..."
               className="message-input"
+              rows={1}
               value={messageText}
-              onChange={(e) => setMessageText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleSendText(); }}
+              onChange={(e) => {
+                setMessageText(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return;
+                if (e.shiftKey) return; // Shift+Enter → newline (default textarea)
+                if (e.ctrlKey || e.metaKey) {
+                  // Ctrl/Cmd+Enter → sisipkan baris baru di posisi kursor
+                  e.preventDefault();
+                  const ta = e.currentTarget;
+                  const s = ta.selectionStart ?? messageText.length;
+                  const en = ta.selectionEnd ?? messageText.length;
+                  const next = messageText.slice(0, s) + '\n' + messageText.slice(en);
+                  setMessageText(next);
+                  requestAnimationFrame(() => {
+                    ta.selectionStart = ta.selectionEnd = s + 1;
+                    ta.style.height = 'auto';
+                    ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+                  });
+                  return;
+                }
+                // Enter biasa → kirim
+                e.preventDefault();
+                handleSendText();
+              }}
             />
             <button className="icon-btn text-secondary" style={{ transform: 'rotate(45deg)' }} onClick={handlePickFile} disabled={isUploading} title="Kirim gambar/PDF">
               <MdAttachFile size={22} />
@@ -516,6 +603,15 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange 
 
         {toastMessage && <div className="custom-toast">{toastMessage}</div>}
       </div>
+
+      {isContactOpen && activeConversation && account && (
+        <ContactPanel
+          account={account}
+          conversation={activeConversation}
+          latestOrder={latestOrder}
+          onClose={() => setIsContactOpen(false)}
+        />
+      )}
     </div>
   );
 };

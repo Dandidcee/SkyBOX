@@ -27,6 +27,7 @@ function toRow(a: Partial<Omit<Account, 'id'>>): Record<string, unknown> {
   if (a.toggleWebhookUrl !== undefined) row.toggle_webhook_url = a.toggleWebhookUrl;
   if (a.sendMessageWebhookUrl !== undefined) row.send_message_webhook_url = a.sendMessageWebhookUrl;
   if (a.sendMediaWebhookUrl !== undefined) row.send_media_webhook_url = a.sendMediaWebhookUrl;
+  if (a.analyzeWebhookUrl !== undefined) row.analyze_webhook_url = a.analyzeWebhookUrl;
   if (a.confidenceThreshold !== undefined) row.confidence_threshold = a.confidenceThreshold;
   if (a.bankAccount !== undefined) row.bank_account = a.bankAccount;
   return row;
