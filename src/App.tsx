@@ -8,6 +8,7 @@ import Analytics from './features/analytics/Analytics';
 import Settings from './features/settings/Settings';
 import Notifications from './features/notifications/Notifications';
 import Login from './features/auth/Login';
+import ResetPassword from './features/auth/ResetPassword';
 import LoadingScreen from './components/LoadingScreen';
 import NotificationHost from './components/NotificationHost';
 import { useAccounts, useAccountMutations } from './hooks/useAccounts';
@@ -35,6 +36,7 @@ function App() {
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
+  const [recovery, setRecovery] = useState(false);
 
   const queryClient = useQueryClient();
   const { data: accounts = [], isLoading: accountsLoading, isError: accountsError, refetch } = useAccounts();
@@ -54,8 +56,9 @@ function App() {
     getSession()
       .then(setSession)
       .finally(() => setAuthReady(true));
-    const unsub = onAuthChange((s) => {
+    const unsub = onAuthChange((event, s) => {
       setSession(s);
+      if (event === 'PASSWORD_RECOVERY') setRecovery(true);
       queryClient.invalidateQueries(); // refetch data dgn JWT yang baru
     });
     return unsub;
@@ -121,6 +124,11 @@ function App() {
   // Belum siap cek auth → tampilkan loading singkat.
   if (!authReady) {
     return <div style={stateStyle}>Memuat…</div>;
+  }
+
+  // Mode recovery (dari link reset password di email) → set sandi baru.
+  if (recovery) {
+    return <ResetPassword onDone={() => setRecovery(false)} />;
   }
 
   // Belum login → halaman Login.

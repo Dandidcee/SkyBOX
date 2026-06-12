@@ -2,7 +2,7 @@
 // Admin dibuat manual di dashboard Supabase (Authentication > Users). Tidak ada signup publik.
 // Login memakai email + password; session disimpan otomatis oleh supabase-js (localStorage).
 
-import type { Session, User } from '@supabase/supabase-js';
+import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import { getSupabase } from './supabase';
 
 /** Ambil session aktif (null bila belum login). */
@@ -25,14 +25,36 @@ export async function signIn(email: string, password: string): Promise<Session> 
   return data.session;
 }
 
+/** Daftar admin baru (email + password). Bila konfirmasi email aktif, user harus verifikasi
+ *  lewat email dulu; bila nonaktif, langsung login. Mengembalikan true bila langsung punya session. */
+export async function signUp(email: string, password: string): Promise<{ needsConfirmation: boolean }> {
+  const { data, error } = await getSupabase().auth.signUp({ email, password });
+  if (error) throw error;
+  return { needsConfirmation: !data.session };
+}
+
+/** Kirim email reset password. Link mengarah balik ke aplikasi (mode set sandi baru). */
+export async function resetPassword(email: string): Promise<void> {
+  const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin,
+  });
+  if (error) throw error;
+}
+
+/** Set password baru untuk user yang sedang login / sesi recovery. */
+export async function updatePassword(newPassword: string): Promise<void> {
+  const { error } = await getSupabase().auth.updateUser({ password: newPassword });
+  if (error) throw error;
+}
+
 /** Logout admin. */
 export async function signOut(): Promise<void> {
   const { error } = await getSupabase().auth.signOut();
   if (error) throw error;
 }
 
-/** Berlangganan perubahan status auth (login/logout/refresh). Kembalikan fungsi unsubscribe. */
-export function onAuthChange(cb: (session: Session | null) => void): () => void {
-  const { data } = getSupabase().auth.onAuthStateChange((_event, session) => cb(session));
+/** Berlangganan perubahan status auth (login/logout/refresh/recovery). Kembalikan fungsi unsubscribe. */
+export function onAuthChange(cb: (event: AuthChangeEvent, session: Session | null) => void): () => void {
+  const { data } = getSupabase().auth.onAuthStateChange((event, session) => cb(event, session));
   return () => data.subscription.unsubscribe();
 }

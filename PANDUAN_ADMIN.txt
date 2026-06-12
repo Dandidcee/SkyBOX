@@ -1,0 +1,128 @@
+========================================================
+  PANDUAN ADMIN — SkyBox WA Inbox CRM (by SkyFlowID)
+  Login, Daftar, Reset Password (via Supabase)
+========================================================
+
+Semua query SQL dijalankan di:
+  Supabase  ->  SQL Editor  ->  tempel query  ->  RUN
+
+
+--------------------------------------------------------
+0) SETELAN AWAL (CUKUP SEKALI) — supaya daftar langsung bisa
+--------------------------------------------------------
+Matikan konfirmasi email biar admin daftar -> langsung masuk:
+  Supabase -> Authentication -> Providers -> Email
+  -> matikan "Confirm email" -> Save
+
+Pastikan skema database sudah dijalankan:
+  Tempel seluruh isi file  supabase/schema.sql  ke SQL Editor -> RUN
+  (aman dijalankan ulang / idempotent)
+
+
+--------------------------------------------------------
+1) DAFTAR ADMIN BARU (cara paling gampang, tanpa SQL)
+--------------------------------------------------------
+- Buka aplikasi -> halaman Login -> klik "Daftar admin baru"
+- Isi email + password -> Daftar
+- Kalau "Confirm email" sudah dimatikan (langkah 0), langsung masuk.
+
+Setelah login, akun WhatsApp yang ditambah lewat menu Integrations
+otomatis jadi milik admin itu (tidak perlu utak-atik UUID).
+
+
+--------------------------------------------------------
+2) GANTI PASSWORD (sudah login, tanpa email)
+--------------------------------------------------------
+Di aplikasi: menu Settings -> bagian "Akun" -> Ganti Password
+-> ketik password baru + ulangi -> Simpan. Selesai.
+
+
+--------------------------------------------------------
+3) RESET PASSWORD LEWAT SQL (kalau LUPA total / belum bisa login)
+--------------------------------------------------------
+Ganti 'PasswordBaru123' dan 'admin@skyflow.com' sesuai kebutuhan:
+
+  create extension if not exists pgcrypto;
+
+  update auth.users
+  set encrypted_password = crypt('PasswordBaru123', gen_salt('bf')),
+      updated_at = now()
+  where email = 'admin@skyflow.com';
+
+Setelah RUN, langsung bisa login pakai password baru itu.
+
+
+--------------------------------------------------------
+4) BUAT ADMIN LEWAT SQL (alternatif kalau tidak mau pakai halaman Daftar)
+--------------------------------------------------------
+Email: admin@skyflow.com   Password: Skybox123  (ganti sesukamu)
+
+  create extension if not exists pgcrypto;
+
+  -- hapus user lama dgn email sama (kalau ada sisa percobaan)
+  delete from auth.users where email = 'admin@skyflow.com';
+
+  with new_user as (
+    insert into auth.users (
+      instance_id, id, aud, role, email, encrypted_password,
+      email_confirmed_at, created_at, updated_at,
+      raw_app_meta_data, raw_user_meta_data,
+      confirmation_token, recovery_token, email_change_token_new, email_change
+    )
+    values (
+      '00000000-0000-0000-0000-000000000000',
+      gen_random_uuid(),
+      'authenticated', 'authenticated',
+      'admin@skyflow.com',
+      crypt('Skybox123', gen_salt('bf')),
+      now(), now(), now(),
+      '{"provider":"email","providers":["email"]}'::jsonb,
+      '{}'::jsonb,
+      '', '', '', ''
+    )
+    returning id, email
+  )
+  insert into auth.identities (
+    provider_id, user_id, identity_data, provider,
+    last_sign_in_at, created_at, updated_at
+  )
+  select
+    id::text, id,
+    jsonb_build_object('sub', id::text, 'email', email, 'email_verified', true),
+    'email', now(), now(), now()
+  from new_user;
+
+
+--------------------------------------------------------
+5) KLAIM AKUN WA LAMA KE SEORANG ADMIN
+--------------------------------------------------------
+Akun WhatsApp yang dibuat sebelum fitur login (owner_id kosong)
+belum kelihatan oleh admin mana pun. Klaim ke email tertentu:
+
+  update accounts
+  set owner_id = (select id from auth.users where email = 'admin@skyflow.com')
+  where owner_id is null;
+
+
+--------------------------------------------------------
+6) CEK-CEK BERGUNA
+--------------------------------------------------------
+Lihat daftar user admin:
+  select id, email, email_confirmed_at from auth.users;
+
+Lihat akun WA sudah dimiliki siapa:
+  select a.name, a.waha_session, u.email
+  from accounts a
+  left join auth.users u on u.id = a.owner_id;
+  -- kolom email kosong (NULL) = akun belum punya pemilik
+
+
+--------------------------------------------------------
+CATATAN PENTING
+--------------------------------------------------------
+- Setiap admin hanya melihat akun WhatsApp miliknya sendiri
+  (diamankan Row Level Security / RLS di Supabase).
+- service_role Supabase HANYA dipakai di N8N, JANGAN PERNAH
+  ditaruh di frontend / file .env aplikasi.
+- Frontend (.env) cukup pakai kunci anon/public.
+========================================================

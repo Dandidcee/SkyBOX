@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import {
   MdDarkMode, MdLightMode, MdHub, MdCloudDone, MdCloudOff,
-  MdPlayArrow, MdVolumeUp, MdVolumeOff,
+  MdPlayArrow, MdVolumeUp, MdVolumeOff, MdLock, MdCheck, MdVisibility, MdVisibilityOff,
 } from 'react-icons/md';
 import { isSupabaseConfigured } from '../../services/supabase';
+import { updatePassword } from '../../services/auth';
 import { useSoundStore, type SoundEvent } from '../../lib/soundStore';
 import { TONES, playTone } from '../../lib/sound';
 import '../dashboard/Dashboard.css';
@@ -46,6 +47,78 @@ const SoundRow = ({ event, label, desc }: { event: SoundEvent; label: string; de
           {pref.enabled ? <MdVolumeUp size={18} /> : <MdVolumeOff size={18} />}
         </button>
       </div>
+    </div>
+  );
+};
+
+const ChangePassword = () => {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const handleSave = async () => {
+    setMsg(null);
+    if (password.length < 6) {
+      setMsg({ ok: false, text: 'Password minimal 6 karakter.' });
+      return;
+    }
+    if (password !== confirm) {
+      setMsg({ ok: false, text: 'Konfirmasi password tidak cocok.' });
+      return;
+    }
+    setLoading(true);
+    try {
+      await updatePassword(password);
+      setMsg({ ok: true, text: 'Password berhasil diubah.' });
+      setPassword('');
+      setConfirm('');
+    } catch (err) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : 'Gagal mengubah password.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="settings-card">
+      <div className="settings-row">
+        <div>
+          <div className="settings-label">Ganti Password</div>
+          <div className="settings-desc">Ubah password akun admin kamu. Tidak perlu email.</div>
+        </div>
+      </div>
+      <div className="change-password">
+        <div className="cp-input-wrap">
+          <MdLock size={16} className="cp-icon" />
+          <input
+            type={showPass ? 'text' : 'password'}
+            placeholder="Password baru"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
+          />
+          <button type="button" className="cp-eye" onClick={() => setShowPass((s) => !s)} title={showPass ? 'Sembunyikan' : 'Tampilkan'}>
+            {showPass ? <MdVisibilityOff size={16} /> : <MdVisibility size={16} />}
+          </button>
+        </div>
+        <div className="cp-input-wrap">
+          <MdLock size={16} className="cp-icon" />
+          <input
+            type={showPass ? 'text' : 'password'}
+            placeholder="Ulangi password baru"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            disabled={loading}
+          />
+        </div>
+        <button className="settings-btn" onClick={handleSave} disabled={loading}>
+          <MdCheck size={18} />
+          <span>{loading ? 'Menyimpan…' : 'Simpan Password'}</span>
+        </button>
+      </div>
+      {msg && <div className={`cp-msg ${msg.ok ? 'ok' : 'err'}`}>{msg.text}</div>}
     </div>
   );
 };
@@ -99,6 +172,9 @@ const Settings = ({ setActiveView }: SettingsProps) => {
           </button>
         </div>
       </div>
+
+      <h3 className="settings-section-title">Akun</h3>
+      <ChangePassword />
 
       <h3 className="settings-section-title">Notifikasi Suara</h3>
       <div className="settings-card">
