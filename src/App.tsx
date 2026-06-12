@@ -16,6 +16,7 @@ import LoadingScreen from './components/LoadingScreen';
 import NotificationHost from './components/NotificationHost';
 import { useAccounts, useAccountMutations } from './hooks/useAccounts';
 import { useSystemNotifications } from './hooks/useSystemNotifications';
+import { useGlobalAlerts } from './hooks/useGlobalAlerts';
 import { isSupabaseConfigured } from './services/supabase';
 import { getSession, onAuthChange, signOut } from './services/auth';
 import type { Session } from '@supabase/supabase-js';
@@ -47,6 +48,7 @@ function App() {
   const { add, update, remove } = useAccountMutations();
 
   useSystemNotifications(accounts);
+  useGlobalAlerts(accounts, !!session);
 
   useEffect(() => {
     const onResize = () => setWindowWidth(window.innerWidth);
@@ -63,7 +65,8 @@ function App() {
     const unsub = onAuthChange((event, s) => {
       setSession(s);
       if (event === 'PASSWORD_RECOVERY') setRecovery(true);
-      queryClient.invalidateQueries(); // refetch data dgn JWT yang baru
+      // Refetch data hanya saat login/logout (bukan tiap refresh token).
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') queryClient.invalidateQueries();
     });
     return unsub;
   }, [queryClient]);
@@ -81,6 +84,13 @@ function App() {
     setActiveView('inbox');
     setActiveAccountIds([accountId]);
     setChatFocus({ accountId, conversationId });
+  };
+
+  // Navigasi view manual (sidebar/menu) — bersihkan fokus chat agar Inbox tidak
+  // lompat ke percakapan lama saat dibuka ulang.
+  const goView = (v: string) => {
+    setChatFocus(null);
+    setActiveView(v);
   };
 
   // Pilih akun aktif default saat daftar akun termuat / berubah.
@@ -158,7 +168,7 @@ function App() {
         toggleAccount={toggleAccount}
         onRenameAccount={(id, name) => update.mutate({ id, patch: { name } })}
         activeView={activeView}
-        setActiveView={setActiveView}
+        setActiveView={goView}
         userEmail={session.user?.email ?? ''}
         onLogout={handleLogout}
       />
@@ -176,7 +186,7 @@ function App() {
         ) : activeView === 'notifications' ? (
           <Notifications accounts={accounts} />
         ) : activeView === 'settings' ? (
-          <Settings setActiveView={setActiveView} />
+          <Settings setActiveView={goView} />
         ) : activeView === 'integrations' ? (
           <Integrations
             accounts={accounts}

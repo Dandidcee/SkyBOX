@@ -23,6 +23,7 @@ import { useOrders } from '../../hooks/useOrders';
 import { setConversationHandler, sendTextMessage, sendMedia } from '../../services/n8n';
 import ContactPanel from './ContactPanel';
 import { renderWaText } from '../../lib/waText';
+import { markSelfHandlerChange } from '../../lib/selfActions';
 
 const getConfidenceColor = (percent: number) => {
   if (percent >= 85) return '#3B82F6';
@@ -129,6 +130,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   const timelineRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
   const tempIdRef = useRef(0);
+  const resizerRef = useRef<HTMLDivElement>(null);
 
   const scrollTabs = (dir: number) => tabsRef.current?.scrollBy({ left: dir * 160, behavior: 'smooth' });
 
@@ -190,7 +192,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   useEffect(() => {
     let dragging = false;
     const onDown = (e: MouseEvent) => {
-      const resizer = document.getElementById('inbox-resizer');
+      const resizer = resizerRef.current;
       if (resizer && resizer.contains(e.target as Node)) {
         dragging = true;
         document.body.style.cursor = 'col-resize';
@@ -227,6 +229,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     const newHandler = switchingToHuman ? 'human' : 'ai';
     const key = conversationsKey(accountId);
     const prev = qc.getQueryData<Conversation[]>(key);
+    markSelfHandlerChange(activeConversation.id); // cegah notif "butuh manusia" palsu
     qc.setQueryData<Conversation[]>(key, old =>
       old?.map(c => (c.id === activeConversation.id ? { ...c, handler: newHandler } : c)) ?? old
     );
@@ -263,6 +266,25 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     } catch (err) {
       setPending(prev => prev.map(m => (m.id === tempId ? { ...m, status: 'failed' } : m)));
       showToast(err instanceof Error ? err.message : 'Gagal mengirim pesan.');
+    }
+  };
+
+  // Kirim ulang pesan yang gagal (klik bubble merah).
+  const retryPending = async (p: PendingMsg) => {
+    if (!account) return;
+    const conv = conversations.find(c => c.id === p.conversationId);
+    if (!conv) return;
+    setPending(prev => prev.map(m => (m.id === p.id ? { ...m, status: 'sending' } : m)));
+    try {
+      await sendTextMessage(account, {
+        conversationId: conv.id,
+        phone: conv.customerPhone,
+        chatId: conv.chatId,
+        text: p.body,
+      });
+      setPending(prev => prev.map(m => (m.id === p.id ? { ...m, status: 'sent' } : m)));
+    } catch {
+      setPending(prev => prev.map(m => (m.id === p.id ? { ...m, status: 'failed' } : m)));
     }
   };
 
@@ -421,7 +443,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
         </div>
       </div>
 
-      <div id="inbox-resizer" className="inbox-resizer hide-on-mobile"></div>
+      <div ref={resizerRef} className="inbox-resizer hide-on-mobile"></div>
 
       {/* Column 2: Chat Area */}
       <div className={`chat-area ${!isMobileChatOpen ? 'mobile-hidden' : ''}`}>
@@ -504,7 +526,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                       />
                     )}
                     {m.type === 'document' && m.mediaUrl && (
-                      <a href={toEmbeddableUrl(m.mediaUrl)} target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary-dark)' }}>📄 Buka dokumen</a>
+                      <a href={m.mediaUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary-dark)' }}>📄 Buka dokumen</a>
                     )}
                     {m.body && <span className="bubble-text">{renderWaText(m.body)}</span>}
                     <span className="bubble-time">
@@ -516,7 +538,12 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
               ))}
               {visiblePending.map(p => (
                 <div key={p.id} className="bubble-wrapper sent">
-                  <div className={`bubble ${p.status === 'failed' ? 'is-failed' : ''}`}>
+                  <div
+                    className={`bubble ${p.status === 'failed' ? 'is-failed' : ''}`}
+                    onClick={p.status === 'failed' ? () => retryPending(p) : undefined}
+                    style={p.status === 'failed' ? { cursor: 'pointer' } : undefined}
+                    title={p.status === 'failed' ? 'Klik untuk kirim ulang' : undefined}
+                  >
                     <span className="bubble-text">{renderWaText(p.body)}</span>
                     <span className="bubble-time">
                       {fmtTime(p.createdAt)}

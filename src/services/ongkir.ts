@@ -4,10 +4,10 @@
 // - Komerce sering tidak mengirim header CORS → panggilan browser bisa diblokir.
 //   Jika kena CORS, gunakan proxy (N8N) sebagai gantinya.
 
-// Saat dev (npm run dev) pakai proxy Vite (/ongkir-api) untuk hindari CORS.
-// Saat build/produksi pakai URL asli (idealnya nanti diganti panggilan via N8N).
 const BASE = import.meta.env.DEV ? '/ongkir-api' : 'https://rajaongkir.komerce.id/api/v1';
-const KEY = import.meta.env.VITE_RAJAONGKIR_KEY as string | undefined;
+// Key hanya dipakai/di-bundle saat dev (tes lokal). Di build produksi, dead-code
+// elimination membuang key ini → tidak bocor di bundle. Produksi: panggil via N8N.
+const KEY = import.meta.env.DEV ? (import.meta.env.VITE_RAJAONGKIR_KEY as string | undefined) : undefined;
 
 export const isOngkirConfigured = Boolean(KEY);
 
