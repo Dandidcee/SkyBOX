@@ -793,10 +793,15 @@
   background-color: var(--color-primary-dark);
 }
 
-/* Pastikan ikon kirim (paper plane) center & ukuran konsisten */
+/* Ikon kirim (paper plane) — paksa tampil putih & ukuran konsisten, center */
+.btn-primary.icon-only {
+  padding: 0;
+  color: #fff;
+}
+
 .btn-primary.icon-only svg {
-  width: 20px;
-  height: 20px;
-  display: block;
-  margin-left: 2px; /* optical centering: paper-plane condong ke kiri */
+  width: 22px;
+  height: 22px;
+  fill: #fff;
+  color: #fff;
 }
