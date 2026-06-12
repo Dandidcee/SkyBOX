@@ -76,6 +76,7 @@ export interface Order {
   amount: number | null;
   items: string;
   note: string;
+  verified: boolean;
 }
 
 // ---------- Tipe baris DB (snake_case, sesuai Supabase) ----------
@@ -128,6 +129,7 @@ export interface OrderRow {
   amount: number | null;
   items: string;
   note: string;
+  verified: boolean;
   created_at: string;
 }
 

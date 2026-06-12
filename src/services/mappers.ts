@@ -59,6 +59,7 @@ export const mapOrderRow = (r: OrderRow): Order => ({
   amount: r.amount,
   items: r.items,
   note: r.note,
+  verified: r.verified,
 });
 
 export const mapProductRow = (r: ProductRow): Product => ({

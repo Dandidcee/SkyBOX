@@ -40,6 +40,7 @@ function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
   const [recovery, setRecovery] = useState(false);
+  const [chatFocus, setChatFocus] = useState<{ accountId: string; conversationId: string } | null>(null);
 
   const queryClient = useQueryClient();
   const { data: accounts = [], isLoading: accountsLoading, isError: accountsError, refetch } = useAccounts();
@@ -73,6 +74,13 @@ function App() {
     } catch {
       /* abaikan */
     }
+  };
+
+  // Buka chat tertentu (mis. dari Tracking Order klik No HP).
+  const handleOpenChat = (accountId: string, conversationId: string) => {
+    setActiveView('inbox');
+    setActiveAccountIds([accountId]);
+    setChatFocus({ accountId, conversationId });
   };
 
   // Pilih akun aktif default saat daftar akun termuat / berubah.
@@ -162,7 +170,7 @@ function App() {
         ) : activeView === 'catalog' ? (
           <Catalog accounts={accounts} />
         ) : activeView === 'orders' ? (
-          <Orders accounts={accounts} />
+          <Orders accounts={accounts} onOpenChat={handleOpenChat} />
         ) : activeView === 'ongkir' ? (
           <Ongkir />
         ) : activeView === 'notifications' ? (
@@ -189,11 +197,12 @@ function App() {
           ) : (
             activeAccounts.map((account) => (
               <Inbox
-                key={`${account.id}-${activeView}`}
+                key={`${account.id}-${activeView}-${chatFocus?.accountId === account.id ? chatFocus.conversationId : ''}`}
                 account={account}
                 isMultiView={activeAccounts.length > 1}
                 colWidth={colWidthPct}
                 onMobileChatOpenChange={setMobileChatOpen}
+                initialConversationId={chatFocus?.accountId === account.id ? chatFocus.conversationId : undefined}
               />
             ))
           )

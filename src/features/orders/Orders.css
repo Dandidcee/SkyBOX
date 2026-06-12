@@ -78,6 +78,60 @@
 .ord-cust { font-weight: 600; }
 .ord-phone { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
 .ord-phone-col { white-space: nowrap; color: var(--color-text-secondary); }
+
+.ord-phone-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: transparent;
+  color: var(--color-primary-dark);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+}
+.ord-phone-link:hover { text-decoration: underline; }
+
+.ord-verify-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-primary-dark);
+  font-family: inherit;
+  font-size: var(--font-size-caption);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ord-verify-btn:hover:not(:disabled) { background: var(--color-primary); color: #fff; }
+.ord-verify-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.ord-verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+  color: var(--color-primary-dark);
+  font-family: inherit;
+  font-size: var(--font-size-caption);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ord-verified-badge:hover { background: color-mix(in srgb, var(--color-primary) 26%, transparent); }
+
+.ord-verified-row { background: color-mix(in srgb, var(--color-primary) 5%, transparent); }
 .ord-items { min-width: 160px; }
 .ord-addr, .ord-note { min-width: 180px; color: var(--color-text-secondary); white-space: pre-wrap; }
 .ord-amount { white-space: nowrap; font-weight: 600; }

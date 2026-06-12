@@ -227,3 +227,16 @@ alter table accounts add column if not exists analyze_webhook_url text default '
 -- TAMBAHAN: detail order untuk Tracking Order (diisi N8N saat closing).
 alter table orders add column if not exists items text default '';  -- barang yang dipesan
 alter table orders add column if not exists note text default '';   -- catatan pengiriman
+
+-- TAMBAHAN: verifikasi order oleh CS (cek ulang).
+alter table orders add column if not exists verified boolean not null default false;
+
+-- Izinkan admin meng-UPDATE order miliknya (untuk tandai verified dari dashboard).
+drop policy if exists "own orders update" on orders;
+create policy "own orders update" on orders for update to authenticated
+  using (conversation_id in (
+    select c.id from conversations c join accounts a on a.id = c.account_id where a.owner_id = auth.uid()
+  ))
+  with check (conversation_id in (
+    select c.id from conversations c join accounts a on a.id = c.account_id where a.owner_id = auth.uid()
+  ));

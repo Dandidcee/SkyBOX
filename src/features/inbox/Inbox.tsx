@@ -86,6 +86,7 @@ interface InboxProps {
   isMultiView?: boolean;
   colWidth?: string;
   onMobileChatOpenChange?: (open: boolean) => void;
+  initialConversationId?: string;
 }
 
 type TabKey = 'all' | 'ai' | 'human' | 'lead' | 'waiting_payment' | 'closing';
@@ -100,7 +101,7 @@ type PendingMsg = {
   createdAt: string;
 };
 
-const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange }: InboxProps) => {
+const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange, initialConversationId }: InboxProps) => {
   const qc = useQueryClient();
   const accountId = account?.id;
 
@@ -108,9 +109,9 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange 
     useConversations(accountId);
 
   const [activeTab, setActiveTab] = useState<TabKey>('all');
-  const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
+  const [isMobileChatOpen, setIsMobileChatOpen] = useState(!!initialConversationId);
   const [listWidth, setListWidth] = useState(isMultiView ? 240 : 320);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(initialConversationId ?? null);
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
   const [filterCriteria, setFilterCriteria] = useState<FilterKey>('all');
   const [messageText, setMessageText] = useState('');
