@@ -69,8 +69,16 @@ const Login = () => {
     }
   };
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 11) return 'Selamat Pagi';
+    if (hour < 15) return 'Selamat Siang';
+    if (hour < 18) return 'Selamat Sore';
+    return 'Selamat Malam';
+  };
+
   const titles: Record<Mode, { title: string; subtitle: string; cta: string; icon: React.ReactNode }> = {
-    login: { title: 'Masuk Admin', subtitle: 'Login untuk mengelola akun WhatsApp kamu.', cta: 'Masuk', icon: <MdLogin size={18} /> },
+    login: { title: `${getGreeting()}, Admin!`, subtitle: 'Login untuk mengelola akun WhatsApp kamu.', cta: 'Masuk', icon: <MdLogin size={18} /> },
     register: { title: 'Daftar Admin', subtitle: 'Buat akun admin baru untuk SkyBox.', cta: 'Daftar', icon: <MdPersonAdd size={18} /> },
     forgot: { title: 'Lupa Sandi', subtitle: 'Masukkan email, kami kirim link reset password.', cta: 'Kirim Link Reset', icon: <MdMail size={18} /> },
   };
