@@ -90,6 +90,9 @@ const ChangePassword = () => {
         </div>
       </div>
       <div className="change-password">
+        {/* Hidden dummy fields to prevent browser autofill */}
+        <input type="text" name="prevent_autofill" style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
+        <input type="password" name="prevent_autofill_pw" style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
         <div className="cp-input-wrap">
           <MdLock size={16} className="cp-icon" />
           <input
@@ -98,6 +101,7 @@ const ChangePassword = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={loading}
+            autoComplete="new-password"
           />
           <button type="button" className="cp-eye" onClick={() => setShowPass((s) => !s)} title={showPass ? 'Sembunyikan' : 'Tampilkan'}>
             {showPass ? <MdVisibilityOff size={16} /> : <MdVisibility size={16} />}
@@ -111,7 +115,11 @@ const ChangePassword = () => {
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             disabled={loading}
+            autoComplete="new-password"
           />
+          <button type="button" className="cp-eye" onClick={() => setShowPass((s) => !s)} title={showPass ? 'Sembunyikan' : 'Tampilkan'}>
+            {showPass ? <MdVisibilityOff size={16} /> : <MdVisibility size={16} />}
+          </button>
         </div>
         <button className="settings-btn" onClick={handleSave} disabled={loading}>
           <MdCheck size={18} />

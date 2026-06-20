@@ -11,8 +11,8 @@ interface ContactPanelProps {
   onClose: () => void;
 }
 
-const confColor = (p: number) => (p >= 85 ? '#3B82F6' : p >= 70 ? '#EAB308' : '#EF4444');
-const confLabel = (p: number) => (p >= 85 ? 'Yakin' : p >= 70 ? 'Cukup Yakin' : 'Butuh Bantuan');
+const confColor = (p: number) => (p >= 85 ? '#3B82F6' : p >= 75 ? '#EAB308' : '#EF4444');
+const confLabel = (p: number) => (p >= 85 ? 'Yakin' : p >= 75 ? 'Cukup Yakin' : 'Butuh Bantuan');
 const statusLabel: Record<string, string> = {
   none: 'Belum ada', lead: 'Lead', waiting_payment: 'Menunggu Bayar', closing: 'Closing',
 };

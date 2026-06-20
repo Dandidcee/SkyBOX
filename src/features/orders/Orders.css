@@ -77,10 +77,10 @@
 
 .orders-table-wrap { width: 100%; overflow-x: auto; }
 
-.orders-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
+.orders-table { width: 100%; min-width: 1500px; border-collapse: collapse; font-size: var(--font-size-sm); table-layout: fixed; }
 .orders-table th, .orders-table td {
   text-align: left;
-  padding: 12px 14px;
+  padding: 12px 10px;
   border-bottom: 1px solid var(--color-border);
   vertical-align: top;
 }
@@ -91,6 +91,19 @@
   white-space: nowrap;
   background: var(--color-background);
 }
+
+/* Fixed column widths */
+.col-date { width: 140px; }
+.col-cust { width: 140px; }
+.col-phone { width: 140px; }
+.col-acc { width: 140px; }
+.col-items { width: 180px; }
+.col-addr { width: 220px; }
+.col-note { width: 140px; }
+.col-method { width: 90px; }
+.col-amount { width: 110px; }
+.col-phase { width: 110px; }
+.col-verify { width: 160px; }
 .orders-table tr:last-child td { border-bottom: none; }
 .orders-table tbody tr:hover { background: var(--color-background); }
 
@@ -133,6 +146,34 @@
 .ord-verify-btn:hover:not(:disabled) { background: var(--color-primary); color: #fff; }
 .ord-verify-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
+.ord-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ord-reject-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-error);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.ord-reject-btn:hover:not(:disabled) {
+  background: var(--color-error);
+  color: #fff;
+}
+.ord-reject-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .ord-verified-badge {
   display: inline-flex;
   align-items: center;
@@ -152,8 +193,8 @@
 .ord-verified-badge:hover { background: color-mix(in srgb, var(--color-primary) 26%, transparent); }
 
 .ord-verified-row { background: color-mix(in srgb, var(--color-primary) 5%, transparent); }
-.ord-items { min-width: 160px; }
-.ord-addr, .ord-note { min-width: 180px; color: var(--color-text-secondary); white-space: pre-wrap; }
+.ord-items { word-wrap: break-word; }
+.ord-addr, .ord-note { color: var(--color-text-secondary); white-space: pre-wrap; word-wrap: break-word; }
 .ord-amount { white-space: nowrap; font-weight: 600; }
 
 .ord-acc { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }

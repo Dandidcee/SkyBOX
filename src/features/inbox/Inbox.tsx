@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import './Inbox.css';
 import {
   MdSearch,
@@ -8,11 +8,13 @@ import {
   MdSend,
   MdArrowBack,
   MdFilterList,
+  MdClose,
   MdChevronLeft,
   MdChevronRight,
   MdDoneAll,
-  MdAccessTime,
+  MdCheck,
   MdErrorOutline,
+  MdFlashOn,
 } from 'react-icons/md';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -20,14 +22,16 @@ import type { Account, Conversation } from '../../types/db';
 import { useConversations, conversationsKey } from '../../hooks/useConversations';
 import { useMessages } from '../../hooks/useMessages';
 import { useOrders } from '../../hooks/useOrders';
+import { useQuickReplies } from '../../hooks/useQuickReplies';
 import { setConversationHandler, sendTextMessage, sendMedia } from '../../services/n8n';
+import { deleteConversations } from '../../services/conversations';
 import ContactPanel from './ContactPanel';
 import { renderWaText } from '../../lib/waText';
 import { markSelfHandlerChange } from '../../lib/selfActions';
 
 const getConfidenceColor = (percent: number) => {
   if (percent >= 85) return '#3B82F6';
-  if (percent >= 70) return '#EAB308';
+  if (percent >= 75) return '#EAB308';
   return '#EF4444';
 };
 
@@ -50,13 +54,7 @@ const toEmbeddableUrl = (url: string | null) => {
   return url;
 };
 
-const fileToBase64 = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error('Gagal membaca berkas'));
-    reader.readAsDataURL(file);
-  });
+// No longer used since we use FormData for uploads
 
 const ProgressAvatar = ({ name, confidence }: { name: string; confidence: number }) => {
   const ringColor = getConfidenceColor(confidence);
@@ -90,7 +88,7 @@ interface InboxProps {
   initialConversationId?: string;
 }
 
-type TabKey = 'all' | 'ai' | 'human' | 'lead' | 'waiting_payment' | 'closing';
+type TabKey = 'all' | 'ai' | 'human' | 'lead' | 'waiting_payment' | 'closing' | 'complaint';
 type FilterKey = 'all' | 'confidence_high' | 'confidence_med' | 'confidence_low';
 
 /** Pesan optimistik (sedang dikirim dari dashboard) sebelum tersimpan di DB. */
@@ -122,6 +120,25 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   const [toastMessage, setToastMessage] = useState<React.ReactNode | null>(null);
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [pending, setPending] = useState<PendingMsg[]>([]);
+
+  // State untuk Quick Replies Autocomplete
+  const { data: allQuickReplies = [] } = useQuickReplies();
+  const [showQrDropdown, setShowQrDropdown] = useState(false);
+  const [qrQuery, setQrQuery] = useState('');
+  const [qrSelectedIndex, setQrSelectedIndex] = useState(0);
+
+  const filteredQuickReplies = useMemo(() => {
+    return allQuickReplies.filter(qr => qr.shortcut.includes(qrQuery));
+  }, [allQuickReplies, qrQuery]);
+
+  // State untuk mode hapus massal (Bulk Delete)
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedChats, setSelectedChats] = useState<string[]>([]);
+
+  // State untuk Image Preview
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [fileCaption, setFileCaption] = useState('');
 
   const listRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -295,32 +312,73 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     e.target.value = ''; // reset agar file sama bisa dipilih lagi
     if (!file || !activeConversation || !account) return;
     const isImage = file.type.startsWith('image/');
-    const isPdf = file.type === 'application/pdf';
-    if (!isImage && !isPdf) {
-      showToast('Hanya gambar atau PDF yang didukung.');
+    if (!isImage) {
+      showToast('Hanya gambar yang didukung.');
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
       showToast('Ukuran berkas maksimal 10MB.');
       return;
     }
+    
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    setFileCaption(messageText); // Bawa teks yang sudah diketik sbg caption awal
+  };
+
+  const cancelPreview = () => {
+    setSelectedFile(null);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setFileCaption('');
+  };
+
+  const confirmSendMedia = async () => {
+    if (!selectedFile || !activeConversation || !account) return;
     setIsUploading(true);
     try {
-      const dataBase64 = await fileToBase64(file);
       await sendMedia(account, {
         conversationId: activeConversation.id,
         phone: activeConversation.customerPhone,
         chatId: activeConversation.chatId,
-        mediaType: isImage ? 'image' : 'document',
-        filename: file.name,
-        dataBase64,
-        caption: messageText.trim() || undefined,
-      });
+        mediaType: 'image',
+        filename: selectedFile.name,
+        caption: fileCaption.trim() || undefined,
+      }, selectedFile);
       setMessageText('');
+      cancelPreview();
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Gagal mengirim media.');
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleToggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode);
+    setSelectedChats([]);
+  };
+
+  const handleToggleSelectChat = (e: React.MouseEvent | React.ChangeEvent, id: string) => {
+    e.stopPropagation();
+    setSelectedChats(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedChats.length === 0) return;
+    if (!window.confirm(`Yakin ingin menghapus ${selectedChats.length} percakapan? Ini akan menghapus semua pesan di dalamnya secara permanen.`)) return;
+    
+    try {
+      await deleteConversations(selectedChats);
+      qc.invalidateQueries({ queryKey: conversationsKey(accountId) });
+      setIsSelectionMode(false);
+      setSelectedChats([]);
+      if (activeConversationId && selectedChats.includes(activeConversationId)) {
+        setActiveConversationId(null);
+      }
+      showToast('Berhasil menghapus chat terpilih.');
+    } catch (_err) {
+      showToast('Gagal menghapus chat.');
     }
   };
 
@@ -332,13 +390,14 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
       if (!hay.includes(q)) return false;
     }
     if (filterCriteria === 'confidence_high' && c.confidence < 85) return false;
-    if (filterCriteria === 'confidence_med' && (c.confidence < 70 || c.confidence >= 85)) return false;
-    if (filterCriteria === 'confidence_low' && c.confidence >= 70) return false;
+    if (filterCriteria === 'confidence_med' && (c.confidence < 75 || c.confidence >= 85)) return false;
+    if (filterCriteria === 'confidence_low' && c.confidence >= 75) return false;
     if (activeTab === 'ai') return c.handler === 'ai';
     if (activeTab === 'human') return c.handler === 'human';
     if (activeTab === 'lead') return c.orderStatus === 'lead';
     if (activeTab === 'waiting_payment') return c.orderStatus === 'waiting_payment';
     if (activeTab === 'closing') return c.orderStatus === 'closing';
+    if (activeTab === 'complaint') return c.orderStatus === 'complaint';
     return true;
   });
 
@@ -364,6 +423,14 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             <MdSearch size={20} className="search-icon" />
             <input type="text" placeholder="Search chats..." className="search-input" value={searchText} onChange={(e) => setSearchText(e.target.value)} />
           </div>
+          <div className="inbox-header-icons">
+          <button
+            className={`icon-btn ${isSelectionMode ? 'active-filter' : 'text-secondary'}`}
+            onClick={handleToggleSelectionMode}
+            title={isSelectionMode ? "Batal Pilih" : "Pilih Obrolan untuk Dihapus"}
+          >
+            {isSelectionMode ? <MdClose size={22} /> : <MdCheck size={22} />}
+          </button>
           <button
             className={`icon-btn ${filterCriteria !== 'all' ? 'active-filter' : 'text-secondary'}`}
             onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
@@ -371,6 +438,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
           >
             <MdFilterList size={22} />
           </button>
+          </div>
 
           {isFilterDropdownOpen && (
             <div className="filter-dropdown">
@@ -406,6 +474,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             <button className={`tab-btn ${activeTab === 'lead' ? 'active' : ''}`} onClick={() => setActiveTab('lead')}>Leads</button>
             <button className={`tab-btn ${activeTab === 'waiting_payment' ? 'active' : ''}`} onClick={() => setActiveTab('waiting_payment')}>Waiting Payment</button>
             <button className={`tab-btn ${activeTab === 'closing' ? 'active' : ''}`} onClick={() => setActiveTab('closing')}>Closing</button>
+            <button className={`tab-btn ${activeTab === 'complaint' ? 'active' : ''}`} onClick={() => setActiveTab('complaint')}>Complaint</button>
           </div>
           <button className="tab-scroll" onClick={() => scrollTabs(1)} title="Geser kanan"><MdChevronRight size={18} /></button>
         </div>
@@ -420,27 +489,61 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
           ) : filtered.length === 0 ? (
             <div style={{ padding: 16, color: 'var(--color-text-secondary)', fontSize: 13 }}>Belum ada percakapan.</div>
           ) : (
-            filtered.map(conv => (
-              <div
-                key={conv.id}
-                className={`chat-item ${activeConversation?.id === conv.id ? 'active' : ''}`}
-                onClick={() => { setActiveConversationId(conv.id); setIsMobileChatOpen(true); onMobileChatOpenChange?.(true); }}
-              >
-                <ProgressAvatar name={conv.customerName || conv.customerPhone} confidence={conv.confidence} />
-                <div className="chat-info">
-                  <div className="chat-name-time">
-                    <span className="chat-name">{conv.customerName || conv.customerPhone}</span>
-                    <span className="chat-time">{fmtTime(conv.lastTime)}</span>
-                  </div>
-                  <div className="chat-preview">
-                    <span className={`preview-text ${conv.unread === 0 ? 'text-secondary' : ''}`}>{conv.lastPreview}</span>
-                    {conv.unread > 0 && <div className="unread-badge">{conv.unread}</div>}
+            filtered.map(conv => {
+              const isSelected = selectedChats.includes(conv.id);
+              return (
+                <div
+                  key={conv.id}
+                  className={`chat-item ${activeConversation?.id === conv.id ? 'active' : ''} ${isSelected ? 'selected' : ''}`}
+                  onClick={(e) => {
+                    if (isSelectionMode) {
+                      handleToggleSelectChat(e, conv.id);
+                    } else {
+                      setActiveConversationId(conv.id);
+                      setIsMobileChatOpen(true);
+                      onMobileChatOpenChange?.(true);
+                    }
+                  }}
+                >
+                  {isSelectionMode && (
+                    <div className="chat-checkbox">
+                      <input 
+                        type="checkbox" 
+                        checked={isSelected} 
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleToggleSelectChat(e, conv.id)} 
+                        onClick={e => e.stopPropagation()}
+                      />
+                    </div>
+                  )}
+                  <ProgressAvatar name={conv.customerName || conv.customerPhone} confidence={conv.confidence} />
+                  <div className="chat-info">
+                    <div className="chat-name-time">
+                      <span className="chat-name">{conv.customerName || conv.customerPhone}</span>
+                      <span className="chat-time">{fmtTime(conv.lastTime)}</span>
+                    </div>
+                    <div className="chat-preview">
+                      <span className={`preview-text ${conv.unread === 0 ? 'text-secondary' : ''}`}>{conv.lastPreview}</span>
+                      {conv.unread > 0 && <div className="unread-badge">{conv.unread}</div>}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
+
+        {isSelectionMode && (
+          <div className="bulk-action-bar">
+            <span>{selectedChats.length} Dipilih</span>
+            <button 
+              className="bulk-delete-btn" 
+              onClick={handleBulkDelete}
+              disabled={selectedChats.length === 0}
+            >
+              Hapus
+            </button>
+          </div>
+        )}
       </div>
 
       <div ref={resizerRef} className="inbox-resizer hide-on-mobile"></div>
@@ -547,7 +650,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                     <span className="bubble-text">{renderWaText(p.body)}</span>
                     <span className="bubble-time">
                       {fmtTime(p.createdAt)}
-                      {p.status === 'sending' && <MdAccessTime size={13} className="msg-ack sending" />}
+                      {p.status === 'sending' && <MdCheck size={14} className="msg-ack sending" />}
                       {p.status === 'sent' && <MdDoneAll size={14} className="msg-ack sent" />}
                       {p.status === 'failed' && <MdErrorOutline size={13} className="msg-ack is-failed" />}
                     </span>
@@ -570,6 +673,32 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             </div>
           )}
 
+          {showQrDropdown && filteredQuickReplies.length > 0 && (
+            <div className="qr-dropdown">
+              {filteredQuickReplies.map((qr, i) => (
+                <div 
+                  key={qr.id} 
+                  className={`qr-dropdown-item ${i === qrSelectedIndex ? 'selected' : ''}`}
+                  onClick={() => {
+                    const match = messageText.match(/(?:^|\s)\/([a-zA-Z0-9_-]*)$/);
+                    if (match) {
+                      const prefix = messageText.substring(0, match.index! + (match[0].startsWith(' /') ? 1 : 0));
+                      setMessageText(prefix + qr.content);
+                      setShowQrDropdown(false);
+                      fileInputRef.current?.focus(); // Balik fokus ke textarea (dummy focus biar rapi)
+                    }
+                  }}
+                >
+                  <div className="qr-icon-wrapper">
+                    <MdFlashOn size={18} />
+                  </div>
+                  <div className="qr-dropdown-shortcut">/{qr.shortcut}</div>
+                  <div className="qr-dropdown-content">{qr.content}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="input-pill">
             <button ref={emojiButtonRef} className="icon-btn text-secondary" onClick={() => setIsEmojiOpen(!isEmojiOpen)}>
               <MdInsertEmoticon size={24} />
@@ -580,11 +709,50 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
               rows={1}
               value={messageText}
               onChange={(e) => {
-                setMessageText(e.target.value);
+                const val = e.target.value;
+                setMessageText(val);
                 e.target.style.height = 'auto';
                 e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+
+                // Check for Quick Reply trigger
+                const match = val.match(/(?:^|\s)\/([a-zA-Z0-9_-]*)$/);
+                if (match) {
+                  setShowQrDropdown(true);
+                  setQrQuery(match[1].toLowerCase());
+                  setQrSelectedIndex(0);
+                } else {
+                  setShowQrDropdown(false);
+                }
               }}
               onKeyDown={(e) => {
+                if (showQrDropdown && filteredQuickReplies.length > 0) {
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setQrSelectedIndex(i => (i + 1) % filteredQuickReplies.length);
+                    return;
+                  }
+                  if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setQrSelectedIndex(i => (i - 1 + filteredQuickReplies.length) % filteredQuickReplies.length);
+                    return;
+                  }
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const selected = filteredQuickReplies[qrSelectedIndex];
+                    const match = messageText.match(/(?:^|\s)\/([a-zA-Z0-9_-]*)$/);
+                    if (match) {
+                      const prefix = messageText.substring(0, match.index! + (match[0].startsWith(' /') ? 1 : 0));
+                      setMessageText(prefix + selected.content);
+                      setShowQrDropdown(false);
+                    }
+                    return;
+                  }
+                  if (e.key === 'Escape') {
+                    setShowQrDropdown(false);
+                    return;
+                  }
+                }
+
                 if (e.key !== 'Enter') return;
                 if (e.shiftKey) return; // Shift+Enter → newline (default textarea)
                 if (e.ctrlKey || e.metaKey) {
@@ -613,7 +781,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*,application/pdf"
+              accept="image/*"
               style={{ display: 'none' }}
               onChange={handleFileChange}
             />
@@ -630,6 +798,48 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
         </div>
 
         {toastMessage && <div className="custom-toast">{toastMessage}</div>}
+
+        {/* Modal Image Preview */}
+        {previewUrl && (
+          <div className="image-preview-modal-overlay">
+            <div className="image-preview-modal">
+              <div className="preview-header">
+                <button className="preview-close-btn" onClick={cancelPreview}>✕</button>
+                <h3>Kirim Gambar</h3>
+              </div>
+              <div className="preview-body">
+                <img src={previewUrl} alt="Preview" />
+              </div>
+              <div className="preview-footer">
+                <input 
+                  type="text" 
+                  value={fileCaption} 
+                  onChange={e => setFileCaption(e.target.value)} 
+                  placeholder="Tambahkan keterangan..."
+                  className="preview-caption-input"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !isUploading) {
+                      e.preventDefault();
+                      confirmSendMedia();
+                    }
+                  }}
+                  autoFocus
+                />
+                <button 
+                  className="preview-send-btn" 
+                  onClick={confirmSendMedia} 
+                  disabled={isUploading}
+                >
+                  {isUploading ? 'Mengirim...' : (
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {isContactOpen && activeConversation && account && (

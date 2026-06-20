@@ -2,8 +2,8 @@
 // RLS owner-based (account_id milik admin). Murni additive; tidak menyentuh alur lama.
 
 import { getSupabase } from './supabase';
-import { mapProductRow, mapKnowledgeRow } from './mappers';
-import type { Product, ProductRow, Knowledge, KnowledgeRow } from '../types/db';
+import { mapProductRow, mapKnowledgeRow, mapPromoRow } from './mappers';
+import type { Product, ProductRow, Knowledge, KnowledgeRow, Promo, PromoRow } from '../types/db';
 
 // ---------- Produk ----------
 export async function fetchProducts(accountId: string): Promise<Product[]> {
@@ -27,6 +27,7 @@ function productToRow(p: Partial<Omit<Product, 'id'>>): Record<string, unknown> 
   if (p.imageUrl !== undefined) row.image_url = p.imageUrl;
   if (p.category !== undefined) row.category = p.category;
   if (p.isActive !== undefined) row.is_active = p.isActive;
+  if (p.variants !== undefined) row.variants = p.variants;
   return row;
 }
 
@@ -77,5 +78,42 @@ export async function updateKnowledgeRow(id: string, patch: Partial<Knowledge>):
 
 export async function deleteKnowledgeRow(id: string): Promise<void> {
   const { error } = await getSupabase().from('knowledge').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ---------- Promo ----------
+export async function fetchPromos(accountId: string): Promise<Promo[]> {
+  const { data, error } = await getSupabase()
+    .from('promos')
+    .select('*')
+    .eq('account_id', accountId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data as PromoRow[]).map(mapPromoRow);
+}
+
+function promoToRow(p: Partial<Omit<Promo, 'id'>>): Record<string, unknown> {
+  const row: Record<string, unknown> = {};
+  if (p.accountId !== undefined) row.account_id = p.accountId;
+  if (p.title !== undefined) row.title = p.title;
+  if (p.description !== undefined) row.description = p.description;
+  if (p.bannerUrl !== undefined) row.banner_url = p.bannerUrl;
+  if (p.productIds !== undefined) row.product_ids = p.productIds;
+  if (p.isActive !== undefined) row.is_active = p.isActive;
+  return row;
+}
+
+export async function insertPromo(data: Omit<Promo, 'id'>): Promise<void> {
+  const { error } = await getSupabase().from('promos').insert(promoToRow(data));
+  if (error) throw error;
+}
+
+export async function updatePromoRow(id: string, patch: Partial<Promo>): Promise<void> {
+  const { error } = await getSupabase().from('promos').update(promoToRow(patch)).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deletePromoRow(id: string): Promise<void> {
+  const { error } = await getSupabase().from('promos').delete().eq('id', id);
   if (error) throw error;
 }

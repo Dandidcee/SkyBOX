@@ -11,6 +11,8 @@ export interface NotificationItem {
   accountId: string | null;
   level: NotificationRow['level'];
   message: string;
+  conversationId?: string | null;
+  customerPhone?: string | null;
   createdAt: string;
 }
 
@@ -22,25 +24,32 @@ export function useNotificationsList() {
     queryFn: async (): Promise<NotificationItem[]> => {
       const { data, error } = await getSupabase()
         .from('notifications')
-        .select('*')
+        .select('id,account_id,level,message,created_at')
         .order('created_at', { ascending: false })
         .limit(100);
       if (error) throw error;
-      return (data as NotificationRow[]).map((r) => ({
-        id: r.id,
-        accountId: r.account_id,
-        level: r.level,
-        message: r.message,
-        createdAt: r.created_at,
-      }));
+      return (data as NotificationRow[]).map((r) => {
+        return {
+          id: r.id,
+          accountId: r.account_id,
+          level: r.level,
+          message: r.message,
+          conversationId: null,
+          customerPhone: null,
+          createdAt: r.created_at,
+        };
+      });
     },
     enabled: isSupabaseConfigured,
   });
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
+    // Nama channel unik per instance hook (dipakai di App badge + halaman Notifikasi
+    // sekaligus). Nama sama → Supabase error "cannot add callbacks after subscribe()".
+    const channelName = `notifications-list-${Math.random().toString(36).slice(2)}`;
     const channel = getSupabase()
-      .channel('notifications-list')
+      .channel(channelName)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, () =>
         qc.invalidateQueries({ queryKey: KEY })
       )

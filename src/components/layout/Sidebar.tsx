@@ -17,7 +17,8 @@ import {
   MdLightMode,
   MdChevronLeft,
   MdChevronRight,
-  MdLogout
+  MdLogout,
+  MdFlashOn
 } from 'react-icons/md';
 import type { Account } from '../../App';
 import './Sidebar.css';
@@ -29,6 +30,7 @@ const menuItems = [
   { id: 'catalog', icon: MdInventory2, label: 'Produk & Pengetahuan' },
   { id: 'orders', icon: MdReceiptLong, label: 'Tracking Order' },
   { id: 'ongkir', icon: MdLocalShipping, label: 'Cek Ongkir' },
+  { id: 'quickreplies', icon: MdFlashOn, label: 'Balasan Cepat' },
   { id: 'notifications', icon: MdNotifications, label: 'Notifikasi' },
   { id: 'integrations', icon: MdIntegrationInstructions, label: 'Integrations' },
   { id: 'settings', icon: MdSettings, label: 'Settings' },
@@ -45,8 +47,10 @@ interface SidebarProps {
   setActiveView: (view: string) => void;
   userEmail?: string;
   onLogout?: () => void;
+  unreadChats?: number;
+  unreadNotifs?: number;
 }
-const Sidebar = ({ isVisible = true, toggleSidebar, accounts, activeAccountIds, toggleAccount, onRenameAccount, activeView, setActiveView, userEmail, onLogout }: SidebarProps) => {
+const Sidebar = ({ isVisible = true, toggleSidebar, accounts, activeAccountIds, toggleAccount, onRenameAccount, activeView, setActiveView, userEmail, onLogout, unreadChats = 0, unreadNotifs = 0 }: SidebarProps) => {
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -180,6 +184,8 @@ const Sidebar = ({ isVisible = true, toggleSidebar, accounts, activeAccountIds, 
               >
                 <item.icon size={22} className="nav-icon" />
                 <span className="nav-label">{item.label}</span>
+                {item.id === 'inbox' && unreadChats > 0 && <span className="sidebar-badge">{unreadChats > 99 ? '99+' : unreadChats}</span>}
+                {item.id === 'notifications' && unreadNotifs > 0 && <span className="sidebar-badge">{unreadNotifs > 99 ? '99+' : unreadNotifs}</span>}
               </a>
             </li>
           ))}

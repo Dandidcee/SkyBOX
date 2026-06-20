@@ -30,6 +30,7 @@ function toRow(a: Partial<Omit<Account, 'id'>>): Record<string, unknown> {
   if (a.analyzeWebhookUrl !== undefined) row.analyze_webhook_url = a.analyzeWebhookUrl;
   if (a.confidenceThreshold !== undefined) row.confidence_threshold = a.confidenceThreshold;
   if (a.bankAccount !== undefined) row.bank_account = a.bankAccount;
+  if (a.adminNotifyPhone !== undefined) row.admin_notify_phone = a.adminNotifyPhone;
   return row;
 }
 

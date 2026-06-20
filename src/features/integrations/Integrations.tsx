@@ -9,7 +9,7 @@ import {
   MdAccountBalance,
   MdSpeed,
 } from 'react-icons/md';
-import type { Account } from '../../App';
+import type { Account } from '../../types/db';
 import './Integrations.css';
 
 interface IntegrationsProps {
@@ -32,6 +32,7 @@ const emptyForm: AccountForm = {
   analyzeWebhookUrl: '',
   confidenceThreshold: 75,
   bankAccount: '',
+  adminNotifyPhone: '',
 };
 
 const Integrations = ({ accounts, onAdd, onUpdate, onDelete }: IntegrationsProps) => {
@@ -49,7 +50,7 @@ const Integrations = ({ accounts, onAdd, onUpdate, onDelete }: IntegrationsProps
     setEditingId(acc.id);
     const { id: _id, ...rest } = acc;
     void _id;
-    setForm(rest);
+    setForm({ ...emptyForm, ...rest });
     setIsFormOpen(true);
   };
 
@@ -164,6 +165,11 @@ const Integrations = ({ accounts, onAdd, onUpdate, onDelete }: IntegrationsProps
                 <MdAccountBalance size={16} className="config-icon" />
                 <span className="config-label">Rekening (TF)</span>
                 <span className="config-value">{acc.bankAccount || <em>belum diatur</em>}</span>
+              </div>
+              <div className="config-row">
+                <MdSmartphone size={16} className="config-icon" />
+                <span className="config-label">WA Admin (notif)</span>
+                <span className="config-value">{acc.adminNotifyPhone || <em>belum diatur</em>}</span>
               </div>
             </div>
           </div>
@@ -281,6 +287,16 @@ const Integrations = ({ accounts, onAdd, onUpdate, onDelete }: IntegrationsProps
                   value={form.bankAccount}
                   onChange={e => setField('bankAccount', e.target.value)}
                   placeholder="mis. BCA 1234567890 a.n. ..."
+                />
+              </label>
+
+              <label className="field">
+                <span className="field-label">Nomor WA Admin (notifikasi)</span>
+                <input
+                  className="field-input"
+                  value={form.adminNotifyPhone ?? ''}
+                  onChange={e => setField('adminNotifyPhone', e.target.value)}
+                  placeholder="mis. 6281234567890 (untuk notif takeover/bukti TF)"
                 />
               </label>
             </div>

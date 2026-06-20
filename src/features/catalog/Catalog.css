@@ -364,3 +364,82 @@
 
 .cat-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .cat-btn-primary:hover:not(:disabled) { background: var(--color-primary-dark); }
+
+/* Promo: pemilih produk */
+.cat-promo-products {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cat-promo-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.cat-promo-hint {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+.cat-promo-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  margin-top: 4px;
+}
+.cat-promo-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+.cat-promo-check input { width: 16px; height: 16px; cursor: pointer; }
+
+
+/* Varian produk (dinamis) */
+.cat-variants {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+.cat-variant-row {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cat-variant-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.cat-variant-head input {
+  flex: 1;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+.cat-variant-row textarea {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  resize: vertical;
+}

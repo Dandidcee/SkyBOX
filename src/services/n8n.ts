@@ -69,12 +69,43 @@ export function sendTextMessage(
 }
 
 /** Kirim media (gambar/PDF) ke pelanggan via N8N -> WAHA.
- *  Frontend kirim base64 (data URL) tanpa menyimpan file; N8N yang unggah/teruskan ke WAHA. */
-export function sendMedia(
+ *  Frontend kirim via multipart/form-data agar N8N bisa memproses file binary secara langsung. */
+export async function sendMedia(
   account: Account,
-  payload: { conversationId: string; phone: string; chatId: string; mediaType: MediaType; filename: string; dataBase64: string; caption?: string }
+  payload: { conversationId: string; phone: string; chatId: string; mediaType: MediaType; filename: string; caption?: string },
+  file: File
 ): Promise<void> {
-  return callN8n(account, 'sendMedia', payload);
+  const url = account.sendMediaWebhookUrl?.trim();
+  if (!url) {
+    throw new Error(`Webhook "sendMedia" untuk akun "${account.name}" belum diatur. Lengkapi di menu Integrations.`);
+  }
+
+  const formData = new FormData();
+  formData.append('action', 'sendMedia');
+  formData.append('accountId', account.id);
+  formData.append('accountPhone', account.phone);
+  formData.append('wahaSession', account.wahaSession);
+  formData.append('conversationId', payload.conversationId);
+  formData.append('phone', payload.phone);
+  formData.append('chatId', payload.chatId);
+  formData.append('mediaType', payload.mediaType); // 'image' atau 'document'
+  formData.append('filename', payload.filename);
+  formData.append('mimeType', file.type); // contoh: 'image/jpeg', 'application/pdf'
+  if (payload.caption) {
+    formData.append('caption', payload.caption);
+  }
+  
+  // N8N akan menerima file ini di tab "Binary" (nama field: data)
+  formData.append('data', file);
+
+  const res = await fetch(url, {
+    method: 'POST',
+    body: formData, // Tanpa Content-Type, browser otomatis set boundary
+  });
+
+  if (!res.ok) {
+    throw new Error(`Webhook N8N gagal (HTTP ${res.status})`);
+  }
 }
 
 /** Minta N8N (AI agent) merangkum/menganalisis percakapan.

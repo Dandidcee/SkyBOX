@@ -7,7 +7,7 @@
 
 // ---------- Enum bersama ----------
 export type Handler = 'ai' | 'human';
-export type OrderStatus = 'none' | 'lead' | 'waiting_payment' | 'closing';
+export type OrderStatus = 'none' | 'lead' | 'waiting_payment' | 'closing' | 'complaint';
 export type MessageDirection = 'in' | 'out';
 export type MessageType = 'text' | 'image' | 'document';
 export type OrderType = 'tf' | 'cod';
@@ -35,6 +35,8 @@ export interface Account {
   confidenceThreshold: number;
   /** Nomor rekening untuk alur pembayaran TF */
   bankAccount: string;
+  /** Nomor WA admin untuk notifikasi (format bebas; N8N format ke @c.us). Kosong = tidak kirim notif. */
+  adminNotifyPhone?: string;
   /** Cek ongkir: ID kota/subdistrict asal (sesuai API ongkir) */
   originCityId?: string;
   /** Cek ongkir: label kota asal (tampilan) */
@@ -93,6 +95,7 @@ export interface AccountRow {
   analyze_webhook_url: string;
   confidence_threshold: number;
   bank_account: string;
+  admin_notify_phone?: string;
 }
 
 export interface ConversationRow {
@@ -138,6 +141,8 @@ export interface NotificationRow {
   account_id: string | null;
   level: NotificationLevel;
   message: string;
+  conversation_id?: string | null;
+  customer_phone?: string | null;
   created_at: string;
 }
 
@@ -153,6 +158,8 @@ export interface Product {
   imageUrl: string;
   category: string;
   isActive: boolean;
+  /** Varian produk: JSON array [{name, images}]. Dibaca AI untuk jawab varian & kirim foto. */
+  variants: string;
 }
 
 export interface ProductRow {
@@ -166,6 +173,7 @@ export interface ProductRow {
   image_url: string;
   category: string;
   is_active: boolean;
+  variants: string;
   created_at: string;
 }
 
@@ -183,5 +191,45 @@ export interface KnowledgeRow {
   title: string;
   content: string;
   tags: string;
+  created_at: string;
+}
+
+// ---------- Promo (per akun WA) ----------
+export interface Promo {
+  id: string;
+  accountId: string;
+  title: string;
+  description: string;
+  /** URL banner promo (Google Drive/publik) — auto-convert ke format WAHA-friendly. */
+  bannerUrl: string;
+  /** ID produk yang kena promo. Kosong = berlaku semua produk. */
+  productIds: string[];
+  isActive: boolean;
+}
+
+export interface PromoRow {
+  id: string;
+  account_id: string;
+  title: string;
+  description: string;
+  banner_url: string;
+  product_ids: string[] | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+// ---------- Balasan Cepat (Quick Replies) ----------
+export interface QuickReply {
+  id: string;
+  ownerId: string;
+  shortcut: string;
+  content: string;
+}
+
+export interface QuickReplyRow {
+  id: string;
+  owner_id: string;
+  shortcut: string;
+  content: string;
   created_at: string;
 }

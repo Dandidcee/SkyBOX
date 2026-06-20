@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly VITE_SUPABASE_ANON_KEY: string;
   /** API key RajaOngkir (Komerce) — HANYA untuk tes ongkir di dashboard lokal. */
   readonly VITE_RAJAONGKIR_KEY?: string;
+  /** PIN registrasi admin — wajib diisi saat sign up. Kosong = terbuka. */
+  readonly VITE_REGISTER_PIN?: string;
 }
 
 interface ImportMeta {

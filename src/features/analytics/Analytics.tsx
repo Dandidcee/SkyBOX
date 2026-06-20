@@ -16,8 +16,8 @@ const Analytics = ({ accounts }: AnalyticsProps) => {
     const ai = conversations.filter(c => c.handler === 'ai').length;
     const human = conversations.filter(c => c.handler === 'human').length;
     const yakin = conversations.filter(c => c.confidence >= 85).length;
-    const cukup = conversations.filter(c => c.confidence >= 70 && c.confidence < 85).length;
-    const bantuan = conversations.filter(c => c.confidence < 70).length;
+    const cukup = conversations.filter(c => c.confidence >= 75 && c.confidence < 85).length;
+    const bantuan = conversations.filter(c => c.confidence < 75).length;
     const avg = total > 0 ? Math.round(conversations.reduce((s, c) => s + c.confidence, 0) / total) : 0;
     return { total, ai, human, yakin, cukup, bantuan, avg };
   }, [conversations]);
@@ -65,8 +65,8 @@ const Analytics = ({ accounts }: AnalyticsProps) => {
         <h3 className="chart-title">Distribusi Keyakinan AI</h3>
         <div className="conf-bars">
           <ConfBar label="Yakin (≥85)" value={stats.yakin} total={stats.total} color="#3B82F6" />
-          <ConfBar label="Cukup Yakin (70–84)" value={stats.cukup} total={stats.total} color="#EAB308" />
-          <ConfBar label="Butuh Bantuan (<70)" value={stats.bantuan} total={stats.total} color="#EF4444" />
+          <ConfBar label="Cukup Yakin (75–84)" value={stats.cukup} total={stats.total} color="#EAB308" />
+          <ConfBar label="Butuh Bantuan (<75)" value={stats.bantuan} total={stats.total} color="#EF4444" />
         </div>
       </div>
 

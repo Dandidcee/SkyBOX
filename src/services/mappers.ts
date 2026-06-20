@@ -8,6 +8,8 @@ import type {
   Order, OrderRow,
   Product, ProductRow,
   Knowledge, KnowledgeRow,
+  Promo, PromoRow,
+  QuickReply, QuickReplyRow,
 } from '../types/db';
 
 export const mapAccountRow = (r: AccountRow): Account => ({
@@ -23,6 +25,7 @@ export const mapAccountRow = (r: AccountRow): Account => ({
   analyzeWebhookUrl: r.analyze_webhook_url,
   confidenceThreshold: r.confidence_threshold,
   bankAccount: r.bank_account,
+  adminNotifyPhone: r.admin_notify_phone ?? '',
 });
 
 export const mapConversationRow = (r: ConversationRow): Conversation => ({
@@ -73,6 +76,7 @@ export const mapProductRow = (r: ProductRow): Product => ({
   imageUrl: r.image_url,
   category: r.category,
   isActive: r.is_active,
+  variants: r.variants || '',
 });
 
 export const mapKnowledgeRow = (r: KnowledgeRow): Knowledge => ({
@@ -81,4 +85,21 @@ export const mapKnowledgeRow = (r: KnowledgeRow): Knowledge => ({
   title: r.title,
   content: r.content,
   tags: r.tags,
+});
+
+export const mapPromoRow = (r: PromoRow): Promo => ({
+  id: r.id,
+  accountId: r.account_id,
+  title: r.title,
+  description: r.description,
+  bannerUrl: r.banner_url || '',
+  productIds: r.product_ids || [],
+  isActive: r.is_active,
+});
+
+export const mapQuickReplyRow = (r: QuickReplyRow): QuickReply => ({
+  id: r.id,
+  ownerId: r.owner_id,
+  shortcut: r.shortcut,
+  content: r.content,
 });

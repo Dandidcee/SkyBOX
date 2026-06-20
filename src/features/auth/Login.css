@@ -72,16 +72,13 @@
 .login-logo {
   display: inline-flex;
   align-items: baseline;
-  padding: 6px 16px;
-  border-radius: var(--radius-md);
-  background: #0b141a; /* backdrop gelap tetap, agar "Sky" putih selalu terbaca */
   font-size: var(--font-size-h1);
   font-weight: 700;
   letter-spacing: -0.5px;
 }
 
-/* Warna logo PERMANEN — tidak boleh diubah. Sky = putih, Box = hijau brand. */
-.login-logo .logo-sky { color: #FFFFFF; }
+/* Di halaman login (latar terang), Sky pakai warna gelap agar terbaca tanpa backdrop */
+.login-logo .logo-sky { color: var(--color-text-primary); }
 .login-logo .logo-box { color: #25D366; }
 
 .login-tagline {

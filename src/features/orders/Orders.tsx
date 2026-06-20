@@ -3,7 +3,7 @@ import { MdReceiptLong, MdSearch, MdVerified, MdCheck, MdChatBubbleOutline, MdPi
 import { useQueryClient } from '@tanstack/react-query';
 import type { Account } from '../../types/db';
 import { useAllOrders } from '../../hooks/useAllOrders';
-import { setOrderVerified } from '../../services/orders';
+import { setOrderVerified, deleteOrder } from '../../services/orders';
 import { exportOrdersCSV, printOrdersPDF, type ExportOrderRow } from '../../lib/exportOrders';
 import '../dashboard/Dashboard.css';
 import './Orders.css';
@@ -43,6 +43,19 @@ const Orders = ({ accounts, onOpenChat }: OrdersProps) => {
       qc.invalidateQueries({ queryKey: ['orders', 'list'] });
     } catch {
       /* abaikan; realtime/refetch akan menyusul */
+    } finally {
+      setVerifyingId(null);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    if (!window.confirm('Yakin ingin menolak dan menghapus order ini?')) return;
+    setVerifyingId(id); // reuse state for loading
+    try {
+      await deleteOrder(id);
+      qc.invalidateQueries({ queryKey: ['orders', 'list'] });
+    } catch {
+      alert('Gagal menghapus order.');
     } finally {
       setVerifyingId(null);
     }
@@ -123,17 +136,17 @@ const Orders = ({ accounts, onOpenChat }: OrdersProps) => {
             <table className="orders-table">
               <thead>
                 <tr>
-                  <th>Tanggal Order</th>
-                  <th>Pelanggan</th>
-                  <th>No HP</th>
-                  <th>Akun</th>
-                  <th>Barang Dipesan</th>
-                  <th>Alamat</th>
-                  <th>Catatan Pengiriman</th>
-                  <th>Metode</th>
-                  <th>Nominal</th>
-                  <th>Fase</th>
-                  <th>Verifikasi</th>
+                  <th className="col-date">Tanggal Order</th>
+                  <th className="col-cust">Pelanggan</th>
+                  <th className="col-phone">No HP</th>
+                  <th className="col-acc">Akun</th>
+                  <th className="col-items">Barang Dipesan</th>
+                  <th className="col-addr">Alamat</th>
+                  <th className="col-note">Catatan Pengiriman</th>
+                  <th className="col-method">Metode</th>
+                  <th className="col-amount">Nominal</th>
+                  <th className="col-phase">Fase</th>
+                  <th className="col-verify">Verifikasi</th>
                 </tr>
               </thead>
               <tbody>
@@ -166,24 +179,36 @@ const Orders = ({ accounts, onOpenChat }: OrdersProps) => {
                     <td className="ord-amount">{o.amount != null ? `Rp ${o.amount.toLocaleString('id-ID')}` : '-'}</td>
                     <td><span className={`ord-phase ${o.orderStatus}`}>{statusBadge[o.orderStatus] ?? o.orderStatus ?? '-'}</span></td>
                     <td>
-                      {o.verified ? (
-                        <button
-                          className="ord-verified-badge"
-                          onClick={() => handleVerify(o.id, false)}
-                          disabled={verifyingId === o.id}
-                          title="Klik untuk batalkan verifikasi"
-                        >
-                          <MdVerified size={15} /> Terverifikasi
-                        </button>
-                      ) : (
-                        <button
-                          className="ord-verify-btn"
-                          onClick={() => handleVerify(o.id, true)}
-                          disabled={verifyingId === o.id}
-                        >
-                          <MdCheck size={15} /> {verifyingId === o.id ? '…' : 'Verifikasi'}
-                        </button>
-                      )}
+                      <div className="ord-actions">
+                        {o.verified ? (
+                          <button
+                            className="ord-verified-badge"
+                            onClick={() => handleVerify(o.id, false)}
+                            disabled={verifyingId === o.id}
+                            title="Klik untuk batalkan verifikasi"
+                          >
+                            <MdVerified size={15} /> Terverifikasi
+                          </button>
+                        ) : (
+                          <button
+                            className="ord-verify-btn"
+                            onClick={() => handleVerify(o.id, true)}
+                            disabled={verifyingId === o.id}
+                          >
+                            <MdCheck size={15} /> {verifyingId === o.id ? '…' : 'Verifikasi'}
+                          </button>
+                        )}
+                        {!o.verified && (
+                          <button
+                            className="ord-reject-btn"
+                            onClick={() => handleReject(o.id)}
+                            disabled={verifyingId === o.id}
+                            title="Tolak & Hapus"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -8,6 +8,7 @@ import Analytics from './features/analytics/Analytics';
 import Catalog from './features/catalog/Catalog';
 import Orders from './features/orders/Orders';
 import Ongkir from './features/ongkir/Ongkir';
+import QuickReplies from './features/quickreplies/QuickReplies';
 import Settings from './features/settings/Settings';
 import Notifications from './features/notifications/Notifications';
 import Login from './features/auth/Login';
@@ -17,6 +18,8 @@ import NotificationHost from './components/NotificationHost';
 import { useAccounts, useAccountMutations } from './hooks/useAccounts';
 import { useSystemNotifications } from './hooks/useSystemNotifications';
 import { useGlobalAlerts } from './hooks/useGlobalAlerts';
+import { useAllConversations } from './hooks/useAllConversations';
+import { useNotificationsList } from './hooks/useNotificationsList';
 import { isSupabaseConfigured } from './services/supabase';
 import { getSession, onAuthChange, signOut } from './services/auth';
 import type { Session } from '@supabase/supabase-js';
@@ -49,6 +52,13 @@ function App() {
 
   useSystemNotifications(accounts);
   useGlobalAlerts(accounts, !!session);
+
+  // Badge unread counts
+  const { data: allConvs = [] } = useAllConversations();
+  const { data: allNotifs = [] } = useNotificationsList();
+  const unreadChats = allConvs.reduce((sum, c) => sum + (c.unread ?? 0), 0);
+  const readNotifIds = (() => { try { return new Set(JSON.parse(localStorage.getItem('skybox_read_notifs') || '[]')); } catch { return new Set(); } })();
+  const unreadNotifs = allNotifs.filter(n => !readNotifIds.has(n.id)).length;
 
   useEffect(() => {
     const onResize = () => setWindowWidth(window.innerWidth);
@@ -171,6 +181,8 @@ function App() {
         setActiveView={goView}
         userEmail={session.user?.email ?? ''}
         onLogout={handleLogout}
+        unreadChats={unreadChats}
+        unreadNotifs={unreadNotifs}
       />
       <main className="main-content">
         {activeView === 'dashboard' ? (
@@ -183,8 +195,10 @@ function App() {
           <Orders accounts={accounts} onOpenChat={handleOpenChat} />
         ) : activeView === 'ongkir' ? (
           <Ongkir />
+        ) : activeView === 'quickreplies' ? (
+          <QuickReplies />
         ) : activeView === 'notifications' ? (
-          <Notifications accounts={accounts} />
+          <Notifications accounts={accounts} onOpenChat={handleOpenChat} />
         ) : activeView === 'settings' ? (
           <Settings setActiveView={goView} />
         ) : activeView === 'integrations' ? (
