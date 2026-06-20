@@ -5,9 +5,8 @@
 //   Jika kena CORS, gunakan proxy (N8N) sebagai gantinya.
 
 const BASE = import.meta.env.DEV ? '/ongkir-api' : 'https://rajaongkir.komerce.id/api/v1';
-// Key hanya dipakai/di-bundle saat dev (tes lokal). Di build produksi, dead-code
-// elimination membuang key ini → tidak bocor di bundle. Produksi: panggil via N8N.
-const KEY = import.meta.env.DEV ? (import.meta.env.VITE_RAJAONGKIR_KEY as string | undefined) : undefined;
+// Peringatan: API key di-ekspos di frontend! Harap waspada CORS dari Komerce.
+const KEY = import.meta.env.VITE_RAJAONGKIR_KEY as string | undefined;
 
 export const isOngkirConfigured = Boolean(KEY);
 
