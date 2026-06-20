@@ -4,7 +4,10 @@
 // - Komerce sering tidak mengirim header CORS → panggilan browser bisa diblokir.
 //   Jika kena CORS, gunakan proxy (N8N) sebagai gantinya.
 
-const BASE = import.meta.env.DEV ? '/ongkir-api' : 'https://rajaongkir.komerce.id/api/v1';
+// Kita akan selalu gunakan proxy lokal (/ongkir-api) baik di dev maupun di production
+// Di production, Caddy akan meneruskan request ini ke RajaOngkir.
+const BASE = '/ongkir-api';
+
 // Peringatan: API key di-ekspos di frontend! Harap waspada CORS dari Komerce.
 const KEY = import.meta.env.VITE_RAJAONGKIR_KEY as string | undefined;
 
