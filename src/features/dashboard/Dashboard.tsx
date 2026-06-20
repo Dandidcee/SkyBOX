@@ -61,7 +61,7 @@ const Dashboard: React.FC<DashboardProps> = ({ accounts }) => {
           <div
             className="account-select"
             onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '180px', justifyContent: 'space-between' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {selectedAccount === 'all' ? (
@@ -73,7 +73,7 @@ const Dashboard: React.FC<DashboardProps> = ({ accounts }) => {
                 </>
               )}
             </div>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5, flexShrink: 0 }}>
               <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
           </div>

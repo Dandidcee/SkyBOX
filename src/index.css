@@ -92,3 +92,77 @@ h3 { font-size: var(--font-size-h3); font-weight: 600; line-height: 1.2; }
   --color-sidebar-text: #e9edef;
   --color-sidebar-text-muted: #8696a0;
 }
+
+/* =========================================
+   GLOBAL ANIMATIONS & MICRO-INTERACTIONS
+   ========================================= */
+
+/* Base Transitions */
+button, .nav-item, .cat-account-btn, .tab-btn {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+/* Cards Hover Effects */
+.stat-card, .chart-card, .cat-card, .notif-item, .cat-know-row {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-card:hover, .cat-card:hover, .cat-know-row:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+  border-color: var(--color-primary);
+}
+
+[data-theme='dark'] .stat-card:hover, [data-theme='dark'] .cat-card:hover {
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Sidebar Active State Smoothness */
+.nav-item {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Desktop: Vertical line on the left */
+@media (min-width: 769px) {
+  .nav-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 3px;
+    background-color: var(--color-primary);
+    transform: scaleY(0);
+    transition: transform 0.3s ease;
+    transform-origin: bottom;
+  }
+  .nav-item.active::before {
+    transform: scaleY(1);
+  }
+}
+
+/* Mobile: Horizontal line at the top */
+@media (max-width: 768px) {
+  .nav-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    height: 3px;
+    width: 50%;
+    background-color: var(--color-primary);
+    transform: translateX(-50%) scaleX(0);
+    transition: transform 0.3s ease;
+    transform-origin: center;
+    border-radius: 0 0 3px 3px;
+  }
+  .nav-item.active::before {
+    transform: translateX(-50%) scaleX(1);
+  }
+}
+

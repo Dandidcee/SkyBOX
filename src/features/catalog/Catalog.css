@@ -291,33 +291,54 @@
 .cat-modal-head h3 { font-size: var(--font-size-h3); font-weight: 600; }
 .cat-modal-head button { border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; }
 
-.cat-form { padding: var(--spacing-lg); display: flex; flex-direction: column; gap: var(--spacing-md); }
-.cat-form-row { display: flex; gap: var(--spacing-md); }
+.cat-form { padding: var(--spacing-lg); display: flex; flex-direction: column; gap: 20px; }
+.cat-form-row { display: flex; gap: var(--spacing-lg); }
 .cat-form-row label { flex: 1; }
 
 .cat-form label {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: var(--font-size-caption);
-  color: var(--color-text-secondary);
-  font-weight: 500;
+  gap: 8px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  font-weight: 600;
 }
 
 .cat-form input,
 .cat-form textarea {
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-background);
-  padding: 8px 10px;
+  padding: 12px 16px;
   font-family: inherit;
   font-size: var(--font-size-base);
   color: var(--color-text-primary);
   outline: none;
+  transition: all 0.2s ease;
+}
+
+.cat-form input::placeholder,
+.cat-form textarea::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.7;
 }
 
 .cat-form input:focus,
-.cat-form textarea:focus { border-color: var(--color-primary); }
+.cat-form textarea:focus { 
+  border-color: var(--color-primary); 
+  background: var(--color-surface);
+  box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.15);
+}
+
+/* Hide HTML number spin buttons for cleaner look */
+.cat-form input[type="number"]::-webkit-inner-spin-button,
+.cat-form input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.cat-form input[type="number"] {
+  -moz-appearance: textfield;
+}
 
 .cat-check {
   flex-direction: row !important;

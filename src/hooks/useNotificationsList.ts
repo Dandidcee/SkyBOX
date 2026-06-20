@@ -24,7 +24,7 @@ export function useNotificationsList() {
     queryFn: async (): Promise<NotificationItem[]> => {
       const { data, error } = await getSupabase()
         .from('notifications')
-        .select('id,account_id,level,message,created_at')
+        .select('id,account_id,level,message,conversation_id,customer_phone,created_at')
         .order('created_at', { ascending: false })
         .limit(100);
       if (error) throw error;
@@ -34,8 +34,8 @@ export function useNotificationsList() {
           accountId: r.account_id,
           level: r.level,
           message: r.message,
-          conversationId: null,
-          customerPhone: null,
+          conversationId: r.conversation_id,
+          customerPhone: r.customer_phone,
           createdAt: r.created_at,
         };
       });
