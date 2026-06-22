@@ -18,7 +18,8 @@ import {
   MdChevronLeft,
   MdChevronRight,
   MdLogout,
-  MdFlashOn
+  MdFlashOn,
+  MdAutoAwesome
 } from 'react-icons/md';
 import type { Account } from '../../App';
 import './Sidebar.css';
@@ -31,6 +32,7 @@ const menuItems = [
   { id: 'orders', icon: MdReceiptLong, label: 'Tracking Order' },
   { id: 'ongkir', icon: MdLocalShipping, label: 'Cek Ongkir' },
   { id: 'quickreplies', icon: MdFlashOn, label: 'Balasan Cepat' },
+  { id: 'templates', icon: MdAutoAwesome, label: 'Template (Ads)' },
   { id: 'notifications', icon: MdNotifications, label: 'Notifikasi' },
   { id: 'integrations', icon: MdIntegrationInstructions, label: 'Integrations' },
   { id: 'settings', icon: MdSettings, label: 'Settings' },
@@ -209,7 +211,11 @@ const Sidebar = ({ isVisible = true, toggleSidebar, accounts, activeAccountIds, 
         </button>
         <button
           className="icon-btn logout-btn"
-          onClick={onLogout}
+          onClick={() => {
+            if (window.confirm('Apakah Anda yakin ingin keluar?')) {
+              onLogout?.();
+            }
+          }}
           title="Keluar"
         >
           <MdLogout size={20} />

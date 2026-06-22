@@ -11,6 +11,7 @@ import Ongkir from './features/ongkir/Ongkir';
 import QuickReplies from './features/quickreplies/QuickReplies';
 import Settings from './features/settings/Settings';
 import Notifications from './features/notifications/Notifications';
+import Templates from './features/templates/Templates';
 import Login from './features/auth/Login';
 import ResetPassword from './features/auth/ResetPassword';
 import LoadingScreen from './components/LoadingScreen';
@@ -92,8 +93,24 @@ function App() {
   // Buka chat tertentu (mis. dari Tracking Order klik No HP).
   const handleOpenChat = (accountId: string, conversationId: string) => {
     setActiveView('inbox');
-    setActiveAccountIds([accountId]);
     setChatFocus({ accountId, conversationId });
+    
+    // Pastikan akun dari notifikasi terbuka tanpa menutup akun lain
+    setActiveAccountIds(prev => {
+      // Jika akun sudah terbuka, biarkan saja
+      if (prev.includes(accountId)) return prev;
+      
+      let maxAccounts = 1;
+      if (window.innerWidth >= 1440) maxAccounts = 4;
+      else if (window.innerWidth >= 1024) maxAccounts = 3;
+      else if (window.innerWidth >= 768) maxAccounts = 2;
+
+      // Jika jumlah tab sudah maksimal, ganti tab paling lama (index 0) dengan yang baru
+      if (prev.length >= maxAccounts) {
+        return [...prev.slice(1), accountId];
+      }
+      return [...prev, accountId];
+    });
   };
 
   // Navigasi view manual (sidebar/menu) — bersihkan fokus chat agar Inbox tidak
@@ -197,6 +214,8 @@ function App() {
           <Ongkir />
         ) : activeView === 'quickreplies' ? (
           <QuickReplies />
+        ) : activeView === 'templates' ? (
+          <Templates accounts={accounts} />
         ) : activeView === 'notifications' ? (
           <Notifications accounts={accounts} onOpenChat={handleOpenChat} />
         ) : activeView === 'settings' ? (

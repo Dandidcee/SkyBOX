@@ -121,12 +121,51 @@ const ChangePassword = () => {
             {showPass ? <MdVisibilityOff size={16} /> : <MdVisibility size={16} />}
           </button>
         </div>
-        <button className="settings-btn" onClick={handleSave} disabled={loading}>
+        <button className="settings-btn primary" onClick={handleSave} disabled={loading}>
           <MdCheck size={18} />
           <span>{loading ? 'Menyimpan…' : 'Simpan Password'}</span>
         </button>
       </div>
       {msg && <div className={`cp-msg ${msg.ok ? 'ok' : 'err'}`}>{msg.text}</div>}
+    </div>
+  );
+};
+
+const ApiKeySettings = () => {
+  const [key, setKey] = useState(localStorage.getItem('RAJAONGKIR_KEY') || '');
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => {
+    if (key.trim()) {
+      localStorage.setItem('RAJAONGKIR_KEY', key.trim());
+    } else {
+      localStorage.removeItem('RAJAONGKIR_KEY');
+    }
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  return (
+    <div className="settings-row" style={{ alignItems: 'flex-start' }}>
+      <div style={{ flex: 1, paddingRight: '16px' }}>
+        <div className="settings-label">API Key RajaOngkir</div>
+        <div className="settings-desc">Masukkan kunci API Komerce/RajaOngkir agar fitur Cek Ongkir berfungsi. Disimpan lokal di perangkat ini.</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <input 
+            type="password" 
+            className="settings-input" 
+            style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-primary)' }}
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+          />
+          <button className="settings-btn primary" onClick={handleSave} style={{ height: '36px', padding: '0 16px', margin: 0 }}>
+            Simpan
+          </button>
+        </div>
+        {saved && <div style={{ color: 'var(--color-primary)', fontSize: '12px' }}>Tersimpan!</div>}
+      </div>
     </div>
   );
 };
@@ -179,6 +218,8 @@ const Settings = ({ setActiveView }: SettingsProps) => {
             <span>Buka Integrations</span>
           </button>
         </div>
+
+        <ApiKeySettings />
       </div>
 
       <h3 className="settings-section-title">Akun</h3>

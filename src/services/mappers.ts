@@ -10,6 +10,7 @@ import type {
   Knowledge, KnowledgeRow,
   Promo, PromoRow,
   QuickReply, QuickReplyRow,
+  Template, TemplateRow,
 } from '../types/db';
 
 export const mapAccountRow = (r: AccountRow): Account => ({
@@ -102,4 +103,13 @@ export const mapQuickReplyRow = (r: QuickReplyRow): QuickReply => ({
   ownerId: r.owner_id,
   shortcut: r.shortcut,
   content: r.content,
+});
+
+export const mapTemplateRow = (r: TemplateRow): Template => ({
+  id: r.id,
+  accountId: r.account_id,
+  triggerText: r.trigger_text,
+  replyText: r.reply_text,
+  imageUrl: r.image_url,
+  variants: r.variants || '',
 });

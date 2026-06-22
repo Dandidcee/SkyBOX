@@ -233,3 +233,23 @@ export interface QuickReplyRow {
   content: string;
   created_at: string;
 }
+
+// ---------- Template Pesan Iklan ----------
+export interface Template {
+  id: string;
+  accountId: string;
+  triggerText: string;
+  replyText: string;
+  imageUrl: string | null;
+  variants: string;
+}
+
+export interface TemplateRow {
+  id: string;
+  account_id: string;
+  trigger_text: string;
+  reply_text: string;
+  image_url: string | null;
+  variants: string;
+  created_at: string;
+}

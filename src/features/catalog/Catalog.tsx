@@ -326,11 +326,23 @@ const Catalog = ({ accounts }: CatalogProps) => {
                 {variantEntries.map((v, i) => (
                   <div key={i} className="cat-variant-row">
                     <div className="cat-variant-head">
-                      <input value={v.name} onChange={e => { const arr = [...variantEntries]; arr[i] = { ...v, name: e.target.value }; setVariantEntries(arr); }} placeholder="Nama varian (Hitam, Gold, L, dll)" />
-                      <button type="button" className="cat-btn-ghost" style={{ padding: '2px 8px', fontSize: 12 }} onClick={() => setVariantEntries(variantEntries.filter((_, j) => j !== i))}>✕</button>
+                      <span className="cat-variant-title">Varian {i + 1}</span>
+                      <button type="button" className="cat-btn-ghost" style={{ padding: '2px 8px', fontSize: 12, height: '28px', color: 'var(--color-error)' }} onClick={() => setVariantEntries(variantEntries.filter((_, j) => j !== i))}>✕ Hapus</button>
                     </div>
-                    <textarea rows={2} value={v.images} onChange={e => { const arr = [...variantEntries]; arr[i] = { ...v, images: e.target.value }; setVariantEntries(arr); }} placeholder={"URL foto varian (1 per baris)\nhttps://drive.google.com/file/d/.../view"} />
-                    <input value={v.guide} onChange={e => { const arr = [...variantEntries]; arr[i] = { ...v, guide: e.target.value }; setVariantEntries(arr); }} placeholder="Panduan AI: mis. Cocok untuk usia 25-35 thn, lensa +1.00" />
+                    <div className="cat-variant-fields">
+                      <div className="cat-variant-field">
+                        <label>Nama Varian (Hitam, Gold, L, dll)</label>
+                        <input value={v.name} onChange={e => { const arr = [...variantEntries]; arr[i] = { ...v, name: e.target.value }; setVariantEntries(arr); }} placeholder="Ketik nama varian di sini..." />
+                      </div>
+                      <div className="cat-variant-field">
+                        <label>URL Foto Varian (1 Per Baris)</label>
+                        <textarea rows={2} value={v.images} onChange={e => { const arr = [...variantEntries]; arr[i] = { ...v, images: e.target.value }; setVariantEntries(arr); }} placeholder="https://..." />
+                      </div>
+                      <div className="cat-variant-field">
+                        <label>Panduan AI (Opsional)</label>
+                        <input value={v.guide} onChange={e => { const arr = [...variantEntries]; arr[i] = { ...v, guide: e.target.value }; setVariantEntries(arr); }} placeholder="Misal: Cocok untuk usia 25-35 thn" />
+                      </div>
+                    </div>
                   </div>
                 ))}
                 <button type="button" className="cat-btn-ghost" onClick={() => setVariantEntries([...variantEntries, { name: '', images: '', guide: '' }])}>+ Tambah Varian</button>

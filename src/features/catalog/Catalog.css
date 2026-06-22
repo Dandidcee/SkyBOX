@@ -315,12 +315,14 @@
   color: var(--color-text-primary);
   outline: none;
   transition: all 0.2s ease;
+  resize: none;
 }
 
 .cat-form input::placeholder,
 .cat-form textarea::placeholder {
   color: var(--color-text-secondary);
-  opacity: 0.7;
+  opacity: 0.4;
+  font-weight: 400;
 }
 
 .cat-form input:focus,
@@ -424,43 +426,66 @@
 .cat-promo-check input { width: 16px; height: 16px; cursor: pointer; }
 
 
-/* Varian produk (dinamis) */
 .cat-variants {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   margin-top: 4px;
 }
 .cat-variant-row {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: 10px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 12px;
+  background-color: var(--color-background);
 }
 .cat-variant-head {
   display: flex;
-  gap: 8px;
+  justify-content: space-between;
   align-items: center;
+  border-bottom: 1px dashed var(--color-border);
+  padding-bottom: 8px;
+  margin-bottom: 4px;
 }
-.cat-variant-head input {
-  flex: 1;
+.cat-variant-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.cat-variant-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cat-variant-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cat-variant-field label {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.cat-variant-field input,
+.cat-variant-field textarea {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: 6px 10px;
+  padding: 8px 12px;
   font-size: var(--font-size-sm);
   font-family: var(--font-family);
-  background: var(--color-background);
+  background: var(--color-surface);
   color: var(--color-text-primary);
+  width: 100%;
 }
-.cat-variant-row textarea {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 6px 10px;
-  font-size: var(--font-size-sm);
-  font-family: var(--font-family);
-  background: var(--color-background);
-  color: var(--color-text-primary);
-  resize: vertical;
+.cat-variant-field input:focus,
+.cat-variant-field textarea:focus {
+  border-color: var(--color-primary);
+}
+.cat-variant-field textarea {
+  resize: none;
 }

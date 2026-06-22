@@ -1,17 +1,15 @@
-// Service cek ongkir via RajaOngkir (Komerce).
-// CATATAN: dipanggil langsung dari browser hanya untuk TES LOKAL.
-// - API key di frontend tidak aman untuk produksi (pindahkan ke N8N nanti).
-// - Komerce sering tidak mengirim header CORS → panggilan browser bisa diblokir.
-//   Jika kena CORS, gunakan proxy (N8N) sebagai gantinya.
+// Service cek ongkir menggunakan Backend Node.js (Express) terpisah
+// API Key aman di sisi server.
 
-// Kita akan selalu gunakan proxy lokal (/ongkir-api) baik di dev maupun di production
-// Di production, Caddy akan meneruskan request ini ke RajaOngkir.
-const BASE = '/ongkir-api';
+// Ubah URL ini melalui file .env jika backend dideploy ke production
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api/ongkir';
 
-// Peringatan: API key di-ekspos di frontend! Harap waspada CORS dari Komerce.
-const KEY = import.meta.env.VITE_RAJAONGKIR_KEY as string | undefined;
+// Helper untuk ambil API Key dari localStorage
+function getLocalApiKey() {
+  return localStorage.getItem('RAJAONGKIR_KEY') || '';
+}
 
-export const isOngkirConfigured = Boolean(KEY);
+export const isOngkirConfigured = true; // Akan divalidasi oleh backend jika key kosong
 
 export interface OngkirDestination {
   id: string;
@@ -30,19 +28,20 @@ export interface OngkirRate {
   etd: string;       // estimasi (mis. "2-3 hari")
 }
 
-function ensureKey(): string {
-  if (!KEY) {
-    throw new Error('VITE_RAJAONGKIR_KEY belum diatur di .env');
-  }
-  return KEY;
-}
-
 /** Cari ID tujuan/asal berdasarkan nama kota/kecamatan. */
 export async function searchDestination(query: string): Promise<OngkirDestination[]> {
-  const key = ensureKey();
-  const url = `${BASE}/destination/domestic-destination?search=${encodeURIComponent(query)}&limit=10&offset=0`;
-  const res = await fetch(url, { headers: { key } });
-  if (!res.ok) throw new Error(`Cari tujuan gagal (HTTP ${res.status})`);
+  const url = `${BACKEND_URL}/destination?search=${encodeURIComponent(query)}`;
+  const apiKey = getLocalApiKey();
+  
+  const res = await fetch(url, {
+    headers: apiKey ? { 'x-api-key': apiKey } : undefined
+  });
+  
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.error || `Gagal mencari tujuan (HTTP ${res.status})`);
+  }
+  
   const json = await res.json();
   const rows = (json?.data ?? []) as Record<string, unknown>[];
   return rows.map((r) => ({
@@ -62,26 +61,31 @@ export async function checkCost(params: {
   weight: number; // gram
   courier: string;
 }): Promise<OngkirRate[]> {
-  const key = ensureKey();
-  const body = new URLSearchParams({
-    origin: params.origin,
-    destination: params.destination,
-    weight: String(params.weight),
-    courier: params.courier,
-  });
-  const res = await fetch(`${BASE}/calculate/domestic-cost`, {
+  const url = `${BACKEND_URL}/cost`;
+  const apiKey = getLocalApiKey();
+  
+  const res = await fetch(url, {
     method: 'POST',
-    headers: { key, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
+    headers: { 
+      'Content-Type': 'application/json',
+      ...(apiKey ? { 'x-api-key': apiKey } : {})
+    },
+    body: JSON.stringify(params),
   });
-  if (!res.ok) throw new Error(`Hitung ongkir gagal (HTTP ${res.status})`);
+  
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.error || `Gagal menghitung ongkir (HTTP ${res.status})`);
+  }
+  
   const json = await res.json();
   const rows = (json?.data ?? []) as Record<string, unknown>[];
   return rows.map((r) => ({
-    courier: String(r.name ?? r.code ?? '').toUpperCase(),
+    courier: String(r.code ?? r.name ?? '').toUpperCase(),
     service: String(r.service ?? ''),
     description: String(r.description ?? ''),
     cost: Number(r.cost ?? 0),
     etd: String(r.etd ?? '-'),
   }));
 }
+

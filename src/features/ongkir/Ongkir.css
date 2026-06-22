@@ -83,7 +83,70 @@
 .ongkir-err { color: var(--color-error); font-size: var(--font-size-sm); }
 .ongkir-empty { color: var(--color-text-secondary); font-size: var(--font-size-sm); }
 
-.ongkir-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
-.ongkir-table th, .ongkir-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--color-border); }
-.ongkir-table th { color: var(--color-text-secondary); font-weight: 600; font-size: var(--font-size-caption); }
-.ongkir-desc { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+.ongkir-results-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.ongkir-rate-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+
+.ongkir-rate-card:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.ongkir-rate-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ongkir-rate-title {
+  font-weight: 600;
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ongkir-rate-courier {
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.ongkir-rate-desc {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.ongkir-rate-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.ongkir-rate-cost {
+  font-weight: 700;
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+}
+
+.ongkir-rate-etd {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-text-secondary) 15%, transparent);
+  padding: 2px 6px;
+  border-radius: 4px;
+}

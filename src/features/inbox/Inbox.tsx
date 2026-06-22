@@ -26,6 +26,9 @@ import { useQuickReplies } from '../../hooks/useQuickReplies';
 import { setConversationHandler, sendTextMessage, sendMedia } from '../../services/n8n';
 import { deleteConversations } from '../../services/conversations';
 import ContactPanel from './ContactPanel';
+import { OngkirCalculator } from '../ongkir/Ongkir';
+import type { OngkirRate, OngkirDestination } from '../../services/ongkir';
+import '../ongkir/Ongkir.css';
 import { renderWaText } from '../../lib/waText';
 import { markSelfHandlerChange } from '../../lib/selfActions';
 
@@ -139,6 +142,25 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [fileCaption, setFileCaption] = useState('');
+
+  // State untuk Modal Ongkir
+  const [isOngkirModalOpen, setIsOngkirModalOpen] = useState(false);
+
+  const handleSelectRate = (rate: OngkirRate, origin: OngkirDestination, dest: OngkirDestination, weight: number) => {
+    const originName = origin.label.split(',')[0].trim();
+    const destName = dest.label.split(',')[0].trim();
+    const etd = rate.etd.replace(/hari|day/gi, '').trim();
+    const text = `Baik kak pengiriman ke kota ${destName} dari kota ${originName} harganya Rp ${rate.cost.toLocaleString('id-ID')} estimasi ${etd} hari`;
+    setMessageText(prev => {
+      // Hilangkan /ongkir jika ada di akhir
+      const cleaned = prev.replace(/(?:^|\s)\/ongkir$/i, '');
+      return cleaned + (cleaned.trim() ? ' ' : '') + text;
+    });
+    setIsOngkirModalOpen(false);
+    setTimeout(() => {
+      fileInputRef.current?.focus();
+    }, 100);
+  };
 
   const listRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -714,6 +736,13 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 e.target.style.height = 'auto';
                 e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
 
+                // Cek trigger spesial untuk ongkir
+                if (val.match(/(?:^|\s)\/ongkir$/i)) {
+                  setIsOngkirModalOpen(true);
+                  setShowQrDropdown(false);
+                  return;
+                }
+
                 // Check for Quick Reply trigger
                 const match = val.match(/(?:^|\s)\/([a-zA-Z0-9_-]*)$/);
                 if (match) {
@@ -841,6 +870,24 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
           </div>
         )}
       </div>
+
+      {isOngkirModalOpen && (
+        <div className="inbox-modal-overlay">
+          <div className="inbox-modal">
+            <div className="inbox-modal-header">
+              <h3>Cek Ongkir (Klik Hasil)</h3>
+              <button className="inbox-modal-close-btn" onClick={() => {
+                setIsOngkirModalOpen(false);
+                setMessageText(prev => prev.replace(/(?:^|\s)\/ongkir$/i, ''));
+                setTimeout(() => fileInputRef.current?.focus(), 100);
+              }}>✕</button>
+            </div>
+            <div className="inbox-modal-body">
+              <OngkirCalculator onSelectRate={handleSelectRate} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {isContactOpen && activeConversation && account && (
         <ContactPanel
