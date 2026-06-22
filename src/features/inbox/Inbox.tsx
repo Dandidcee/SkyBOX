@@ -146,7 +146,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   // State untuk Modal Ongkir
   const [isOngkirModalOpen, setIsOngkirModalOpen] = useState(false);
 
-  const handleSelectRate = (rate: OngkirRate, origin: OngkirDestination, dest: OngkirDestination, weight: number) => {
+  const handleSelectRate = (rate: OngkirRate, origin: OngkirDestination, dest: OngkirDestination, _weight: number) => {
     const originName = origin.label.split(',')[0].trim();
     const destName = dest.label.split(',')[0].trim();
     const etd = rate.etd.replace(/hari|day/gi, '').trim();

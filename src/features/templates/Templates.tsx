@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MdAdd, MdEdit, MdDelete, MdClose, MdChat, MdKeyboardArrowDown, MdAutoAwesome } from 'react-icons/md';
+import { MdChat, MdKeyboardArrowDown, MdAutoAwesome } from 'react-icons/md';
 import { useTemplates, useTemplateMutations } from '../../hooks/useTemplates';
 import { toDirectImageUrl } from '../../lib/imageUrl';
 import type { Account, Template } from '../../types/db';
@@ -9,14 +9,6 @@ import '../catalog/Catalog.css';
 interface TemplatesProps {
   accounts: Account[];
 }
-
-const emptyTemplate = (accountId: string): Omit<Template, 'id'> => ({
-  accountId,
-  triggerText: '',
-  replyText: '',
-  imageUrl: '',
-  variants: '',
-});
 
 /** Satu varian produk: nama + array URL gambar + panduan */
 interface VariantEntry { name: string; images: string; guide: string; }
