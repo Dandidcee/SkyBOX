@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { MdChat, MdKeyboardArrowDown, MdAutoAwesome } from 'react-icons/md';
 import { useTemplates, useTemplateMutations } from '../../hooks/useTemplates';
 import { toDirectImageUrl } from '../../lib/imageUrl';
-import type { Account, Template } from '../../types/db';
+import type { Account } from '../../types/db';
 import '../dashboard/Dashboard.css';
 import '../catalog/Catalog.css';
 
