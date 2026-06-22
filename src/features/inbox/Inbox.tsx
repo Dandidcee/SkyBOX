@@ -146,6 +146,9 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   // State untuk Modal Ongkir
   const [isOngkirModalOpen, setIsOngkirModalOpen] = useState(false);
 
+  // State untuk tombol scroll-to-bottom
+  const [showScrollButton, setShowScrollButton] = useState(false);
+
   const handleSelectRate = (rate: OngkirRate, origin: OngkirDestination, dest: OngkirDestination, _weight: number) => {
     const originName = origin.label.split(',')[0].trim();
     const destName = dest.label.split(',')[0].trim();
@@ -193,8 +196,18 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   // Auto-scroll ke pesan terbaru saat ada pesan baru / ganti percakapan / kirim.
   useEffect(() => {
     const el = timelineRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, resolvedConversationId, pending]);
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+      setShowScrollButton(false);
+    }
+  }, [messages.length, resolvedConversationId, pending, isMobileChatOpen]);
+
+  const handleTimelineScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    // Tampilkan tombol jika user scroll ke atas lebih dari 100px dari dasar
+    const isScrolledUp = el.scrollHeight - el.scrollTop - el.clientHeight > 100;
+    setShowScrollButton(isScrolledUp);
+  };
 
   const showToast = (msg: React.ReactNode) => {
     setToastMessage(msg);
@@ -614,7 +627,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
           </div>
         </div>
 
-        <div className="chat-timeline" ref={timelineRef}>
+        <div className="chat-timeline" ref={timelineRef} onScroll={handleTimelineScroll}>
           {latestOrder && (
             <div style={{
               alignSelf: 'center',
@@ -682,6 +695,21 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             </>
           )}
         </div>
+
+        {showScrollButton && (
+          <button 
+            className="scroll-bottom-btn" 
+            onClick={() => {
+              const el = timelineRef.current;
+              if (el) {
+                el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+              }
+            }}
+            title="Ke pesan terbaru"
+          >
+            <MdKeyboardArrowDown size={24} />
+          </button>
+        )}
 
         <div className="chat-input-area" style={{ position: 'relative' }}>
           {isEmojiOpen && (

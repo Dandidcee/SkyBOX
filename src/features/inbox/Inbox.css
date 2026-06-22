@@ -66,6 +66,35 @@
   pointer-events: none;
 }
 
+/* Scroll to bottom button */
+.scroll-bottom-btn {
+  position: absolute;
+  bottom: 80px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 50;
+  transition: all 0.2s ease;
+}
+
+.scroll-bottom-btn:hover {
+  background-color: var(--color-border);
+}
+
+/* Ensure chat-input-area is above the button */
+.chat-input-area {
+  z-index: 60;
+}
+
 .active-filter {
   color: var(--color-primary);
   background-color: rgba(37, 211, 102, 0.1);
