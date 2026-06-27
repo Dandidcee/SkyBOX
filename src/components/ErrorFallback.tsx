@@ -1,5 +1,5 @@
 import React from 'react';
-import { FallbackProps } from 'react-error-boundary';
+import type { FallbackProps } from 'react-error-boundary';
 
 export const ErrorFallback: React.FC<FallbackProps> = ({ error, resetErrorBoundary }) => {
   return (
@@ -38,7 +38,7 @@ export const ErrorFallback: React.FC<FallbackProps> = ({ error, resetErrorBounda
           overflowX: 'auto',
           textAlign: 'left'
         }}>
-          {error.message}
+          {error instanceof Error ? error.message : String(error)}
         </div>
 
         <button
