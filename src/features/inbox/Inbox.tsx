@@ -15,6 +15,7 @@ import {
   MdCheck,
   MdErrorOutline,
   MdFlashOn,
+  MdKeyboardArrowDown,
 } from 'react-icons/md';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -131,7 +132,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   const [qrSelectedIndex, setQrSelectedIndex] = useState(0);
 
   const filteredQuickReplies = useMemo(() => {
-    return allQuickReplies.filter(qr => qr.shortcut.includes(qrQuery));
+    return allQuickReplies.filter(qr => (qr.shortcut || '').toLowerCase().includes(qrQuery.toLowerCase()));
   }, [allQuickReplies, qrQuery]);
 
   // State untuk mode hapus massal (Bulk Delete)
@@ -640,7 +641,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
               marginBottom: 8,
             }}>
               {latestOrder.type === 'tf'
-                ? `💳 Transfer • ${latestOrder.amount ? `Rp ${latestOrder.amount.toLocaleString('id-ID')} • ` : ''}${latestOrder.status}`
+                ? `💳 Transfer • ${latestOrder.amount ? `Rp ${Number(latestOrder.amount).toLocaleString('id-ID')} • ` : ''}${latestOrder.status}`
                 : `📦 COD • ${latestOrder.address ? `${latestOrder.address} • ` : ''}${latestOrder.status}`}
             </div>
           )}
