@@ -61,5 +61,17 @@ export function useTemplateMutations(accountId: string | undefined) {
     onSuccess: invalidate,
   });
 
-  return { save };
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await getSupabase()
+        .from('templates')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: invalidate,
+  });
+
+  return { save, remove };
 }
