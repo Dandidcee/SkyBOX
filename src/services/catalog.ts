@@ -1,18 +1,10 @@
-// CRUD katalog produk & basis pengetahuan per akun WA.
-// RLS owner-based (account_id milik admin). Murni additive; tidak menyentuh alur lama.
-
-import { getSupabase } from './supabase';
+import api from './api';
 import { mapProductRow, mapKnowledgeRow, mapPromoRow } from './mappers';
 import type { Product, ProductRow, Knowledge, KnowledgeRow, Promo, PromoRow } from '../types/db';
 
 // ---------- Produk ----------
 export async function fetchProducts(accountId: string): Promise<Product[]> {
-  const { data, error } = await getSupabase()
-    .from('products')
-    .select('*')
-    .eq('account_id', accountId)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
+  const { data } = await api.get(`/resource/products/${accountId}`);
   return (data as ProductRow[]).map(mapProductRow);
 }
 
@@ -32,28 +24,20 @@ function productToRow(p: Partial<Omit<Product, 'id'>>): Record<string, unknown> 
 }
 
 export async function insertProduct(data: Omit<Product, 'id'>): Promise<void> {
-  const { error } = await getSupabase().from('products').insert(productToRow(data));
-  if (error) throw error;
+  await api.post('/resource/products', productToRow(data));
 }
 
 export async function updateProductRow(id: string, patch: Partial<Product>): Promise<void> {
-  const { error } = await getSupabase().from('products').update(productToRow(patch)).eq('id', id);
-  if (error) throw error;
+  await api.put(`/resource/products/${id}`, productToRow(patch));
 }
 
 export async function deleteProductRow(id: string): Promise<void> {
-  const { error } = await getSupabase().from('products').delete().eq('id', id);
-  if (error) throw error;
+  await api.delete(`/resource/products/${id}`);
 }
 
 // ---------- Knowledge ----------
 export async function fetchKnowledge(accountId: string): Promise<Knowledge[]> {
-  const { data, error } = await getSupabase()
-    .from('knowledge')
-    .select('*')
-    .eq('account_id', accountId)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
+  const { data } = await api.get(`/resource/knowledge/${accountId}`);
   return (data as KnowledgeRow[]).map(mapKnowledgeRow);
 }
 
@@ -67,28 +51,20 @@ function knowledgeToRow(k: Partial<Omit<Knowledge, 'id'>>): Record<string, unkno
 }
 
 export async function insertKnowledge(data: Omit<Knowledge, 'id'>): Promise<void> {
-  const { error } = await getSupabase().from('knowledge').insert(knowledgeToRow(data));
-  if (error) throw error;
+  await api.post('/resource/knowledge', knowledgeToRow(data));
 }
 
 export async function updateKnowledgeRow(id: string, patch: Partial<Knowledge>): Promise<void> {
-  const { error } = await getSupabase().from('knowledge').update(knowledgeToRow(patch)).eq('id', id);
-  if (error) throw error;
+  await api.put(`/resource/knowledge/${id}`, knowledgeToRow(patch));
 }
 
 export async function deleteKnowledgeRow(id: string): Promise<void> {
-  const { error } = await getSupabase().from('knowledge').delete().eq('id', id);
-  if (error) throw error;
+  await api.delete(`/resource/knowledge/${id}`);
 }
 
 // ---------- Promo ----------
 export async function fetchPromos(accountId: string): Promise<Promo[]> {
-  const { data, error } = await getSupabase()
-    .from('promos')
-    .select('*')
-    .eq('account_id', accountId)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
+  const { data } = await api.get(`/resource/promos/${accountId}`);
   return (data as PromoRow[]).map(mapPromoRow);
 }
 
@@ -104,16 +80,13 @@ function promoToRow(p: Partial<Omit<Promo, 'id'>>): Record<string, unknown> {
 }
 
 export async function insertPromo(data: Omit<Promo, 'id'>): Promise<void> {
-  const { error } = await getSupabase().from('promos').insert(promoToRow(data));
-  if (error) throw error;
+  await api.post('/resource/promos', promoToRow(data));
 }
 
 export async function updatePromoRow(id: string, patch: Partial<Promo>): Promise<void> {
-  const { error } = await getSupabase().from('promos').update(promoToRow(patch)).eq('id', id);
-  if (error) throw error;
+  await api.put(`/resource/promos/${id}`, promoToRow(patch));
 }
 
 export async function deletePromoRow(id: string): Promise<void> {
-  const { error } = await getSupabase().from('promos').delete().eq('id', id);
-  if (error) throw error;
+  await api.delete(`/resource/promos/${id}`);
 }

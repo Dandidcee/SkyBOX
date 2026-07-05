@@ -235,6 +235,11 @@
   border-color: var(--color-primary);
 }
 
+.field-input::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.6;
+}
+
 .field-color {
   height: 40px;
   width: 100%;

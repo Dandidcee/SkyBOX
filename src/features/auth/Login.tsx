@@ -58,8 +58,10 @@ const Login = () => {
           setInfo('Akun dibuat. Cek email kamu untuk konfirmasi, lalu masuk.');
           setMode('login');
           setPassword('');
+        } else {
+          // Auto login setelah registrasi berhasil
+          await signIn(email.trim(), password);
         }
-        // Bila tanpa konfirmasi, session langsung aktif → App pindah otomatis.
       } else {
         await resetPassword(email.trim());
         setInfo('Link reset password sudah dikirim ke email kamu. Cek inbox/spam.');
@@ -168,8 +170,10 @@ const Login = () => {
       </form>
 
       {isTermsOpen && (
-        <div className="cat-modal-overlay" style={{ zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setIsTermsOpen(false)}>
-          <div className="cat-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', backgroundColor: 'var(--color-surface)', borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
+        <div className="cat-modal-overlay" style={{ zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseDown={(e) => {
+          if (e.target === e.currentTarget) setIsTermsOpen(false);
+        }}>
+          <div className="cat-modal" style={{ maxWidth: '400px', backgroundColor: 'var(--color-surface)', borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
             <div className="cat-modal-head" style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border)' }}>
               <h3 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Syarat & Ketentuan Penggunaan</h3>
             </div>

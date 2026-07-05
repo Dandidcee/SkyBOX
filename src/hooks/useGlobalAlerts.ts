@@ -1,62 +1,62 @@
-// Listener Realtime GLOBAL untuk conversations (semua akun milik admin).
-// Memunculkan notifikasi + suara (pesan masuk, auto-human, order TF) lintas akun —
-// tidak bergantung pada Inbox akun mana yang sedang dibuka. Juga set status koneksi
-// Realtime + refetch query conversations (Dashboard/Analytics/Inbox ikut ter-update).
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { getSupabase, isSupabaseConfigured } from '../services/supabase';
+import { getSocket, connectSocket, disconnectSocket } from '../services/socket';
 import { useUiStore } from '../lib/uiStore';
 import { playEventSound } from '../lib/soundStore';
-import { wasSelfHandlerChange } from '../lib/selfActions';
+// import { wasSelfHandlerChange } from '../lib/selfActions';
 import type { Account, ConversationRow } from '../types/db';
 
 export function useGlobalAlerts(accounts: Account[], enabled: boolean) {
   const qc = useQueryClient();
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !enabled) return;
+    if (!enabled || accounts.length === 0) return;
     const { notify, setRealtime } = useUiStore.getState();
+    const socket = getSocket();
 
-    const channel = getSupabase()
-      .channel('global-conversations')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'conversations' },
-        (payload) => {
-          const oldRow = payload.old as Partial<ConversationRow> | undefined;
-          const newRow = payload.new as ConversationRow | undefined;
-          if (payload.eventType === 'UPDATE' && oldRow && newRow) {
-            const label = newRow.customer_name || newRow.customer_phone || 'Pelanggan';
-            const accName = accounts.find((a) => a.id === newRow.account_id)?.name;
-            const prefix = accName ? `[${accName}] ` : '';
+    // Koneksi ke semua akun yang ada
+    accounts.forEach(acc => {
+      connectSocket(acc.id);
+    });
 
-            // Pesan masuk baru (unread naik)
-            if ((newRow.unread ?? 0) > (oldRow.unread ?? 0)) {
-              notify(`${prefix}Pesan baru dari ${label}`, 'info');
-              playEventSound('incoming');
-            }
-            // AI menyerahkan ke manusia — abaikan bila CS sendiri yang toggle
-            if (oldRow.handler === 'ai' && newRow.handler === 'human' && !wasSelfHandlerChange(newRow.id)) {
-              notify(`${prefix}${label} butuh penanganan manusia`, 'warn');
-              playEventSound('lowConfidence');
-            }
-            // Order masuk menunggu pembayaran (TF)
-            if (oldRow.order_status !== 'waiting_payment' && newRow.order_status === 'waiting_payment') {
-              notify(`${prefix}Order masuk: ${label} menunggu pembayaran`, 'success');
-            }
-          }
-          // Refetch semua query conversations (per-akun + all) agar UI sinkron.
-          qc.invalidateQueries({ queryKey: ['conversations'] });
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') setRealtime('connected');
-        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setRealtime('disconnected');
-        else if (status !== 'CLOSED') setRealtime('connecting');
-      });
+    socket.on('connect', () => {
+      setRealtime('connected');
+    });
+
+    socket.on('disconnect', () => {
+      setRealtime('disconnected');
+    });
+
+    socket.on('connect_error', () => {
+      setRealtime('disconnected');
+    });
+
+    socket.on('conversation_updated', (newRow: ConversationRow) => {
+      // Asumsikan payload ini adalah data baru yang di-update
+      const label = newRow.customer_name || newRow.customer_phone || 'Pelanggan';
+      const accName = accounts.find((a) => a.id === newRow.account_id)?.name;
+      const prefix = accName ? `[${accName}] ` : '';
+
+      // Untuk notifikasi unread naik (dari backend, saat ini kita tidak kirim oldRow, tapi hanya kirim saat ada pesan masuk)
+      // Karena kita trigger ini di Meta webhook, ini pasti ada unread naik.
+      notify(`${prefix}Pesan baru dari ${label}`, 'info');
+      playEventSound('incoming');
+
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+    });
+
+    socket.on('new_message', (msgRow) => {
+      // Invalidate pesan untuk conversation id tsb
+      qc.invalidateQueries({ queryKey: ['messages', msgRow.conversation_id] });
+    });
 
     return () => {
-      getSupabase().removeChannel(channel);
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('connect_error');
+      socket.off('conversation_updated');
+      socket.off('new_message');
+      disconnectSocket();
     };
   }, [accounts, qc, enabled]);
 }

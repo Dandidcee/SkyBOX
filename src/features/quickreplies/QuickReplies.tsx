@@ -94,8 +94,10 @@ export default function QuickReplies() {
       </div>
 
       {form && (
-        <div className="cat-modal-overlay" onClick={() => setForm(null)}>
-          <div className="cat-modal" onClick={e => e.stopPropagation()}>
+        <div className="cat-modal-overlay" onMouseDown={(e) => {
+          if (e.target === e.currentTarget) setForm(null);
+        }}>
+          <div className="cat-modal">
             <div className="cat-modal-head">
               <h3>{editingId ? 'Edit Balasan Cepat' : 'Tambah Balasan Cepat'}</h3>
               <button onClick={() => setForm(null)}><MdClose size={20} /></button>

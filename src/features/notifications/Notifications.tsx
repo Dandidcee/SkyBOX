@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { MdNotificationsNone, MdDeleteSweep } from 'react-icons/md';
 import type { Account } from '../../types/db';
 import { useNotificationsList } from '../../hooks/useNotificationsList';
-import { getSupabase } from '../../services/supabase';
+import api from '../../services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import '../dashboard/Dashboard.css';
 import './Notifications.css';
@@ -73,8 +73,7 @@ const Notifications = ({ accounts, onOpenChat }: NotificationsProps) => {
     if (!confirm('Hapus semua notifikasi? Tindakan ini tidak bisa dibatalkan.')) return;
     setDeleting(true);
     try {
-      // Hapus semua notifikasi (RLS scoped — hanya milik admin ini yang kena)
-      await getSupabase().from('notifications').delete().gte('created_at', '1970-01-01');
+      await api.delete('/notifications');
       qc.invalidateQueries({ queryKey: ['notifications', 'list'] });
       localStorage.removeItem('skybox_read_notifs');
       setReadIds(new Set());

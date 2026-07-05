@@ -5,7 +5,7 @@ import {
   fetchKnowledge, insertKnowledge, updateKnowledgeRow, deleteKnowledgeRow,
   fetchPromos, insertPromo, updatePromoRow, deletePromoRow,
 } from '../services/catalog';
-import { isSupabaseConfigured } from '../services/supabase';
+
 import type { Product, Knowledge, Promo } from '../types/db';
 
 const productsKey = (accountId?: string) => ['products', accountId];
@@ -17,7 +17,7 @@ export function useProducts(accountId: string | undefined) {
   return useQuery({
     queryKey: productsKey(accountId),
     queryFn: () => fetchProducts(accountId!),
-    enabled: isSupabaseConfigured && !!accountId,
+    enabled: !!accountId,
   });
 }
 
@@ -46,7 +46,7 @@ export function useKnowledge(accountId: string | undefined) {
   return useQuery({
     queryKey: knowledgeKey(accountId),
     queryFn: () => fetchKnowledge(accountId!),
-    enabled: isSupabaseConfigured && !!accountId,
+    enabled: !!accountId,
   });
 }
 
@@ -75,7 +75,7 @@ export function usePromos(accountId: string | undefined) {
   return useQuery({
     queryKey: promosKey(accountId),
     queryFn: () => fetchPromos(accountId!),
-    enabled: isSupabaseConfigured && !!accountId,
+    enabled: !!accountId,
   });
 }
 

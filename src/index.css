@@ -126,43 +126,19 @@ button:active:not(:disabled) {
   position: relative;
   overflow: hidden;
 }
-
-/* Desktop: Vertical line on the left */
-@media (min-width: 769px) {
-  .nav-item::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    height: 100%;
-    width: 3px;
-    background-color: var(--color-primary);
-    transform: scaleY(0);
-    transition: transform 0.3s ease;
-    transform-origin: bottom;
-  }
-  .nav-item.active::before {
-    transform: scaleY(1);
-  }
+.nav-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 3px;
+  background-color: var(--color-primary);
+  transform: scaleY(0);
+  transition: transform 0.3s ease;
+  transform-origin: bottom;
 }
-
-/* Mobile: Horizontal line at the top */
-@media (max-width: 768px) {
-  .nav-item::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    height: 3px;
-    width: 50%;
-    background-color: var(--color-primary);
-    transform: translateX(-50%) scaleX(0);
-    transition: transform 0.3s ease;
-    transform-origin: center;
-    border-radius: 0 0 3px 3px;
-  }
-  .nav-item.active::before {
-    transform: translateX(-50%) scaleX(1);
-  }
+.nav-item.active::before {
+  transform: scaleY(1);
 }
 

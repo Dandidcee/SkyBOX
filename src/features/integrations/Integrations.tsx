@@ -25,11 +25,10 @@ const emptyForm: AccountForm = {
   name: '',
   phone: '',
   color: '#25D366',
-  wahaSession: '',
-  toggleWebhookUrl: '',
-  sendMessageWebhookUrl: '',
-  sendMediaWebhookUrl: '',
-  analyzeWebhookUrl: '',
+  waPhoneNumberId: '',
+  waAccessToken: '',
+  n8nWebhookUrl: '',
+  webhookUrl: '',
   confidenceThreshold: 75,
   bankAccount: '',
   adminNotifyPhone: '',
@@ -92,7 +91,7 @@ const Integrations = ({ accounts, onAdd, onUpdate, onDelete }: IntegrationsProps
         <div>
           <h2>Pusat Koneksi</h2>
           <p className="integrations-subtitle">
-            Kelola akun WhatsApp, session WAHA, dan webhook N8N untuk tiap nomor.
+            Kelola akun WhatsApp Official, Phone ID, Access Token, dan Webhook N8N (AI).
           </p>
         </div>
         <button className="btn-add-account" onClick={openAdd}>
@@ -125,35 +124,28 @@ const Integrations = ({ accounts, onAdd, onUpdate, onDelete }: IntegrationsProps
             <div className="account-card-body">
               <div className="config-row">
                 <MdSmartphone size={16} className="config-icon" />
-                <span className="config-label">Session WAHA</span>
-                <span className="config-value">{acc.wahaSession || <em>belum diatur</em>}</span>
+                <span className="config-label">WA Official Phone ID</span>
+                <span className="config-value">{acc.waPhoneNumberId || <em>belum diatur</em>}</span>
               </div>
               <div className="config-row">
-                <MdWebhook size={16} className="config-icon" />
-                <span className="config-label">Webhook Toggle</span>
-                <span className={`config-value ${acc.toggleWebhookUrl ? 'ok' : 'warn'}`}>
-                  {acc.toggleWebhookUrl || 'belum diatur'}
+                <MdSmartphone size={16} className="config-icon" />
+                <span className="config-label">WA Access Token</span>
+                <span className={`config-value ${acc.waAccessToken ? 'ok' : 'warn'}`}>
+                  {acc.waAccessToken ? 'Disembunyikan (Aktif)' : 'belum diatur'}
                 </span>
               </div>
               <div className="config-row">
                 <MdWebhook size={16} className="config-icon" />
-                <span className="config-label">Webhook Kirim Teks</span>
-                <span className={`config-value ${acc.sendMessageWebhookUrl ? 'ok' : 'warn'}`}>
-                  {acc.sendMessageWebhookUrl || 'belum diatur'}
+                <span className="config-label">Webhook N8N (AI)</span>
+                <span className={`config-value ${acc.n8nWebhookUrl ? 'ok' : 'warn'}`}>
+                  {acc.n8nWebhookUrl || 'belum diatur'}
                 </span>
               </div>
               <div className="config-row">
                 <MdWebhook size={16} className="config-icon" />
-                <span className="config-label">Webhook Kirim Media</span>
-                <span className={`config-value ${acc.sendMediaWebhookUrl ? 'ok' : 'warn'}`}>
-                  {acc.sendMediaWebhookUrl || 'belum diatur'}
-                </span>
-              </div>
-              <div className="config-row">
-                <MdWebhook size={16} className="config-icon" />
-                <span className="config-label">Webhook Analisis AI</span>
-                <span className={`config-value ${acc.analyzeWebhookUrl ? 'ok' : 'warn'}`}>
-                  {acc.analyzeWebhookUrl || 'belum diatur'}
+                <span className="config-label">Webhook Template</span>
+                <span className={`config-value ${acc.webhookUrl ? 'ok' : 'warn'}`}>
+                  {acc.webhookUrl || 'belum diatur'}
                 </span>
               </div>
               <div className="config-row">
@@ -177,8 +169,10 @@ const Integrations = ({ accounts, onAdd, onUpdate, onDelete }: IntegrationsProps
       </div>
 
       {isFormOpen && (
-        <div className="modal-overlay" onClick={closeForm}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onMouseDown={(e) => {
+          if (e.target === e.currentTarget) closeForm();
+        }}>
+          <div className="modal">
             <div className="modal-header">
               <h3>{editingId === null ? 'Tambah Akun WhatsApp' : 'Edit Akun'}</h3>
               <button className="icon-btn" onClick={closeForm}>
@@ -218,7 +212,7 @@ const Integrations = ({ accounts, onAdd, onUpdate, onDelete }: IntegrationsProps
                   />
                 </label>
                 <label className="field">
-                  <span className="field-label">Batas Confidence (0-100)</span>
+                  <span className="field-label">Batas Confidence</span>
                   <input
                     type="number"
                     min={0}
@@ -231,57 +225,59 @@ const Integrations = ({ accounts, onAdd, onUpdate, onDelete }: IntegrationsProps
               </div>
 
               <label className="field">
-                <span className="field-label">Session WAHA</span>
+                <span className="field-label">Phone Number ID</span>
                 <input
                   className="field-input"
-                  value={form.wahaSession}
-                  onChange={e => setField('wahaSession', e.target.value)}
-                  placeholder="mis. sales-cabang-1"
+                  value={form.waPhoneNumberId || ''}
+                  onChange={e => setField('waPhoneNumberId', e.target.value)}
+                  placeholder="Contoh: 104234523456"
                 />
               </label>
 
               <label className="field">
-                <span className="field-label">Webhook Toggle (AI/Human)</span>
+                <span className="field-label">Access Token</span>
                 <input
+                  type="password"
                   className="field-input"
-                  value={form.toggleWebhookUrl}
-                  onChange={e => setField('toggleWebhookUrl', e.target.value)}
-                  placeholder="https://n8n.domain/webhook/toggle-akun"
+                  value={form.waAccessToken || ''}
+                  onChange={e => setField('waAccessToken', e.target.value)}
+                  placeholder="EAAI..."
                 />
               </label>
 
               <label className="field">
-                <span className="field-label">Webhook Kirim Teks</span>
+                <span className="field-label">Meta Verify Token</span>
                 <input
+                  type="text"
                   className="field-input"
-                  value={form.sendMessageWebhookUrl}
-                  onChange={e => setField('sendMessageWebhookUrl', e.target.value)}
-                  placeholder="https://n8n.domain/webhook/kirim-teks"
+                  value={form.metaVerifyToken || ''}
+                  onChange={e => setField('metaVerifyToken', e.target.value)}
+                  placeholder="misal: RAHASIA_123"
                 />
               </label>
 
               <label className="field">
-                <span className="field-label">Webhook Kirim Media</span>
+                <span className="field-label">Webhook N8N AI</span>
                 <input
                   className="field-input"
-                  value={form.sendMediaWebhookUrl}
-                  onChange={e => setField('sendMediaWebhookUrl', e.target.value)}
-                  placeholder="https://n8n.domain/webhook/kirim-media"
+                  value={form.n8nWebhookUrl || ''}
+                  onChange={e => setField('n8nWebhookUrl', e.target.value)}
+                  placeholder="https://dashboard.leyatiofficial.xyz/webhook/ai-handler"
                 />
               </label>
 
               <label className="field">
-                <span className="field-label">Webhook Analisis AI (rangkum percakapan)</span>
+                <span className="field-label">Webhook Template</span>
                 <input
                   className="field-input"
-                  value={form.analyzeWebhookUrl}
-                  onChange={e => setField('analyzeWebhookUrl', e.target.value)}
-                  placeholder="https://n8n.domain/webhook/analisis"
+                  value={form.webhookUrl || ''}
+                  onChange={e => setField('webhookUrl', e.target.value)}
+                  placeholder="https://dashboard.leyatiofficial.xyz/webhook/template-handler"
                 />
               </label>
 
               <label className="field">
-                <span className="field-label">Nomor Rekening (alur TF)</span>
+                <span className="field-label">Nomor Rekening</span>
                 <input
                   className="field-input"
                   value={form.bankAccount}
@@ -291,7 +287,7 @@ const Integrations = ({ accounts, onAdd, onUpdate, onDelete }: IntegrationsProps
               </label>
 
               <label className="field">
-                <span className="field-label">Nomor WA Admin (notifikasi)</span>
+                <span className="field-label">Nomor WA Admin</span>
                 <input
                   className="field-input"
                   value={form.adminNotifyPhone ?? ''}

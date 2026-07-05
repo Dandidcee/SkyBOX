@@ -21,16 +21,13 @@ export interface Account {
   name: string;
   phone: string;
   color: string;
-  /** Nama session di WAHA (1 nomor WA = 1 session) */
-  wahaSession: string;
-  /** Webhook N8N: ambil alih / kembalikan handler (toggle AI/Human) */
-  toggleWebhookUrl: string;
-  /** Webhook N8N: kirim balasan teks */
-  sendMessageWebhookUrl: string;
-  /** Webhook N8N: kirim media (gambar/PDF) */
-  sendMediaWebhookUrl: string;
-  /** Webhook N8N: analisis/rangkum percakapan (AI agent) */
-  analyzeWebhookUrl: string;
+  waPhoneNumberId?: string;
+  waAccessToken?: string;
+  metaVerifyToken?: string;
+  /** Webhook N8N: lempar pesan ke N8N saat Mode AI */
+  n8nWebhookUrl: string;
+  /** Webhook Template: dipanggil saat template tertentu di-trigger */
+  webhookUrl: string;
   /** Batas confidence: di bawah ini AI auto-serahkan ke human (0-100) */
   confidenceThreshold: number;
   /** Nomor rekening untuk alur pembayaran TF */
@@ -62,6 +59,7 @@ export interface Message {
   id: string;
   conversationId: string;
   externalId: string | null;
+  replyToMessageId?: string | null;
   direction: MessageDirection;
   type: MessageType;
   body: string;
@@ -88,14 +86,14 @@ export interface AccountRow {
   name: string;
   phone: string;
   color: string;
-  waha_session: string;
-  toggle_webhook_url: string;
-  send_message_webhook_url: string;
-  send_media_webhook_url: string;
-  analyze_webhook_url: string;
+  n8n_webhook_url: string;
+  webhook_url: string;
   confidence_threshold: number;
   bank_account: string;
   admin_notify_phone?: string;
+  wa_phone_number_id?: string;
+  wa_access_token?: string;
+  meta_verify_token?: string;
 }
 
 export interface ConversationRow {
@@ -116,6 +114,7 @@ export interface MessageRow {
   id: string;
   conversation_id: string;
   external_message_id: string | null;
+  reply_to_message_id?: string | null;
   direction: MessageDirection;
   type: MessageType;
   body: string;

@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import {
-  MdDarkMode, MdLightMode, MdHub, MdCloudDone, MdCloudOff,
+  MdDarkMode, MdLightMode, MdHub,
   MdPlayArrow, MdVolumeUp, MdVolumeOff, MdLock, MdCheck, MdVisibility, MdVisibilityOff,
 } from 'react-icons/md';
-import { isSupabaseConfigured } from '../../services/supabase';
 import { updatePassword } from '../../services/auth';
 import { useSoundStore, type SoundEvent } from '../../lib/soundStore';
 import { TONES, playTone } from '../../lib/sound';
@@ -199,19 +198,8 @@ const Settings = ({ setActiveView }: SettingsProps) => {
 
         <div className="settings-row">
           <div>
-            <div className="settings-label">Koneksi Database</div>
-            <div className="settings-desc">Status konfigurasi Supabase.</div>
-          </div>
-          <div className={`settings-status ${isSupabaseConfigured ? 'ok' : 'off'}`}>
-            {isSupabaseConfigured ? <MdCloudDone size={18} /> : <MdCloudOff size={18} />}
-            <span>{isSupabaseConfigured ? 'Terhubung' : 'Belum diatur'}</span>
-          </div>
-        </div>
-
-        <div className="settings-row">
-          <div>
             <div className="settings-label">Akun WhatsApp</div>
-            <div className="settings-desc">Kelola nomor, session WAHA, dan webhook N8N.</div>
+            <div className="settings-desc">Kelola nomor, session, dan webhook N8N.</div>
           </div>
           <button className="settings-btn" onClick={() => setActiveView('integrations')}>
             <MdHub size={18} />

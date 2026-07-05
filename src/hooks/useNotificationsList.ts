@@ -1,7 +1,5 @@
-// Hook React Query: daftar notifikasi (riwayat) + Realtime.
-import { useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getSupabase, isSupabaseConfigured } from '../services/supabase';
+import { useQuery } from '@tanstack/react-query';
+import api from '../services/api';
 import type { NotificationRow } from '../types/db';
 
 const KEY = ['notifications', 'list'];
@@ -16,18 +14,11 @@ export interface NotificationItem {
   createdAt: string;
 }
 
-export function useNotificationsList() {
-  const qc = useQueryClient();
-
-  const query = useQuery({
+export function useNotificationsList(enabled: boolean = true) {
+  return useQuery({
     queryKey: KEY,
     queryFn: async (): Promise<NotificationItem[]> => {
-      const { data, error } = await getSupabase()
-        .from('notifications')
-        .select('id,account_id,level,message,conversation_id,customer_phone,created_at')
-        .order('created_at', { ascending: false })
-        .limit(100);
-      if (error) throw error;
+      const { data } = await api.get('/notifications');
       return (data as NotificationRow[]).map((r) => {
         return {
           id: r.id,
@@ -40,24 +31,6 @@ export function useNotificationsList() {
         };
       });
     },
-    enabled: isSupabaseConfigured,
+    enabled,
   });
-
-  useEffect(() => {
-    if (!isSupabaseConfigured) return;
-    // Nama channel unik per instance hook (dipakai di App badge + halaman Notifikasi
-    // sekaligus). Nama sama → Supabase error "cannot add callbacks after subscribe()".
-    const channelName = `notifications-list-${Math.random().toString(36).slice(2)}`;
-    const channel = getSupabase()
-      .channel(channelName)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, () =>
-        qc.invalidateQueries({ queryKey: KEY })
-      )
-      .subscribe();
-    return () => {
-      getSupabase().removeChannel(channel);
-    };
-  }, [qc]);
-
-  return query;
 }

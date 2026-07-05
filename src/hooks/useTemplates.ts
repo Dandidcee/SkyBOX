@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getSupabase, isSupabaseConfigured } from '../services/supabase';
+import api from '../services/api';
 import { mapTemplateRow } from '../services/mappers';
 import type { Template, TemplateRow } from '../types/db';
 
@@ -11,15 +11,10 @@ export function useTemplates(accountId: string | undefined) {
   return useQuery({
     queryKey: templatesKey(accountId),
     queryFn: async (): Promise<Template[]> => {
-      const { data, error } = await getSupabase()
-        .from('templates')
-        .select('*')
-        .eq('account_id', accountId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
+      const { data } = await api.get(`/resource/templates/${accountId}`);
       return (data as TemplateRow[]).map(mapTemplateRow);
     },
-    enabled: isSupabaseConfigured && !!accountId,
+    enabled: !!accountId,
   });
 }
 
@@ -39,22 +34,11 @@ export function useTemplateMutations(accountId: string | undefined) {
 
       if (args.id) {
         // Update existing
-        const { data, error } = await getSupabase()
-          .from('templates')
-          .update(payload)
-          .eq('id', args.id)
-          .select()
-          .single();
-        if (error) throw error;
+        const { data } = await api.put(`/resource/templates/${args.id}`, payload);
         return mapTemplateRow(data as TemplateRow);
       } else {
         // Insert new
-        const { data, error } = await getSupabase()
-          .from('templates')
-          .insert([payload])
-          .select()
-          .single();
-        if (error) throw error;
+        const { data } = await api.post('/resource/templates', payload);
         return mapTemplateRow(data as TemplateRow);
       }
     },
@@ -63,11 +47,7 @@ export function useTemplateMutations(accountId: string | undefined) {
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await getSupabase()
-        .from('templates')
-        .delete()
-        .eq('id', id);
-      if (error) throw error;
+      await api.delete(`/resource/templates/${id}`);
       return true;
     },
     onSuccess: invalidate,

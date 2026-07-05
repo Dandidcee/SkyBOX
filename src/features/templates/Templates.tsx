@@ -55,7 +55,6 @@ function parseCaptions(raw: string): { captions: CaptionEntry[], finalMessage: s
   return { captions: [{ caption: raw, image: '' }], finalMessage: '' };
 }
 
-/** Serialize ke JSON string buat simpan ke DB */
 function serializeCaptions(entries: CaptionEntry[], finalMessage: string): string {
   const cleaned = entries.filter(e => e.caption.trim() || e.image.trim());
   return JSON.stringify({

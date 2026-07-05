@@ -1,22 +1,23 @@
 // Hook React Query untuk daftar akun WA + mutasi CRUD.
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchAccounts, insertAccount, updateAccountRow, deleteAccountRow } from '../services/accounts';
-import { isSupabaseConfigured } from '../services/supabase';
 import type { Account } from '../types/db';
 
-const KEY = ['accounts'];
+export function accountsKey() {
+  return ['accounts'];
+}
 
-export function useAccounts() {
+export function useAccounts(enabled: boolean = true) {
   return useQuery({
-    queryKey: KEY,
+    queryKey: accountsKey(),
     queryFn: fetchAccounts,
-    enabled: isSupabaseConfigured,
+    enabled,
   });
 }
 
 export function useAccountMutations() {
   const qc = useQueryClient();
-  const invalidate = () => qc.invalidateQueries({ queryKey: KEY });
+  const invalidate = () => qc.invalidateQueries({ queryKey: accountsKey() });
 
   const add = useMutation({
     mutationFn: (data: Omit<Account, 'id'>) => insertAccount(data),

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { MdMenu } from 'react-icons/md';
 import Sidebar from './components/layout/Sidebar';
 import Inbox from './features/inbox/Inbox';
 import Dashboard from './features/dashboard/Dashboard';
@@ -21,9 +22,7 @@ import { useSystemNotifications } from './hooks/useSystemNotifications';
 import { useGlobalAlerts } from './hooks/useGlobalAlerts';
 import { useAllConversations } from './hooks/useAllConversations';
 import { useNotificationsList } from './hooks/useNotificationsList';
-import { isSupabaseConfigured } from './services/supabase';
-import { getSession, onAuthChange, signOut } from './services/auth';
-import type { Session } from '@supabase/supabase-js';
+import { getSession, onAuthChange, signOut, type Session } from './services/auth';
 import type { Account, OrderStatus } from './types/db';
 import './App.css';
 
@@ -31,32 +30,40 @@ import './App.css';
 export type { Account, OrderStatus };
 
 const stateStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: '100%',
+  width: '100%',
   padding: '24px',
   color: 'var(--color-text-secondary)',
+  textAlign: 'center',
+  fontSize: '15px',
 };
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeView, setActiveView] = useState<string>('dashboard');
-  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const [isSidebarVisible, setIsSidebarVisible] = useState(() => window.innerWidth > 768);
   const [activeAccountIds, setActiveAccountIds] = useState<string[]>([]);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
-  const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
+  const [authReady, setAuthReady] = useState(false);
   const [recovery, setRecovery] = useState(false);
   const [chatFocus, setChatFocus] = useState<{ accountId: string; conversationId: string } | null>(null);
 
   const queryClient = useQueryClient();
-  const { data: accounts = [], isLoading: accountsLoading, isError: accountsError, refetch } = useAccounts();
+  const { data: accounts = [], isLoading: accountsLoading, isError: accountsError, refetch } = useAccounts(!!session);
   const { add, update, remove } = useAccountMutations();
 
   useSystemNotifications(accounts);
   useGlobalAlerts(accounts, !!session);
 
   // Badge unread counts
-  const { data: allConvs = [] } = useAllConversations();
-  const { data: allNotifs = [] } = useNotificationsList();
+  const { data: allConvs = [] } = useAllConversations(!!session);
+  const { data: allNotifs = [] } = useNotificationsList(!!session);
   const unreadChats = allConvs.reduce((sum, c) => sum + (c.unread ?? 0), 0);
   const readNotifIds = (() => { try { return new Set(JSON.parse(localStorage.getItem('skybox_read_notifs') || '[]')); } catch { return new Set(); } })();
   const unreadNotifs = allNotifs.filter(n => !readNotifIds.has(n.id)).length;
@@ -69,7 +76,6 @@ function App() {
 
   // Auth: muat session awal + dengarkan perubahan login/logout.
   useEffect(() => {
-    if (!isSupabaseConfigured) return;
     getSession()
       .then(setSession)
       .finally(() => setAuthReady(true));
@@ -158,17 +164,6 @@ function App() {
     return <LoadingScreen onFinish={() => setIsLoading(false)} />;
   }
 
-  if (!isSupabaseConfigured) {
-    return (
-      <div style={{ ...stateStyle, color: 'var(--color-text-primary)' }}>
-        <h2>Konfigurasi Supabase belum ada</h2>
-        <p style={{ color: 'var(--color-text-secondary)', marginTop: 8 }}>
-          Set <code>VITE_SUPABASE_URL</code> dan <code>VITE_SUPABASE_ANON_KEY</code> di file <code>.env</code>, lalu jalankan ulang dev server.
-        </p>
-      </div>
-    );
-  }
-
   // Belum siap cek auth → tampilkan loading singkat.
   if (!authReady) {
     return <div style={stateStyle}>Memuat…</div>;
@@ -187,6 +182,21 @@ function App() {
   return (
     <div className={`app-layout ${mobileChatOpen ? 'mobile-chat-open' : ''}`}>
       <NotificationHost />
+      
+      {/* Header Khusus Mobile */}
+      <div className="mobile-header">
+        <button className="hamburger-btn" onClick={() => setIsSidebarVisible(true)}>
+          <MdMenu />
+        </button>
+        <span className="mobile-header-title">SkyBox Dashboard</span>
+      </div>
+
+      {/* Overlay untuk sidebar di mobile */}
+      <div 
+        className={`sidebar-overlay ${isSidebarVisible ? 'active' : ''}`}
+        onClick={() => setIsSidebarVisible(false)}
+      />
+
       <Sidebar
         isVisible={isSidebarVisible}
         toggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)}

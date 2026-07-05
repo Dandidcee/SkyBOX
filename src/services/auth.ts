@@ -1,60 +1,79 @@
-// Service autentikasi admin (Supabase Auth).
-// Admin dibuat manual di dashboard Supabase (Authentication > Users). Tidak ada signup publik.
-// Login memakai email + password; session disimpan otomatis oleh supabase-js (localStorage).
+import api from './api';
 
-import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
-import { getSupabase } from './supabase';
+export interface User {
+  id: string;
+  email: string;
+}
 
-/** Ambil session aktif (null bila belum login). */
+export interface Session {
+  token: string;
+  user: User;
+}
+
 export async function getSession(): Promise<Session | null> {
-  const { data } = await getSupabase().auth.getSession();
-  return data.session;
+  const token = localStorage.getItem('token');
+  const userStr = localStorage.getItem('user');
+  if (token && userStr) {
+    try {
+      return { token, user: JSON.parse(userStr) };
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
-/** User yang sedang login (null bila belum login). */
 export async function getCurrentUser(): Promise<User | null> {
-  const { data } = await getSupabase().auth.getUser();
-  return data.user;
+  const session = await getSession();
+  return session ? session.user : null;
 }
 
-/** Login dengan email + password. Melempar error bila gagal. */
 export async function signIn(email: string, password: string): Promise<Session> {
-  const { data, error } = await getSupabase().auth.signInWithPassword({ email, password });
-  if (error) throw error;
-  if (!data.session) throw new Error('Login gagal: session tidak ditemukan.');
-  return data.session;
+  const { data } = await api.post('/auth/login', { email, password });
+  if (data.token && data.user) {
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    notifyAuthChange('SIGNED_IN', { token: data.token, user: data.user });
+    return data;
+  }
+  throw new Error('Login gagal');
 }
 
-/** Daftar admin baru (email + password). Bila konfirmasi email aktif, user harus verifikasi
- *  lewat email dulu; bila nonaktif, langsung login. Mengembalikan true bila langsung punya session. */
-export async function signUp(email: string, password: string): Promise<{ needsConfirmation: boolean }> {
-  const { data, error } = await getSupabase().auth.signUp({ email, password });
-  if (error) throw error;
-  return { needsConfirmation: !data.session };
-}
-
-/** Kirim email reset password. Link mengarah balik ke aplikasi (mode set sandi baru). */
-export async function resetPassword(email: string): Promise<void> {
-  const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin,
-  });
-  if (error) throw error;
-}
-
-/** Set password baru untuk user yang sedang login / sesi recovery. */
-export async function updatePassword(newPassword: string): Promise<void> {
-  const { error } = await getSupabase().auth.updateUser({ password: newPassword });
-  if (error) throw error;
-}
-
-/** Logout admin. */
 export async function signOut(): Promise<void> {
-  const { error } = await getSupabase().auth.signOut();
-  if (error) throw error;
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  window.location.href = '/login';
 }
 
-/** Berlangganan perubahan status auth (login/logout/refresh/recovery). Kembalikan fungsi unsubscribe. */
-export function onAuthChange(cb: (event: AuthChangeEvent, session: Session | null) => void): () => void {
-  const { data } = getSupabase().auth.onAuthStateChange((event, session) => cb(event, session));
-  return () => data.subscription.unsubscribe();
+// Dummy untuk signup/reset karena backend baru belum full support
+export async function signUp(email: string, password: string): Promise<{ needsConfirmation: boolean }> {
+  const { data } = await api.post('/auth/register', { email, password });
+  if (data.success) {
+    return { needsConfirmation: false }; // Kita otomatis approve karena ini internal
+  }
+  throw new Error('Gagal mendaftar');
+}
+
+export async function resetPassword(_email: string): Promise<void> {
+  throw new Error("Belum diimplementasikan");
+}
+
+export async function updatePassword(newPassword: string): Promise<void> {
+  const { data } = await api.put('/auth/password', { password: newPassword });
+  if (!data.success) {
+    throw new Error('Gagal update password');
+  }
+}
+
+let authListeners: ((event: string, session: Session | null) => void)[] = [];
+
+export function notifyAuthChange(event: string, session: Session | null) {
+  authListeners.forEach((cb) => cb(event, session));
+}
+
+export function onAuthChange(cb: (event: string, session: Session | null) => void): () => void {
+  authListeners.push(cb);
+  return () => {
+    authListeners = authListeners.filter((l) => l !== cb);
+  };
 }

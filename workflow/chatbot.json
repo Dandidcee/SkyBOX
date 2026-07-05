@@ -1,0 +1,4394 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const out = [];\n\nfor (const item of $input.all()) {\n  const p = item.json.payload ?? {};\n  const info = p._data?.Info ?? {};\n\n  // --- Filter: abaikan grup & pesan dari bot sendiri ---\n  const fromMe = p.fromMe ?? info.IsFromMe ?? false;\n  const isGroup = info.IsGroup ?? false;\n  if (fromMe || isGroup) continue;\n\n  // --- Nomor asli pelanggan ---\n  const altRaw = info.SenderAlt || '';\n  let phone = altRaw.split('@')[0].split(':')[0];\n  const fromRaw = String(p.from || '');\n  if (!phone && !fromRaw.includes('@lid')) {\n    phone = fromRaw.split('@')[0].split(':')[0];\n  }\n\n  // --- Deteksi tipe & isi ---\n  const rawType = String(info.Type || info.MediaType || '').toLowerCase();\n  const msg = p._data?.Message ?? {};\n  let type = 'text';\n  let mediaUrl = '';\n  let body = p.body || p._data?.RawMessage?.conversation || '';\n\n  if (p.hasMedia || rawType) {\n    if (rawType === 'image' || msg.imageMessage) {\n      type = 'image';\n    } else if (rawType === 'video' || msg.videoMessage) {\n      type = 'video';\n    } else if (rawType === 'audio' || rawType === 'ptt' || msg.audioMessage || msg.pttMessage) {\n      type = 'audio'; // termasuk voice note (ptt)\n    } else if (rawType === 'document' || msg.documentMessage) {\n      type = 'document';\n    } else if (rawType && rawType !== 'text') {\n      type = 'document'; // sticker/lainnya → document\n    }\n\n    if (type !== 'text') {\n      body =\n        p.body ||\n        msg.imageMessage?.caption ||\n        msg.videoMessage?.caption ||\n        msg.documentMessage?.caption ||\n        '';\n      const media = p.media;\n      mediaUrl = typeof media === 'string' ? media : (media?.url || p.mediaUrl || '');\n    }\n  }\n\n  out.push({\n    json: {\n      session: item.json.session,\n      chatId: p.from,\n      messageId: p.id || info.ID,\n      customerPhone: phone,\n      customerName: info.PushName || '',\n      type,                 // text | image | video | audio | document\n      body,\n      mediaUrl,\n      fromMe,\n      isGroup,\n    },\n  });\n}\n\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5200,
+        1280
+      ],
+      "id": "fe40df32-96ee-448f-81b9-ba42181636e2",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/rpc/get_ai_context",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_session\": \"{{ $('Code in JavaScript').item.json.session }}\",\n  \"p_conversation_id\": \"{{ $('Upset Node').item.json.id }}\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -640,
+        1520
+      ],
+      "id": "afeae4e9-fb37-4353-a2d4-9e13f50c4a84",
+      "name": "Get Produk",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Code in JavaScript').item.json.body }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=Kamu adalah customer service toko via WhatsApp. Jawab dalam Bahasa Indonesia yang luwes, natural, dan to-the-point — seperti CS manusia.\n\n⚠️ WAJIB: Balasan HARUS berformat JSON valid dengan TEPAT 9 field. Jika \"confidence\" hilang, SISTEM CRASH. Selalu isi confidence dengan angka 0-100.\n\nIDENTITAS & GAYA BAHASA:\n- Kamu adalah CS manusia. JANGAN PERNAH mengaku sebagai AI/bot.\n- DILARANG mengulang sapaan seperti \"Halo kak!\" terus-menerus.\n\nWAKTU SAAT INI: {{ $json.waktuSekarang }}\n\nATURAN PROMO (KAMU YANG HITUNG, BUKAN PELANGGAN!):\n- JANGAN PERNAH menyuruh pelanggan yang menghitung, memikirkan, atau mengisi promo di dalam form!\n- KAMU (AI) yang wajib mengecek DATA PROMO. Jika memenuhi syarat, KAMU yang menuliskannya di form order (contoh: \"Promo : Beli 10 Gratis 1\").\n- JIKA TIDAK ADA PROMO, hilangkan baris \"Promo :\" dari form order. JANGAN mengirim teks instruksi dalam kurung [ ] ke pelanggan!\n\n🚨 ATURAN ESKALASI (TRUST, TESTIMONI, NEGO, COD CEK DULU, LUAR JAWA):\nJIKA PELANGGAN MENGALAMI SALAH SATU KONDISI INI:\n1. Tidak percaya, ragu, takut penipuan, atau minta testimoni.\n2. Meminta negosiasi harga / diskon tambahan.\n3. Meminta fitur \"COD Cek Dulu\".\n4. Marah-marah atau meremehkan toko.\n5. Alamat pengiriman berada di Luar Pulau Jawa atau Luar Negeri.\n\nMAKA KAMU WAJIB MELAKUKAN INI:\n- Set \"confidence\": 60\n- Isi \"reply\": \"Sebentar ya kak, untuk hal ini saya bantu sambungkan dengan Admin kami.\"\n- DILARANG KERAS memberikan penjelasan panjang lebar, janji, alasan, atau menyuruh pelanggan cek review! Cukup gunakan 1 kalimat patokan di atas saja!\n- Catatan: Jika pelanggan memilih COD biasa di Pulau Jawa tanpa drama, proses order form seperti biasa.\n\n🚨 ATURAN VALIDASI ALAMAT & VARIAN (SANGAT KETAT - WAJIB PATUHI!):\nKETIKA PELANGGAN MENGISI FORM ORDER, JANGAN LANGSUNG CLOSING! Lakukan pengecekan layaknya agen ekspedisi yang cerewet:\n1. CEK DETAIL LOKASI (RT/RW/DUSUN): Tanyakan RT/RW spesifiknya. NAMUN, jika pelanggan menyatakan bahwa daerahnya TIDAK MEMILIKI RT/RW (misalnya hanya ada nama Dusun, Blok, Banjar, atau Jalan & Nomor Rumah saja), MAKA TERIMALAH keterangan tersebut. JANGAN memaksa mereka memberikan angka RT/RW jika memang tidak ada. Cukup catat detail apa pun yang mereka berikan sebagai pelengkap alamat.\n2. CROSS-CHECK GEOGRAFIS: Gunakan pengetahuan bawaanmu (General Knowledge) tentang wilayah Indonesia. Cross-check apakah Desa/Kelurahan yang diisi pelanggan BENAR-BENAR ADA di dalam Kecamatan tersebut. Periksa juga apakah Kecamatan itu cocok dengan Kabupatennya. Jika datanya salah, janggal, atau nama desanya tidak cocok dengan kecamatan, KAMU WAJIB menegur dan menyuruh pelanggan mengecek kembali alamatnya!\n3. CEK TYPO DAERAH: Jika ada singkatan atau salah ketik nama kota/kecamatan (contoh: \"tskmalaya\", \"jkt\", \"bdg\"), KAMU WAJIB mengonfirmasi ejaan yang benarnya.\n4. CEK VARIAN PRODUK: Jika produk punya varian dan pelanggan belum menyebutkannya, KAMU WAJIB menanyakan varian apa yang dipilih.\n5. JANGAN CLOSING JIKA CACAT: Selama geografi desa/kecamatan tidak valid, typo belum dikonfirmasi, ukuran/varian belum jelas, atau detail alamat masih ambigu tanpa ada konfirmasi dari pelanggan, JANGAN UBAH intent ke `closing`. Tetap tanyakan kekurangannya sampai sempurna 100%!\n\nATURAN GAMBAR (WAJIB):\n- \"images\" = array objek {url, caption}.\n- Ambil url HANYA dari DATA PRODUK. Kirim HANYA saat pelanggan minta/pertama kali tertarik.\n- Jika pelanggan sudah merespons, images: [] (jangan kirim lagi).\n\nALUR PELAYANAN (WAJIB IKUTI URUTAN INI):\n1. TANYA KEBUTUHAN & VARIAN: Jelaskan produk dan WAJIB pastikan pelanggan memilih VARIAN SPESIFIK.\n2. KASIH FORM: Jika varian jelas dan mau order, kirim form order (susun form sesuai syarat).\n3. VALIDASI FORM (WAJIB!): TERAPKAN ATURAN VALIDASI ALAMAT. Jika ada yang cacat/typo/kurang, TEGUR RAMAH dan minta lengkapi.\n4. KONFIRMASI PEMBAYARAN TF: Jika transfer, bilang cek mutasi ke admin (set intent waiting_payment & confidence 60).\n5. CLOSING CHAT & TERIMA KASIH (WAJIB!): JIKA DAN HANYA JIKA alamat sudah SEMPURNA (Detail spesifik lokasi jelas atau dikonfirmasi tidak ada RT/RW, tidak typo, P. Jawa) dan varian tercatat, ubah intent ke `closing`. Kamu WAJIB menutup chat dengan kalimat: \"Terimakasih sudah berbelanja di toko kami...\"\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nFORMAT FORM ORDER\n⚠️ KAMU YANG WAJIB MENYUSUN FORM INI:\n━━━━━━━━━━━━━━━━━━━━━━━━\nMohon di bantu untuk mengisi format order nya kak, untuk di input ke tim packing\n\nNama Penerima :\nRT RW / Dusun / Blok :\nDesa / kelurahan :\nKecamatan :\nKabupaten :\nMetode pembayaran :\n[HANYA TULIS BARIS INI JIKA ADA PROMO] Promo : [Tulis nama promo yang kamu hitung sendiri]\nPosisi Rumah kira kira dekat dengan apa :\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nCONTOH BALASAN (PENTING! IKUTI FORMAT INI)\n━━━━━━━━━━━━━━━━━━━━━━━━\nContoh 1 — Pelanggan ragu, minta testimoni, takut penipuan, atau nawar harga:\n{\n  \"reply\": \"Sebentar ya kak, untuk hal ini saya bantu sambungkan dengan Admin kami.\",\n  \"intent\": \"none\",\n  \"confidence\": 60,\n  \"items\": null,\n  \"address\": null,\n  \"note\": null,\n  \"paymentMethod\": null,\n  \"images\": []\n}\n\nContoh 2 — Pelanggan isi form tapi cacat (Desa dan Kecamatan tidak nyambung, RT/RW belum jelas, typo):\n{\n  \"reply\": \"Kak, untuk RT dan RW-nya di Kp Cirput nomor berapa ya? (Atau memang tidak ada RT/RW kak?). Terus saya cek Desa Mandalagiri kok tidak ada di Kecamatan Leuwisari ya kak, boleh dicek lagi? Dan untuk kabupatennya maksudnya Tasikmalaya kah? Oh ya, sekalian mau pesan ukuran/varian apa kak?\",\n  \"intent\": \"lead\",\n  \"confidence\": 95,\n  \"items\": \"[Nama Produk] (varian belum disebut)\",\n  \"address\": \"dandi cahyaman, kp cirput, mandalagiri, leuwisari, tskmalaya\",\n  \"note\": null,\n  \"paymentMethod\": \"cod\",\n  \"images\": []\n}\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nINTENT (fase percakapan):\n━━━━━━━━━━━━━━━━━━━━━━━━\n- none            : tanya-tanya biasa\n- lead            : tertarik / butuh melengkapi data & form\n- waiting_payment : sudah sepakat transfer (butuh cek admin)\n- closing         : SEMUA DATA ALAMAT (JAWA) & VARIAN LENGKAP + SEMPURNA\n- complaint       : marah, barang rusak, retur, komplain\n\nCONFIDENCE (0-100):\n- 85-100 : sangat yakin\n- < 70   : ragu / butuh manusia\n- 60     : pelanggan eskalasi (ragu, marah, minta testi, luar pulau jawa, dll) atau cek mutasi\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nFORMAT BALASAN WAJIB (JSON valid, TEPAT 9 field):\n━━━━━━━━━━━━━━━━━━━━━━━━\n{\n  \"reply\": \"isi balasan, gunakan \\\\n\\\\n untuk jarak antar paragraf, \\\\n untuk antar field form.\",\n  \"intent\": \"none|lead|waiting_payment|closing|complaint\",\n  \"confidence\": 90,\n  \"items\": \"nama produk + VARIAN LENGKAP (null jika belum)\",\n  \"amount\": null,\n  \"address\": \"alamat SUPER LENGKAP BEBAS TYPO (null jika belum)\",\n  \"note\": \"catatan pengiriman (null jika tidak ada)\",\n  \"paymentMethod\": \"cod|tf|null\",\n  \"images\": [ { \"url\": \"url dari DATA PRODUK\", \"caption\": \"deskripsi singkat foto\" } ]\n}\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nKONTEKS:\n━━━━━━━━━━━━━━━━━━━━━━━━\nDATA PRODUK  : {{ $json.dataBarang }}\nINFO TOKO    : {{ $json.dataToko }}\nINFO PROMO   : {{ $json.dataPromo }}\nRIWAYAT CHAT : {{ $json.riwayat }}\nFASE CUSTOMER: {{ $json.fase }}\nORDER STATUS : {{ $json.orderStatus }}",
+          "maxIterations": 10
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -96,
+        1520
+      ],
+      "id": "0c312263-19bc-4646-bbd5-d1828e3491d8",
+      "name": "AI Agent",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -352,
+        1872
+      ],
+      "id": "7bf70953-4bc7-41d5-9f1d-6997737d8897",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "8paz2ntyMzPbTs64",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $input.first().json;\n\nconst produk = ctx.dataBarang || [];\nconst info   = ctx.dataToko || [];\nconst promo  = ctx.dataPromo || [];\n\n// Ambil 10 chat terakhir\nconst riwayatRaw = (ctx.riwayat || []).slice(0, 10);\n\nconst fase   = ctx.fase || 'none';\nconst orderStatus = ctx.orderStatus || 'none';\n\n// Format Produk (variants sekarang JSON: [{name, images:[]}])\nconst dataBarangStr = produk.length\n  ? produk.map(p => {\n      let text = `- ${p.name} | Rp${Number(p.price||0).toLocaleString('id-ID')} | stok: ${p.stock ?? '-'}`;\n\n      if (p.description) {\n        let desc = p.description.length > 100 ? p.description.substring(0, 100) + '...' : p.description;\n        text += `\\n  Desc: ${desc}`;\n      }\n\n      // Foto utama produk (image_url, bisa multi-baris)\n      if (p.image_url) {\n        const mainImgs = String(p.image_url).split('\\n').map(u => u.trim()).filter(Boolean);\n        if (mainImgs.length) text += `\\n  Foto Utama: ${mainImgs.join(', ')}`;\n      }\n\n      // Varian (JSON) → nama + foto per varian\n      if (p.variants) {\n        try {\n          const vars = JSON.parse(p.variants);\n          if (Array.isArray(vars) && vars.length) {\n            text += `\\n  Varian:`;\n            for (const v of vars) {\n              const imgs = (v.images || []).filter(Boolean);\n              text += `\\n    • ${v.name || 'varian'}${imgs.length ? ` (foto: ${imgs.join(', ')})` : ''}`;\n            }\n          }\n        } catch {\n          // fallback kalau variants masih teks lama\n          text += `\\n  Varian: ${String(p.variants).replace(/\\n/g, ' ')}`;\n        }\n      }\n\n      return text;\n    }).join('\\n\\n')\n  : '(belum ada produk)';\n\n// Format Basis Pengetahuan Toko\nconst dataTokoStr = info.length\n  ? info.map(k => {\n      let konten = k.content.length > 200 ? k.content.substring(0, 200) + '...' : k.content;\n      return `- ${k.title}: ${konten}`;\n  }).join('\\n\\n')\n  : '(belum ada info)';\n\n// Format Promo\nconst dataPromoStr = promo.length\n  ? promo.map(pr => `- ${pr.title}${pr.description ? `: ${pr.description}` : ''}`).join('\\n\\n')\n  : '(tidak ada promo aktif)';\n\n// Format Riwayat Chat\nconst riwayatStr = riwayatRaw.length\n  ? [...riwayatRaw].reverse().map(m => {\n      const sender = m.direction === 'in' ? 'Pelanggan' : 'CS (Kamu)';\n      const content = m.type === 'image' ? '[Mengirim Gambar]' : m.body;\n      return `${sender}: ${content}`;\n    }).join('\\n')\n  : '(belum ada riwayat)';\n\n// Format Fase\nconst faseTeks = `Fase Saat Ini: ${fase} | Status Order: ${orderStatus}`;\n\n// Ambil rekening\nconst rekening = ctx.rekeningTF || '';\n\n// Waktu sekarang (WIB)\nconst opsiWaktu = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' };\nconst waktuSekarang = new Date().toLocaleString('id-ID', opsiWaktu);\n\nreturn [{\n  json: {\n    dataBarang: dataBarangStr,\n    dataToko: dataTokoStr,\n    dataPromo: dataPromoStr,\n    riwayat: riwayatStr,\n    fase: faseTeks,\n    orderStatus: orderStatus,\n    rekeningTF: rekening,\n    waktuSekarang: waktuSekarang,\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -336,
+        1520
+      ],
+      "id": "0adc0058-f197-4e56-aacf-b4fa6e32d1ff",
+      "name": "pharsing hasil supabase"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Seen",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('Code in JavaScript').item.json.chatId }}",
+        "messageId": "={{ $('Code in JavaScript').item.json.messageId }}",
+        "participant": "",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        -1248,
+        1520
+      ],
+      "id": "b928b87e-1f83-4716-8e5d-847adc629946",
+      "name": "Send Seen",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Start Typing",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('Code in JavaScript').item.json.chatId }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        -944,
+        1520
+      ],
+      "id": "b60a29eb-c7a6-43aa-97cd-8d0d0875ec03",
+      "name": "Start Typing",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nlet raw = item.output ?? item.text ?? item;\nlet parsed;\n\ntry {\n  if (typeof raw === 'string') {\n    const clean = raw.replace(/```json\\s*/gi, '').replace(/```/g, '').trim();\n    parsed = JSON.parse(clean);\n  } else if (typeof raw === 'object' && raw !== null) {\n    parsed = raw;\n  } else {\n    throw new Error('Output AI bukan string atau objek');\n  }\n} catch (e) {\n  return [{\n    json: {\n      reply: (typeof raw === 'string' ? raw : '') || 'Maaf, ada kendala. Tim kami akan segera membantu.',\n      intent: 'complaint',\n      confidence: 30,\n      items: null,\n      amount: null,\n      address: null,\n      note: null,\n      paymentMethod: null,\n      images: [],\n    }\n  }];\n}\n\n// Paksa confidence jadi angka 0-100\nlet conf = Number(parsed.confidence);\nif (!Number.isFinite(conf) || conf < 0 || conf > 100) conf = 50;\n\n// Validasi intent\nconst validIntents = ['none', 'lead', 'waiting_payment', 'closing', 'complaint'];\nconst finalIntent = validIntents.includes(parsed.intent) ? parsed.intent : 'none';\n\n// Bersihkan link & data:URI dari reply\nlet safeReply = String(parsed.reply || '').trim();\nsafeReply = safeReply\n  .replace(/https?:\\/\\/\\S+/g, '')   // hapus http/https\n  .replace(/data:image\\/\\S+/g, '')  // hapus data URI\n  .replace(/\\\\n/g, '\\n')            // parse literal \\n → newline asli\n  .replace(/[^\\S\\n]{2,}/g, ' ')     // rapikan spasi dobel, jangan sentuh \\n\n  .trim();\n\n// Validasi images: array {url, caption}. Terima array objek, array string, atau imageUrl tunggal (kompat).\nlet images = [];\nif (Array.isArray(parsed.images)) {\n  images = parsed.images.map(it => {\n    if (typeof it === 'string') return { url: it.trim(), caption: '' };\n    return { url: String(it?.url || '').trim(), caption: String(it?.caption || '').trim() };\n  });\n} else if (parsed.imageUrl) {\n  images = [{ url: String(parsed.imageUrl).trim(), caption: '' }];\n}\n// Sisakan hanya url valid http/https\nimages = images.filter(it => /^https?:\\/\\//i.test(it.url));\n\n// Validasi paymentMethod\nconst validPay = ['cod', 'tf'];\nconst paymentMethod = validPay.includes(String(parsed.paymentMethod || '').toLowerCase())\n  ? String(parsed.paymentMethod).toLowerCase()\n  : null;\n\n// Validasi amount\nconst amount = parsed.amount != null && Number.isFinite(Number(parsed.amount))\n  ? Number(parsed.amount)\n  : null;\n\nreturn [{\n  json: {\n    reply: safeReply || 'Maaf, ada kendala. Tim kami akan segera membantu.',\n    intent: finalIntent,\n    confidence: conf,\n    items: parsed.items || null,\n    amount,\n    address: parsed.address || null,\n    note: parsed.note || null,\n    paymentMethod,\n    images,\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        1520
+      ],
+      "id": "0db72ce6-cfc0-46b9-b3de-efe1ba11791d",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/conversations?id=eq.{{ $('Upset Node').item.json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"order_status\": \"{{ $('Code in JavaScript1').item.json.intent }}\",\n  \"confidence\": \"{{ $('Code in JavaScript1').item.json.confidence }}\",\n  \"handler\": \"ai\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        848,
+        1328
+      ],
+      "id": "6597e67e-3f93-483b-a61f-f64935932cdb",
+      "name": "Update PATCH2",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "direction",
+              "value": "out"
+            },
+            {
+              "name": "type",
+              "value": "text"
+            },
+            {
+              "name": "body",
+              "value": "={{ $json._data.Message.extendedTextMessage.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2640,
+        2224
+      ],
+      "id": "3f196403-807c-4c11-b79c-24cd8053dd80",
+      "name": "save balasan",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/conversations?id=eq.{{ $('Upset Node').item.json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"handler\": \"human\",\n  \"confidence\": {{ $('Code in JavaScript1').item.json.confidence }},\n  \"order_status\": \"{{ $('Code in JavaScript1').item.json.intent }}\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1360,
+        1008
+      ],
+      "id": "e8efca32-b84d-4557-b597-6d5b58e72cf5",
+      "name": "Human Handle",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/conversations?on_conflict=account_id,customer_phone",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "account_id",
+              "value": "={{ $('Cek ID').item.json.id }}"
+            },
+            {
+              "name": "customer_phone",
+              "value": "={{ $('Code in JavaScript').item.json.customerPhone }}"
+            },
+            {
+              "name": "customer_name",
+              "value": "={{ $('Code in JavaScript').item.json.customerName }}"
+            },
+            {
+              "name": "chat_id",
+              "value": "={{ $('Code in JavaScript').item.json.chatId }}"
+            },
+            {
+              "name": "last_preview",
+              "value": "={{ $('Code in JavaScript').item.json.body || ($('Code in JavaScript').item.json.type === 'image' ? '📷 Foto' : $('Code in JavaScript').item.json.type === 'document' ? '📄 Dokumen' : '') }}"
+            },
+            {
+              "name": "last_time",
+              "value": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -4576,
+        1264
+      ],
+      "id": "22883b29-3435-454a-a3de-107d35c9a84a",
+      "name": "Upset Node",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/accounts?select=id&waha_session=eq.{{ $('Code in JavaScript').item.json.session }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "waha_session",
+              "value": "=eq.{{ $('Code in JavaScript').item.json.session }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -4784,
+        1264
+      ],
+      "id": "0a03f9eb-7fa4-4da4-aa9b-cab957834eaf",
+      "name": "Cek ID",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "external_message_id",
+              "value": "={{ $('Code in JavaScript').item.json.messageId }}"
+            },
+            {
+              "name": "direction",
+              "value": "in"
+            },
+            {
+              "name": "type",
+              "value": "={{ $('Code in JavaScript').item.json.type }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $('Code in JavaScript').item.json.body }}"
+            },
+            {
+              "name": "media_url",
+              "value": "={{ $('Code in JavaScript').item.json.mediaUrl }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1568,
+        1520
+      ],
+      "id": "37c940e0-6a44-403d-a435-923ca3724f5c",
+      "name": "Save Pesan1",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "25d919e6-8e9c-4534-a08e-ace6a898f7f5",
+              "leftValue": "={{ $('Code in JavaScript1').item.json.address }}",
+              "rightValue": "none",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "a070e522-6e6a-49a2-8882-e6e87f070b6d",
+              "leftValue": "={{ $('Code in JavaScript1').item.json.address }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2144,
+        2032
+      ],
+      "id": "755a7555-f8a1-4022-aa0b-56444c591d43",
+      "name": "ada order?"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('Code in JavaScript').item.json.chatId }}",
+        "reply_to": "={{ $('Code in JavaScript').item.json.customerPhone }}",
+        "text": "={{ $('Code in JavaScript1').item.json.reply }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        2384,
+        1856
+      ],
+      "id": "6ace8087-0a22-47b0-90a7-609c6b8c6654",
+      "name": "Send a text message1",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/orders",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation,resolution=merge-duplicates"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5cm90YWlncnVoc3pjb3ZncHhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODA1MjgsImV4cCI6MjA5Njc1NjUyOH0.YFxcYrigRcsasU4yaEO9p7aRXnVXkhh0GuZYhUq4nUc"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "type",
+              "value": "={{ $('Code in JavaScript1').item.json.paymentMethod }}"
+            },
+            {
+              "name": "status",
+              "value": "={{ $('Code in JavaScript1').item.json.intent }}"
+            },
+            {
+              "name": "amount",
+              "value": "={{ $('Code in JavaScript1').item.json.amount }}"
+            },
+            {
+              "name": "address",
+              "value": "={{ $('Code in JavaScript1').item.json.address }}"
+            },
+            {
+              "name": "items",
+              "value": "={{ $('Code in JavaScript1').item.json.items }}"
+            },
+            {
+              "name": "note",
+              "value": "={{ $('Code in JavaScript1').item.json.note }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2624,
+        1856
+      ],
+      "id": "dc5fba48-bcfb-4deb-88d1-8ce43a63cf72",
+      "name": "Upset Order",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "direction",
+              "value": "out"
+            },
+            {
+              "name": "type",
+              "value": "text"
+            },
+            {
+              "name": "body",
+              "value": "={{ $('Send a text message1').item.json._data.Message.extendedTextMessage.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2880,
+        1856
+      ],
+      "id": "fe8f92ed-f85e-4334-95d5-30e8bd077b41",
+      "name": "save balasan1",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f9762267-ba1f-41ab-b4d2-083d48c7dc83",
+              "leftValue": "={{ $('Code in JavaScript1').item.json.images.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1056,
+        1680
+      ],
+      "id": "e5ae3875-461a-4d6c-a175-058c32351ab1",
+      "name": "ada gambar?"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Code in JavaScript').item.json.body?.toLowerCase() }}",
+                    "rightValue": "={{ $json.kata_kunci_1.toLowerCase() }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "c5a3bf30-0bdb-4d88-9dfe-4da91be0a48e"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "579295ce-cb51-4ba3-a0a9-86aa70397c82",
+                    "leftValue": "={{ $('Code in JavaScript').item.json.body?.toLowerCase() }}",
+                    "rightValue": "={{ $json.kata_kunci_2.toLowerCase() }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ef55f276-c27d-46d3-aaec-a56dd4064fda",
+                    "leftValue": "={{ $('Code in JavaScript').item.json.type }}",
+                    "rightValue": "text",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "6d82035d-e483-47ed-a4c0-4d9c31fa52c2",
+                    "leftValue": "={{ $('Code in JavaScript').item.json.type }}",
+                    "rightValue": "image",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a72357ce-bd9a-4fbf-aa34-41fbe41718c2",
+                    "leftValue": "={{ $('Code in JavaScript').item.json.type }}",
+                    "rightValue": "video",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "f66f4a1a-7fb9-42bd-942d-367f08c8402a",
+                    "leftValue": "={{ $('Code in JavaScript').item.json.type }}",
+                    "rightValue": "audio",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "4a8ba141-6d59-4385-8434-e564507cf793",
+                    "leftValue": "={{ $('Code in JavaScript').item.json.type }}",
+                    "rightValue": "document",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -3184,
+        1200
+      ],
+      "id": "0b961718-916e-4014-8946-b6d2faed0e88",
+      "name": "cek template"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "94093eb9-00ff-4831-a1b3-ea12d3090df2",
+              "leftValue": "={{ $json.isGroup }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "ae8b144d-231e-4f88-a400-23c8d39aa8f8",
+              "leftValue": "={{ $json.fromMe }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -4992,
+        1280
+      ],
+      "id": "080ff0a2-4340-405f-9883-5e665aca90f5",
+      "name": "Filtering pesan"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5f06dbff-560a-4df4-ad6c-3d8073760c5b",
+              "leftValue": "={{ $json.handler }}",
+              "rightValue": "human",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -4400,
+        1264
+      ],
+      "id": "7ba28f94-15c6-453b-b5ee-6ebd04e41bed",
+      "name": "cek human"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f623165c-bd9b-467f-98a6-6942df91405c",
+              "leftValue": "={{ $json.confidence }}",
+              "rightValue": 75,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        640,
+        1520
+      ],
+      "id": "1acc1216-d582-4d05-885f-4d3fb79fddc2",
+      "name": "alur confidence"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Code in JavaScript').item.json.mediaUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "147c54a494e3a24714f6b357d36c4afe"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1088,
+        2576
+      ],
+      "id": "0ec320df-264a-405e-b6d2-f12a5e452ecc",
+      "name": "Download Media"
+    },
+    {
+      "parameters": {
+        "operation": "uploadFile",
+        "additionalFieldsFile": {}
+      },
+      "type": "n8n-nodes-cloudinary.cloudinary",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        2576
+      ],
+      "id": "2bc327c4-ce77-482f-9061-974ba35d3ff4",
+      "name": "Upload an asset from file data",
+      "credentials": {
+        "cloudinaryApi": {
+          "id": "TFuRsRl5FBHKUmH6",
+          "name": "Cloudinary account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('HTTP Request1').item.json.admin_notify_phone + '@c.us'}}",
+        "reply_to": "={{ $('HTTP Request1').item.json.admin_notify_phone }}",
+        "text": "=Hallo admin customer dengan no  {{ $('Code in JavaScript').item.json.customerPhone }} mengirimkan {{ $('Code in JavaScript').item.json.type }} tolong bantu di cek untuk penanganan lebih lanjut",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        -1104,
+        2800
+      ],
+      "id": "f09796b6-04cf-42bb-85c2-25668fa92fe4",
+      "name": "Send a text message3",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/accounts?select=id,confidence_threshold,bank_account,admin_notify_phone&waha_session=eq.{{ $('Code in JavaScript').item.json.session }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -4144,
+        1280
+      ],
+      "id": "0bf48195-8c3f-473f-b658-663ff6f61c63",
+      "name": "HTTP Request1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "text": "Tugas Anda adalah menganalisis gambar yang diberikan.\n\nTentukan apakah gambar tersebut merupakan bukti pembayaran/transaksi keuangan atau bukan.\n\nKriteria bukti pembayaran:\n- Terdapat nominal uang.\n- Terdapat informasi transfer, pembayaran, transaksi, atau mutasi.\n- Terdapat nama bank, e-wallet, atau payment gateway.\n- Terdapat tanggal dan waktu transaksi.\n- Terdapat status berhasil/sukses/berhasil dikirim.\n\nJika gambar merupakan bukti pembayaran, keluarkan JSON:\n\n{\n  \"is_payment\": true,\n  \"amount\": 0,\n  \"sender\": \"\",\n  \"receiver\": \"\",\n  \"date\": \"\",\n  \"time\": \"\",\n  \"reference_number\": \"\",\n  \"payment_method\": \"\",\n  \"status\": \"\",\n  \"confidence\": 0\n}\n\nJika gambar BUKAN bukti pembayaran, keluarkan JSON:\n\n{\n  \"is_payment\": false,\n  \"reason\": \"\",\n  \"confidence\": 0\n}\n\nAturan:\n- Output HARUS JSON valid.\n- Jangan menambahkan markdown.\n- Jangan menambahkan penjelasan.\n- confidence berupa angka 0-100.\n- Jika suatu data tidak ditemukan, isi null.\n- Jangan menebak data yang tidak terlihat pada gambar.",
+        "inputType": "base64",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        -928,
+        2576
+      ],
+      "id": "df0ce9fe-551d-46ae-a63d-474da0eb0d0a",
+      "name": "Analyze image",
+      "credentials": {
+        "openAiApi": {
+          "id": "8paz2ntyMzPbTs64",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "external_message_id",
+              "value": "={{ $('Code in JavaScript').item.json.messageId }}"
+            },
+            {
+              "name": "direction",
+              "value": "in"
+            },
+            {
+              "name": "type",
+              "value": "={{ $('Code in JavaScript').item.json.type }}"
+            },
+            {
+              "name": "=media_url",
+              "value": "={{ $json.secure_url }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $('Code in JavaScript').item.json.body }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        48,
+        2576
+      ],
+      "id": "6e704186-cfcf-40a6-b083-d955c86697bf",
+      "name": "save gambar",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.all()[0].json[0].content[0].text;\nconst data = JSON.parse(raw);\n\nreturn [\n  {\n    json: {\n      is_payment: data.is_payment,\n      amount: data.amount,\n      sender: data.sender,\n      receiver: data.receiver,\n      date: data.date,\n      time: data.time,\n      reference_number: data.reference_number,\n      payment_method: data.payment_method,\n      status: data.status,\n      confidence: data.confidence\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        2576
+      ],
+      "id": "98773e51-3bb6-483b-989e-9fcc51e3bd36",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d7bb4ccd-cfca-4835-ac9a-19391815c784",
+              "leftValue": "={{ $('Code in JavaScript2').item.json.is_payment }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        256,
+        2576
+      ],
+      "id": "a7cd5e80-436c-45ca-bf1c-37ca0cdd4ed3",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Code in JavaScript').item.json.mediaUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "147c54a494e3a24714f6b357d36c4afe"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -512,
+        2576
+      ],
+      "id": "54d0a2a8-6fc2-48fb-8c6c-aa1222d1e09e",
+      "name": "Download Media1"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('Code in JavaScript').item.json.chatId }}",
+        "reply_to": "={{ $('Code in JavaScript').item.json.customerPhone }}",
+        "text": "={{ $('Code in JavaScript1').item.json.reply }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        2400,
+        2224
+      ],
+      "id": "472504ef-53bc-49a7-97c4-8f95d0151b1c",
+      "name": "Send a text message",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/conversations?id=eq.{{ $('Upset Node').item.json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"order_status\": \"{{ $('Code in JavaScript1').item.json.intent }}\",\n  \"confidence\": \"{{ $('Code in JavaScript1').item.json.confidence }}\",\n  \"handler\": \"ai\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        848,
+        1680
+      ],
+      "id": "072c2388-2f45-48ef-866b-d8f4ac59c06a",
+      "name": "Update PATCH",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('Code in JavaScript').item.json.chatId }}",
+        "reply_to": "={{ $('Code in JavaScript').item.json.customerPhone }}",
+        "text": "={{ $('Code in JavaScript1').item.json.reply }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        1648,
+        832
+      ],
+      "id": "31488cec-8eab-4f42-ae81-842dcfc8b0e0",
+      "name": "Send a text message4",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c155341b-1471-46bb-b73e-a87c70514163",
+              "leftValue": "={{ $('Code in JavaScript').item.json.type }}",
+              "rightValue": "text",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -4160,
+        768
+      ],
+      "id": "282bdcdb-4a20-4665-b9a3-dabaa2deac16",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "external_message_id",
+              "value": "={{ $('Code in JavaScript').item.json.messageId }}"
+            },
+            {
+              "name": "direction",
+              "value": "in"
+            },
+            {
+              "name": "type",
+              "value": "={{ $('Code in JavaScript').item.json.type }}"
+            },
+            {
+              "name": "=media_url",
+              "value": "={{ $json.secure_url }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $('Code in JavaScript').item.json.body }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -3424,
+        928
+      ],
+      "id": "be1a311c-b4d7-44e4-be85-adcef288dfd9",
+      "name": "save gambar1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "direction",
+              "value": "out"
+            },
+            {
+              "name": "type",
+              "value": "text"
+            },
+            {
+              "name": "body",
+              "value": "={{ $json._data.Message.extendedTextMessage.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1904,
+        832
+      ],
+      "id": "da974c88-6e33-4916-8f4c-74151376be02",
+      "name": "save balasan2",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return ($('Code in JavaScript1').item.json.images || []).map(img => ({\n  json: { url: img.url, caption: img.caption }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        1392
+      ],
+      "id": "54bd7d2c-be71-4555-9f09-d3a001e69ab8",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1600,
+        1392
+      ],
+      "id": "fcdd4244-2297-479f-a97c-e3933056e29e",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Image",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('Code in JavaScript').item.json.chatId }}",
+        "file": "={\n  \"mimetype\": \"image/jpeg\",\n  \"filename\": \"produk.jpg\",\n  \"url\": \"{{ $json.url }}\"\n}",
+        "reply_to": "={{ $('Code in JavaScript').item.json.customerName }}",
+        "caption": "={{ $json.caption }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        1872,
+        1408
+      ],
+      "id": "3c6f7501-d2d9-45f2-9feb-8ecdd61589d2",
+      "name": "Send an image",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "direction",
+              "value": "out"
+            },
+            {
+              "name": "type",
+              "value": "image"
+            },
+            {
+              "name": "media_url",
+              "value": "={{ $('Loop Over Items1').item.json.url }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $('Loop Over Items1').item.json.caption }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2112,
+        1408
+      ],
+      "id": "e50c7ff4-2a2e-4d9f-9d8c-037f9dbed8b0",
+      "name": "Insert message5",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/templates?account_id=eq.{{ $('Cek ID').item.json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -3776,
+        1280
+      ],
+      "id": "91769d42-e6c1-4f88-ab74-3c40781af329",
+      "name": "Get Data",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('HTTP Request1').item.json.admin_notify_phone + '@c.us'}}",
+        "reply_to": "={{ $('HTTP Request1').item.json.admin_notify_phone }}",
+        "text": "=Hallo admin \n\nno hp {{ $('Code in JavaScript').item.json.customerPhone }}\n\nbaru saja pengirimkan bukti pembayaran silahkan cek ya",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        576,
+        2448
+      ],
+      "id": "370661ee-dc6b-4546-9ee2-ad6d8686f91e",
+      "name": "Send a text message2",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst result = {};\n\nlet urutan = 1;\n\nfor (const item of items) {\n  const t = item.json;\n  \n  if (t.trigger_text) {\n    // Masukin ID (Buat dipanggil di filter Supabase selanjutnya)\n    result[`id_${urutan}`] = t.id;\n    \n    // Masukin Trigger Text (Buat syarat di Switch)\n    result[`kata_kunci_${urutan}`] = t.trigger_text;\n    \n    // Masukin yang lainnya sekalian (jaga-jaga kalau butuh)\n    result[`reply_text_${urutan}`] = t.reply_text || \"\";\n    result[`image_url_${urutan}`] = t.image_url || \"\";\n    result[`variants_${urutan}`] = t.variants || \"\";\n    \n    urutan++;\n  }\n}\n\n// Keluarin HANYA 1 ITEM, siap tempur masuk ke Switch!\nreturn [ { json: result } ];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3408,
+        1280
+      ],
+      "id": "09f14141-8496-4027-8a39-3e4f48e76d6c",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Seen",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('Code in JavaScript').item.json.chatId }}",
+        "messageId": "={{ $('Code in JavaScript').item.json.messageId }}",
+        "participant": "",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        -1200,
+        -1136
+      ],
+      "id": "d767c217-f71c-49ee-9692-c2dfccc471eb",
+      "name": "baca pesan",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        512,
+        -1136
+      ],
+      "id": "7bf1c0c7-2e86-4713-a463-8aa8d056a651",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        832,
+        -1344
+      ],
+      "id": "aaa1ef59-51a4-4b62-9824-70ebecc1ccf9",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('Code in JavaScript').item.json.chatId }}",
+        "reply_to": "={{ $('Code in JavaScript').item.json.customerPhone }}",
+        "text": "={{ $('kode pemecah link').item.json.finalMessage }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        1040,
+        -1344
+      ],
+      "id": "a97505b4-1c51-4211-8d9f-0fb4e76f701b",
+      "name": "tanya kirim kemana",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Image",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('Code in JavaScript').item.json.chatId }}",
+        "file": "={\n  \"mimetype\": \"image/jpeg\",\n  \"filename\": \"temmplate.jpg\",\n  \"url\": \"{{ $json.image }}\"\n}",
+        "reply_to": "={{ $('Code in JavaScript').item.json.customerPhone }}",
+        "caption": "={{ $json.caption }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        816,
+        -1120
+      ],
+      "id": "986265f3-06a3-48ed-a1d5-c81ad37055bf",
+      "name": "kirim gambar template",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ambil data pertama dari node sebelumnya\nconst data = $input.all()[0].json;\n\n// Parse JSON dari Supabase\nconst parsedVariants = JSON.parse(data.variants);\n\n// Ambil array captions dan finalMessage\nconst captions = parsedVariants.captions || [];\nconst finalMessage = parsedVariants.finalMessage || \"\";\n\n// \"Cacah\" array captions menjadi item n8n agar bisa di-Loop\nconst result = captions.map(item => {\n  return {\n    json: {\n      // Data yang akan di-loop\n      caption: item.caption,\n      image: item.image,\n      \n      // Sisipkan pesan final & reply_text ke tiap item supaya mudah dipanggil nanti\n      finalMessage: finalMessage,\n      replyText: data.reply_text,\n      triggerText: data.trigger_text\n    }\n  };\n});\n\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        -1136
+      ],
+      "id": "7ad270c6-1528-4cd2-9069-0b09315b3eec",
+      "name": "kode pemecah link"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "direction",
+              "value": "out"
+            },
+            {
+              "name": "type",
+              "value": "image"
+            },
+            {
+              "name": "media_url",
+              "value": "={{ $('Loop Over Items').item.json.url }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $('Loop Over Items').item.json.acuan }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1072,
+        -1120
+      ],
+      "id": "6a2bf977-9641-4f04-ae9a-ab53c961e182",
+      "name": "Insert message2",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "direction",
+              "value": "out"
+            },
+            {
+              "name": "type",
+              "value": "text"
+            },
+            {
+              "name": "body",
+              "value": "={{ $json._data.Message.extendedTextMessage.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1328,
+        -1344
+      ],
+      "id": "ab30d624-df5e-4f24-b2b6-f862be5eb9d1",
+      "name": "Insert message3",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Code in JavaScript').item.json.body }}",
+        "options": {
+          "systemMessage": "={{ $('Get Data').item.json.reply_text }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -960,
+        -1136
+      ],
+      "id": "3ea37e0f-168e-4651-822a-ec2b0748b530",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1040,
+        -864
+      ],
+      "id": "9a5e4a4b-623f-477e-80f8-d433c4196a6e",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "8paz2ntyMzPbTs64",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages?on_conflict=external_message_id",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "external_message_id",
+              "value": "={{ $('Code in JavaScript').item.json.messageId }}"
+            },
+            {
+              "name": "direction",
+              "value": "in"
+            },
+            {
+              "name": "type",
+              "value": "={{ $('Code in JavaScript').item.json.type }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $('Code in JavaScript').item.json.body }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1376,
+        -1136
+      ],
+      "id": "85b8bf70-23f6-4395-8ce2-e896c13664aa",
+      "name": "Save Pesan2",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "direction",
+              "value": "out"
+            },
+            {
+              "name": "type",
+              "value": "text"
+            },
+            {
+              "name": "body",
+              "value": "={{ $json._data.Message.extendedTextMessage.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -320,
+        -1136
+      ],
+      "id": "9002f2d3-f19d-4d70-8dff-95a50182dee4",
+      "name": "save balasan3",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/templates?id=eq.{{ $('Code in JavaScript4').item.json.id_1 }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -48,
+        -1136
+      ],
+      "id": "4c99c6a6-d800-4399-be28-8894eadd7107",
+      "name": "Get Data1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('Code in JavaScript').item.json.chatId }}",
+        "reply_to": "={{ $('Code in JavaScript').item.json.customerPhone }}",
+        "text": "={{ $json.output }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        -608,
+        -1136
+      ],
+      "id": "4a7cc770-3a3c-4a98-a7ee-9647fe353e93",
+      "name": "Send a text message5",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Seen",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('Code in JavaScript').item.json.chatId }}",
+        "messageId": "={{ $('Code in JavaScript').item.json.messageId }}",
+        "participant": "",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        -1184,
+        -368
+      ],
+      "id": "f5e53b8b-49a8-404c-b584-6f32195509d1",
+      "name": "baca pesan1",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        528,
+        -368
+      ],
+      "id": "08338960-8518-41a9-b54a-99d0f071ff98",
+      "name": "Loop Over Items2"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        848,
+        -576
+      ],
+      "id": "3a6f52d7-5d87-45c1-9f77-3e55cd6d4e57",
+      "name": "Limit1"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('Code in JavaScript').item.json.chatId }}",
+        "reply_to": "={{ $('Code in JavaScript').item.json.customerPhone }}",
+        "text": "={{ $('kode pemecah link1').item.json.finalMessage }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        1056,
+        -576
+      ],
+      "id": "056262d8-2b21-408e-ae98-dcb775829251",
+      "name": "tanya kirim kemana1",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Image",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('Code in JavaScript').item.json.chatId }}",
+        "file": "={\n  \"mimetype\": \"image/jpeg\",\n  \"filename\": \"temmplate.jpg\",\n  \"url\": \"{{ $json.image }}\"\n}",
+        "reply_to": "={{ $('Code in JavaScript').item.json.customerPhone }}",
+        "caption": "={{ $json.caption }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        832,
+        -352
+      ],
+      "id": "e0f7c691-be51-444d-ab2d-3bae48e85b39",
+      "name": "kirim gambar template1",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ambil data pertama dari node sebelumnya\nconst data = $input.all()[0].json;\n\n// Parse JSON dari Supabase\nconst parsedVariants = JSON.parse(data.variants);\n\n// Ambil array captions dan finalMessage\nconst captions = parsedVariants.captions || [];\nconst finalMessage = parsedVariants.finalMessage || \"\";\n\n// \"Cacah\" array captions menjadi item n8n agar bisa di-Loop\nconst result = captions.map(item => {\n  return {\n    json: {\n      // Data yang akan di-loop\n      caption: item.caption,\n      image: item.image,\n      \n      // Sisipkan pesan final & reply_text ke tiap item supaya mudah dipanggil nanti\n      finalMessage: finalMessage,\n      replyText: data.reply_text,\n      triggerText: data.trigger_text\n    }\n  };\n});\n\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        -368
+      ],
+      "id": "1e2799b0-5a56-48eb-8611-d62bfabfcca1",
+      "name": "kode pemecah link1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "direction",
+              "value": "out"
+            },
+            {
+              "name": "type",
+              "value": "image"
+            },
+            {
+              "name": "media_url",
+              "value": "={{ $('Loop Over Items2').item.json.url }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $('Loop Over Items2').item.json.acuan }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1088,
+        -352
+      ],
+      "id": "49e13e6f-d043-49d1-b2dc-01a1769af2f2",
+      "name": "Insert message",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "direction",
+              "value": "out"
+            },
+            {
+              "name": "type",
+              "value": "text"
+            },
+            {
+              "name": "body",
+              "value": "={{ $json._data.Message.extendedTextMessage.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1344,
+        -576
+      ],
+      "id": "f01476dd-e085-40de-952c-342ccdf8ed21",
+      "name": "Insert message4",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Code in JavaScript').item.json.body }}",
+        "options": {
+          "systemMessage": "={{ $('Code in JavaScript4').item.json.reply_text_2 }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -944,
+        -368
+      ],
+      "id": "7f1589ad-b8d1-406f-a86f-429be736c650",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1136,
+        0
+      ],
+      "id": "0c0de5de-be2d-4602-a538-61c9e63c9ded",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "8paz2ntyMzPbTs64",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages?on_conflict=external_message_id",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "external_message_id",
+              "value": "={{ $('Code in JavaScript').item.json.messageId }}"
+            },
+            {
+              "name": "direction",
+              "value": "in"
+            },
+            {
+              "name": "type",
+              "value": "={{ $('Code in JavaScript').item.json.type }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $('Code in JavaScript').item.json.body }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1360,
+        -368
+      ],
+      "id": "b132d9a6-048e-4dce-b175-43506ec10cd2",
+      "name": "Save Pesan3",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "direction",
+              "value": "out"
+            },
+            {
+              "name": "type",
+              "value": "text"
+            },
+            {
+              "name": "body",
+              "value": "={{ $json._data.Message.extendedTextMessage.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -304,
+        -368
+      ],
+      "id": "9c69d719-befc-4cf1-9e8d-eedd0fd9c192",
+      "name": "save balasan4",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/templates?id=eq.{{ $('Code in JavaScript4').item.json.id_2 }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -32,
+        -368
+      ],
+      "id": "45ac43d7-d4e5-4be4-ba7a-35f1be16af26",
+      "name": "Get Data2",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('Code in JavaScript').item.json.chatId }}",
+        "reply_to": "={{ $('Code in JavaScript').item.json.customerPhone }}",
+        "text": "={{ $json.output }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        -592,
+        -368
+      ],
+      "id": "cd442332-4d26-4dbb-aa39-532c7c02cf64",
+      "name": "Send a text message6",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Seen",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('Code in JavaScript').item.json.chatId }}",
+        "messageId": "={{ $('Code in JavaScript').item.json.messageId }}",
+        "participant": "",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        -1328,
+        624
+      ],
+      "id": "a9fc8bb9-a2f4-494d-9b3a-c5f32057ba04",
+      "name": "baca pesan2",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        384,
+        624
+      ],
+      "id": "69158d5d-6f48-47c7-a9b6-c36f238a5431",
+      "name": "Loop Over Items3"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        704,
+        416
+      ],
+      "id": "e8cb5cb8-b041-440b-9797-48b0b3c32d20",
+      "name": "Limit2"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('Code in JavaScript').item.json.chatId }}",
+        "reply_to": "={{ $('Code in JavaScript').item.json.customerPhone }}",
+        "text": "={{ $('kode pemecah link2').item.json.finalMessage }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        912,
+        416
+      ],
+      "id": "301e69af-66a6-4d6f-95ca-95769475c9cf",
+      "name": "tanya kirim kemana2",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Image",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('Code in JavaScript').item.json.chatId }}",
+        "file": "={\n  \"mimetype\": \"image/jpeg\",\n  \"filename\": \"temmplate.jpg\",\n  \"url\": \"{{ $json.image }}\"\n}",
+        "reply_to": "={{ $('Code in JavaScript').item.json.customerPhone }}",
+        "caption": "={{ $json.caption }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        688,
+        640
+      ],
+      "id": "3daffc62-e8db-4432-8a61-4d0ab2c9689a",
+      "name": "kirim gambar template2",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ambil data pertama dari node sebelumnya\nconst data = $input.all()[0].json;\n\n// Parse JSON dari Supabase\nconst parsedVariants = JSON.parse(data.variants);\n\n// Ambil array captions dan finalMessage\nconst captions = parsedVariants.captions || [];\nconst finalMessage = parsedVariants.finalMessage || \"\";\n\n// \"Cacah\" array captions menjadi item n8n agar bisa di-Loop\nconst result = captions.map(item => {\n  return {\n    json: {\n      // Data yang akan di-loop\n      caption: item.caption,\n      image: item.image,\n      \n      // Sisipkan pesan final & reply_text ke tiap item supaya mudah dipanggil nanti\n      finalMessage: finalMessage,\n      replyText: data.reply_text,\n      triggerText: data.trigger_text\n    }\n  };\n});\n\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        64,
+        624
+      ],
+      "id": "09539bbd-1c0d-41cb-8e9e-aec78cadec42",
+      "name": "kode pemecah link2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "direction",
+              "value": "out"
+            },
+            {
+              "name": "type",
+              "value": "image"
+            },
+            {
+              "name": "media_url",
+              "value": "={{ $('Loop Over Items3').item.json.url }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $('Loop Over Items3').item.json.acuan }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        944,
+        640
+      ],
+      "id": "3b074612-c87a-47aa-b934-68c8feed00ee",
+      "name": "Insert message1",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "direction",
+              "value": "out"
+            },
+            {
+              "name": "type",
+              "value": "text"
+            },
+            {
+              "name": "body",
+              "value": "={{ $json._data.Message.extendedTextMessage.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1200,
+        416
+      ],
+      "id": "f084c16a-9c26-4a2e-98a4-481a472ea525",
+      "name": "Insert message6",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Code in JavaScript').item.json.body }}",
+        "options": {
+          "systemMessage": "={{ $('Code in JavaScript4').item.json.reply_text_3 }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -1088,
+        624
+      ],
+      "id": "42b13f54-eb81-446e-af6e-762c8bb05eda",
+      "name": "AI Agent3"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1168,
+        896
+      ],
+      "id": "631fd627-4723-4fbe-9c62-af5bdd17d4b1",
+      "name": "OpenAI Chat Model3",
+      "credentials": {
+        "openAiApi": {
+          "id": "8paz2ntyMzPbTs64",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages?on_conflict=external_message_id",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "external_message_id",
+              "value": "={{ $('Code in JavaScript').item.json.messageId }}"
+            },
+            {
+              "name": "direction",
+              "value": "in"
+            },
+            {
+              "name": "type",
+              "value": "={{ $('Code in JavaScript').item.json.type }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $('Code in JavaScript').item.json.body }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1504,
+        624
+      ],
+      "id": "3fa27fee-995a-4861-836d-ba313508b7d0",
+      "name": "Save Pesan4",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "direction",
+              "value": "out"
+            },
+            {
+              "name": "type",
+              "value": "text"
+            },
+            {
+              "name": "body",
+              "value": "={{ $json._data.Message.extendedTextMessage.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -448,
+        624
+      ],
+      "id": "9916370d-dd28-4bdb-ad61-bbc7de51bb0c",
+      "name": "save balasan5",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/templates?id=eq.{{ $('Code in JavaScript4').item.json.id_3 }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -176,
+        624
+      ],
+      "id": "21ba1f98-ca27-42ec-a8f7-710a6b21fb55",
+      "name": "Get Data3",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('Code in JavaScript').item.json.chatId }}",
+        "reply_to": "={{ $('Code in JavaScript').item.json.customerPhone }}",
+        "text": "={{ $json.output }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        -736,
+        624
+      ],
+      "id": "086c5764-d526-4c33-8d25-6e33c2df82e3",
+      "name": "Send a text message7",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "={{ $('Code in JavaScript').item.json.session }}",
+        "chatId": "={{ $('Code in JavaScript').item.json.chatId }}",
+        "reply_to": "={{ $('Code in JavaScript').item.json.customerPhone }}",
+        "text": "Rencana pengiriman kemana Kak?",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        2208,
+        -592
+      ],
+      "id": "f90f33c6-e645-414a-98b1-ef2544ca2281",
+      "name": "Send a text message8",
+      "credentials": {
+        "wahaApi": {
+          "id": "nF7bfkYSbVCgk1Ft",
+          "name": "WA 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "direction",
+              "value": "out"
+            },
+            {
+              "name": "type",
+              "value": "text"
+            },
+            {
+              "name": "body",
+              "value": "={{ $json._data.Message.extendedTextMessage.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2496,
+        -592
+      ],
+      "id": "1b236fde-51b3-43f5-b08e-daa1ed6329df",
+      "name": "Insert message7",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tivxdfmighvxvzvscnun.supabase.co/rest/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdnhkZm1pZ2h2eHZ6dnNjbnVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTM2MjkzNSwiZXhwIjoyMDk2OTM4OTM1fQ.ZkqEtO0yLebM8aZf8PMEiDA2Zb2P5PHYXpy_ugZ8kKM"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Upset Node').item.json.id }}"
+            },
+            {
+              "name": "external_message_id",
+              "value": "={{ $('Code in JavaScript').item.json.messageId }}"
+            },
+            {
+              "name": "direction",
+              "value": "in"
+            },
+            {
+              "name": "type",
+              "value": "={{ $('Code in JavaScript').item.json.type }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $('Code in JavaScript').item.json.body }}"
+            },
+            {
+              "name": "media_url",
+              "value": "={{ $('Code in JavaScript').item.json.mediaUrl }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -3936,
+        576
+      ],
+      "id": "1f90c220-2f88-4f4f-9931-032fa74b2915",
+      "name": "Save Pesan5",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2XlQU2lch4Pus8bo",
+          "name": "database 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Code in JavaScript').item.json.mediaUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "147c54a494e3a24714f6b357d36c4afe"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -3920,
+        928
+      ],
+      "id": "4d8a987f-eda7-4d53-b9cb-f6d562db4016",
+      "name": "Download Media2"
+    },
+    {
+      "parameters": {
+        "operation": "uploadFile",
+        "additionalFieldsFile": {}
+      },
+      "type": "n8n-nodes-cloudinary.cloudinary",
+      "typeVersion": 2,
+      "position": [
+        -3664,
+        928
+      ],
+      "id": "47a14070-18dd-41d4-a7e3-e2b978ba5dc5",
+      "name": "Upload an asset from file data1",
+      "credentials": {
+        "cloudinaryApi": {
+          "id": "TFuRsRl5FBHKUmH6",
+          "name": "Cloudinary account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Gunakan tool ini untuk mendapatkan daftar semua provinsi di Indonesia beserta ID-nya.",
+        "url": "https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        -176,
+        1856
+      ],
+      "id": "0c9350d4-2d20-48a4-9626-0791845e6195",
+      "name": "get_provinsi"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Gunakan tool ini untuk mencari daftar kabupaten atau kota. Membutuhkan ID Provinsi. Gunakan tool get_provinsi terlebih dahulu jika kamu belum tahu ID Provinsinya.",
+        "url": "=https://www.emsifa.com/api-wilayah-indonesia/api/regencies/{{$fromAI(\"id_provinsi\")}}.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        0,
+        1856
+      ],
+      "id": "04b7aa43-d242-4b52-b86d-080622a83055",
+      "name": "get_kabupaten_kota",
+      "notes": "id_provinsi"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Gunakan tool ini untuk mencari daftar kecamatan. Membutuhkan ID Kabupaten/Kota. Gunakan tool get_kabupaten_kota terlebih dahulu jika kamu belum tahu ID Kabupaten/Kota-nya.",
+        "url": "=https://www.emsifa.com/api-wilayah-indonesia/api/districts/{{$fromAI(\"id_kabupaten\")}}.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        192,
+        1856
+      ],
+      "id": "410599ab-7731-47a9-8f51-036dfbc5dbd9",
+      "name": "get_kecamatan",
+      "notes": "id_kabupaten"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Gunakan tool ini untuk mencari daftar desa atau kelurahan. Membutuhkan ID Kecamatan. Gunakan tool get_kecamatan terlebih dahulu jika kamu belum tahu ID Kecamatan-nya.",
+        "url": "=https://www.emsifa.com/api-wilayah-indonesia/api/villages/{{$fromAI(\"id_kecamatan\")}}.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        384,
+        1856
+      ],
+      "id": "756f0360-2d66-4f1f-8aa6-a3eca389466a",
+      "name": "get_desa_kelurahan",
+      "notes": "id_kecamatan"
+    },
+    {
+      "parameters": {},
+      "type": "@devlikeapro/n8n-nodes-waha.wahaTrigger",
+      "typeVersion": 202502,
+      "position": [
+        -5520,
+        1264
+      ],
+      "id": "b89e1215-3c46-4fdb-b326-454c312a8703",
+      "name": "WAHA Trigger",
+      "webhookId": "94bba835-b351-462b-a910-74cd1bcdc044"
+    }
+  ],
+  "connections": {
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Filtering pesan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Produk": {
+      "main": [
+        [
+          {
+            "node": "pharsing hasil supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "pharsing hasil supabase": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Seen": {
+      "main": [
+        [
+          {
+            "node": "Start Typing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start Typing": {
+      "main": [
+        [
+          {
+            "node": "Get Produk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "alur confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update PATCH2": {
+      "main": [
+        [
+          {
+            "node": "Human Handle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human Handle": {
+      "main": [
+        [
+          {
+            "node": "Send a text message4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upset Node": {
+      "main": [
+        [
+          {
+            "node": "cek human",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cek ID": {
+      "main": [
+        [
+          {
+            "node": "Upset Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Pesan1": {
+      "main": [
+        [
+          {
+            "node": "Send Seen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ada order?": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message1": {
+      "main": [
+        [
+          {
+            "node": "Upset Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upset Order": {
+      "main": [
+        [
+          {
+            "node": "save balasan1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ada gambar?": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ada order?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cek template": {
+      "main": [
+        [
+          {
+            "node": "Save Pesan2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Pesan3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Pesan1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Media",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtering pesan": {
+      "main": [
+        [
+          {
+            "node": "Cek ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cek human": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "alur confidence": {
+      "main": [
+        [
+          {
+            "node": "Update PATCH2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update PATCH",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Media": {
+      "main": [
+        [
+          {
+            "node": "Analyze image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload an asset from file data": {
+      "main": [
+        [
+          {
+            "node": "save gambar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Get Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze image": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save gambar": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Download Media1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Media1": {
+      "main": [
+        [
+          {
+            "node": "Upload an asset from file data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        [
+          {
+            "node": "save balasan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update PATCH": {
+      "main": [
+        [
+          {
+            "node": "ada gambar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message4": {
+      "main": [
+        [
+          {
+            "node": "save balasan2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Save Pesan5",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Media2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Send an image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send an image": {
+      "main": [
+        [
+          {
+            "node": "Insert message5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert message5": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Data": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "cek template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "baca pesan": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "kirim gambar template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "tanya kirim kemana",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tanya kirim kemana": {
+      "main": [
+        [
+          {
+            "node": "Insert message3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "kirim gambar template": {
+      "main": [
+        [
+          {
+            "node": "Insert message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "kode pemecah link": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert message2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert message3": {
+      "main": [
+        [
+          {
+            "node": "Send a text message8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Pesan2": {
+      "main": [
+        [
+          {
+            "node": "baca pesan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save balasan3": {
+      "main": [
+        [
+          {
+            "node": "Get Data1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Data1": {
+      "main": [
+        [
+          {
+            "node": "kode pemecah link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message5": {
+      "main": [
+        [
+          {
+            "node": "save balasan3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "baca pesan1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items2": {
+      "main": [
+        [
+          {
+            "node": "Limit1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "kirim gambar template1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit1": {
+      "main": [
+        [
+          {
+            "node": "tanya kirim kemana1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tanya kirim kemana1": {
+      "main": [
+        [
+          {
+            "node": "Insert message4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "kirim gambar template1": {
+      "main": [
+        [
+          {
+            "node": "Insert message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "kode pemecah link1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert message": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert message4": {
+      "main": [
+        [
+          {
+            "node": "Send a text message8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Send a text message6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Pesan3": {
+      "main": [
+        [
+          {
+            "node": "baca pesan1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save balasan4": {
+      "main": [
+        [
+          {
+            "node": "Get Data2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Data2": {
+      "main": [
+        [
+          {
+            "node": "kode pemecah link1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message6": {
+      "main": [
+        [
+          {
+            "node": "save balasan4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "baca pesan2": {
+      "main": [
+        [
+          {
+            "node": "AI Agent3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items3": {
+      "main": [
+        [
+          {
+            "node": "Limit2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "kirim gambar template2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit2": {
+      "main": [
+        [
+          {
+            "node": "tanya kirim kemana2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tanya kirim kemana2": {
+      "main": [
+        [
+          {
+            "node": "Insert message6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "kirim gambar template2": {
+      "main": [
+        [
+          {
+            "node": "Insert message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "kode pemecah link2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert message1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert message6": {
+      "main": [
+        [
+          {
+            "node": "Send a text message8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent3": {
+      "main": [
+        [
+          {
+            "node": "Send a text message7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent3",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Pesan4": {
+      "main": [
+        [
+          {
+            "node": "baca pesan2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save balasan5": {
+      "main": [
+        [
+          {
+            "node": "Get Data3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Data3": {
+      "main": [
+        [
+          {
+            "node": "kode pemecah link2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message7": {
+      "main": [
+        [
+          {
+            "node": "save balasan5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message8": {
+      "main": [
+        [
+          {
+            "node": "Insert message7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Media2": {
+      "main": [
+        [
+          {
+            "node": "Upload an asset from file data1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload an asset from file data1": {
+      "main": [
+        [
+          {
+            "node": "save gambar1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_provinsi": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_kabupaten_kota": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_kecamatan": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_desa_kelurahan": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WAHA Trigger": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a63a0ee8fbd584b148920f51a7c080db7fe33738af37f6dfd45c5467c803f7e3"
+  }
+}

@@ -16,10 +16,12 @@ import {
   MdErrorOutline,
   MdFlashOn,
   MdKeyboardArrowDown,
+  MdDelete,
+  MdReply,
 } from 'react-icons/md';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { Account, Conversation } from '../../types/db';
+import type { Account, Conversation, Message } from '../../types/db';
 import { useConversations, conversationsKey } from '../../hooks/useConversations';
 import { useMessages } from '../../hooks/useMessages';
 import { useOrders } from '../../hooks/useOrders';
@@ -150,6 +152,17 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   // State untuk tombol scroll-to-bottom
   const [showScrollButton, setShowScrollButton] = useState(false);
 
+  // State untuk Voice Note
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<number | null>(null);
+  const isRecordingCancelledRef = useRef<boolean>(false);
+
+  // State untuk Reply Pesan
+  const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
+
   const handleSelectRate = (rate: OngkirRate, origin: OngkirDestination, dest: OngkirDestination, _weight: number) => {
     const originName = origin.label.split(',')[0].trim();
     const destName = dest.label.split(',')[0].trim();
@@ -241,6 +254,81 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Cleanup rekaman jika komponen unmount
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) window.clearInterval(recordingTimerRef.current);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, []);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      isRecordingCancelledRef.current = false;
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(track => track.stop());
+        if (recordingTimerRef.current) {
+          window.clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+        
+        // Cek kalau sengaja dibatalkan, jangan set file
+        if (!isRecordingCancelledRef.current && audioChunksRef.current.length > 0) {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          const mime = mediaRecorder.mimeType || 'audio/webm';
+          const ext = mime.includes('mp4') ? 'mp4' : mime.includes('ogg') ? 'ogg' : 'webm';
+          const audioFile = new File([audioBlob], `VoiceNote_${Date.now()}.${ext}`, { type: mime });
+          setSelectedFile(audioFile);
+          // Preview modal otomatis terbuka ketika selectedFile ada
+        }
+        
+        setIsRecording(false);
+        setRecordingDuration(0);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      
+      recordingTimerRef.current = window.setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+      
+    } catch (err) {
+      showToast('Gagal mengakses mikrofon. Pastikan izin diberikan.');
+      console.error(err);
+    }
+  };
+
+  const cancelRecording = () => {
+    isRecordingCancelledRef.current = true;
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+  };
+
+  const stopAndSendRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+  };
+
+  const formatDuration = (seconds: number) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
   // Resizer lebar kolom list.
   useEffect(() => {
     let dragging = false;
@@ -308,12 +396,16 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     const convId = activeConversation.id;
     setPending(prev => [...prev, { id: tempId, conversationId: convId, body: text, status: 'sending', createdAt: new Date().toISOString() }]);
     setMessageText('');
+    const replyId = replyToMessage?.externalId || null;
+    setReplyToMessage(null); // Reset setelah diklik kirim
+
     try {
       await sendTextMessage(account, {
         conversationId: activeConversation.id,
         phone: activeConversation.customerPhone,
         chatId: activeConversation.chatId,
         text,
+        replyToMessageId: replyId,
       });
       setPending(prev => prev.map(m => (m.id === tempId ? { ...m, status: 'sent' } : m)));
     } catch (err) {
@@ -347,13 +439,14 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     const file = e.target.files?.[0];
     e.target.value = ''; // reset agar file sama bisa dipilih lagi
     if (!file || !activeConversation || !account) return;
-    const isImage = file.type.startsWith('image/');
-    if (!isImage) {
-      showToast('Hanya gambar yang didukung.');
+    const allowedTypes = ['image/', 'video/', 'audio/', 'application/'];
+    const isAllowed = allowedTypes.some(type => file.type.startsWith(type));
+    if (!isAllowed) {
+      showToast('Tipe file tidak didukung. (Bisa gambar, video, audio, atau dokumen)');
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      showToast('Ukuran berkas maksimal 10MB.');
+    if (file.size > 50 * 1024 * 1024) {
+      showToast('Ukuran berkas maksimal 50MB.');
       return;
     }
     
@@ -373,15 +466,45 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     if (!selectedFile || !activeConversation || !account) return;
     setIsUploading(true);
     try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      // Upload ke VPS / Backend URL
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const uploadRes = await fetch(`${apiUrl}/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error('Gagal mengunggah file ke server lokal (VPS).');
+      }
+
+      const uploadData = await uploadRes.json();
+      if (!uploadData.url) {
+        throw new Error('Server lokal tidak mengembalikan URL file.');
+      }
+
+      let mediaType = 'document';
+      if (selectedFile.type.startsWith('image/')) mediaType = 'image';
+      else if (selectedFile.type.startsWith('video/')) mediaType = 'video';
+      else if (selectedFile.type.startsWith('audio/')) mediaType = 'audio';
+
+      // Kirim URL ke N8N
+      const replyId = replyToMessage?.externalId || null;
       await sendMedia(account, {
         conversationId: activeConversation.id,
         phone: activeConversation.customerPhone,
         chatId: activeConversation.chatId,
-        mediaType: 'image',
+        mediaType: mediaType as any,
         filename: selectedFile.name,
         caption: fileCaption.trim() || undefined,
-      }, selectedFile);
+        mediaUrl: uploadData.url,
+        replyToMessageId: replyId,
+      });
+
       setMessageText('');
+      setReplyToMessage(null);
       cancelPreview();
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Gagal mengirim media.');
@@ -607,9 +730,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                     <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: account.color }}></div>
                     <span style={{ color: account.color, fontWeight: 500 }}>via {account.name}</span>
                   </>
-                ) : (
-                  'Online'
-                )}
+                ) : null}
               </span>
             </div>
           </div>
@@ -653,28 +774,41 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             <div style={{ margin: 'auto', color: 'var(--color-text-secondary)', fontSize: 13 }}>Belum ada pesan.</div>
           ) : (
             <>
-              {messages.map(m => (
-                <div key={m.id} className={`bubble-wrapper ${m.direction === 'out' ? 'sent' : 'received'}`}>
-                  <div className={`bubble ${m.type === 'image' && m.mediaUrl ? 'has-media' : ''}`}>
-                    {m.type === 'image' && m.mediaUrl && (
-                      <img
-                        src={toEmbeddableUrl(m.mediaUrl)}
-                        alt="media"
-                        onClick={() => window.open(toEmbeddableUrl(m.mediaUrl), '_blank')}
-                        style={{ width: '100%', borderRadius: 6, marginBottom: 4, display: 'block', cursor: 'pointer' }}
-                      />
-                    )}
-                    {m.type === 'document' && m.mediaUrl && (
-                      <a href={m.mediaUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary-dark)' }}>📄 Buka dokumen</a>
-                    )}
-                    {m.body && <span className="bubble-text">{renderWaText(m.body)}</span>}
-                    <span className="bubble-time">
-                      {fmtTime(m.createdAt)}
-                      {m.direction === 'out' && <MdDoneAll size={14} className="msg-ack sent" />}
-                    </span>
+              {messages.map(m => {
+                const quotedMsg = m.replyToMessageId ? messages.find(orig => orig.externalId === m.replyToMessageId) : null;
+                return (
+                  <div key={m.id} className={`bubble-wrapper ${m.direction === 'out' ? 'sent' : 'received'}`}>
+                    <div className={`bubble ${m.type === 'image' && m.mediaUrl ? 'has-media' : ''}`}>
+                      {quotedMsg && (
+                        <div className="quoted-message" onClick={() => { /* Boleh scroll ke pesan original nanti */ }}>
+                          <div className="quoted-sender">{quotedMsg.direction === 'in' ? activeConversation.customerName || activeConversation.customerPhone : 'Anda'}</div>
+                          <div className="quoted-text">{quotedMsg.body || 'Media'}</div>
+                        </div>
+                      )}
+                      {m.type === 'image' && m.mediaUrl && (
+                        <img
+                          src={toEmbeddableUrl(m.mediaUrl)}
+                          alt="media"
+                          onClick={() => window.open(toEmbeddableUrl(m.mediaUrl), '_blank')}
+                          style={{ width: '100%', borderRadius: 6, marginBottom: 4, display: 'block', cursor: 'pointer' }}
+                        />
+                      )}
+                      {m.type === 'document' && m.mediaUrl && (
+                        <a href={m.mediaUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary-dark)' }}>📄 Buka dokumen</a>
+                      )}
+                      {m.body && <span className="bubble-text">{renderWaText(m.body)}</span>}
+                      <span className="bubble-time">
+                        {fmtTime(m.createdAt)}
+                        {m.direction === 'out' && <MdDoneAll size={14} className="msg-ack sent" />}
+                      </span>
+                    </div>
+                    {/* Tombol Reply */}
+                    <button className="reply-bubble-btn" onClick={() => setReplyToMessage(m)} title="Balas Pesan">
+                      <MdReply size={18} />
+                    </button>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {visiblePending.map(p => (
                 <div key={p.id} className="bubble-wrapper sent">
                   <div
@@ -750,109 +884,133 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             </div>
           )}
 
-          <div className="input-pill">
-            <button ref={emojiButtonRef} className="icon-btn text-secondary" onClick={() => setIsEmojiOpen(!isEmojiOpen)}>
-              <MdInsertEmoticon size={24} />
-            </button>
-            <textarea
-              placeholder="Ketik pesan..."
-              className="message-input"
-              rows={1}
-              value={messageText}
-              onChange={(e) => {
-                const val = e.target.value;
-                setMessageText(val);
-                e.target.style.height = 'auto';
-                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+          <div className={`input-pill ${replyToMessage ? 'has-reply' : ''}`}>
+            {replyToMessage && (
+              <div className="reply-preview-container">
+                <div className="reply-preview-content">
+                  <div className="reply-sender">{replyToMessage.direction === 'in' ? activeConversation?.customerName || activeConversation?.customerPhone : 'Anda'}</div>
+                  <div className="reply-text">{replyToMessage.body || 'Media'}</div>
+                </div>
+                <button className="reply-cancel-btn" onClick={() => setReplyToMessage(null)}><MdClose size={20} /></button>
+              </div>
+            )}
+            <div className="input-row">
+              <button ref={emojiButtonRef} className="icon-btn text-secondary" onClick={() => setIsEmojiOpen(!isEmojiOpen)}>
+                <MdInsertEmoticon size={24} />
+              </button>
+            {isRecording ? (
+              <div className="recording-ui">
+                <div className="recording-indicator"></div>
+                <span className="recording-time">{formatDuration(recordingDuration)}</span>
+                <button className="icon-btn text-error" onClick={cancelRecording} title="Batal Rekam">
+                  <MdDelete size={22} />
+                </button>
+              </div>
+            ) : (
+              <>
+                <textarea
+                  className="message-input"
+                  rows={1}
+                  placeholder="Ketik pesan..."
+                  value={messageText}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setMessageText(val);
+                    e.target.style.height = 'auto';
+                    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
 
-                // Cek trigger spesial untuk ongkir
-                if (val.match(/(?:^|\s)\/ongkir$/i)) {
-                  setIsOngkirModalOpen(true);
-                  setShowQrDropdown(false);
-                  return;
-                }
+                    // Cek trigger spesial untuk ongkir
+                    if (val.match(/(?:^|\s)\/ongkir$/i)) {
+                      setIsOngkirModalOpen(true);
+                      setShowQrDropdown(false);
+                      return;
+                    }
 
-                // Check for Quick Reply trigger
-                const match = val.match(/(?:^|\s)\/([a-zA-Z0-9_-]*)$/);
-                if (match) {
-                  setShowQrDropdown(true);
-                  setQrQuery(match[1].toLowerCase());
-                  setQrSelectedIndex(0);
-                } else {
-                  setShowQrDropdown(false);
-                }
-              }}
-              onKeyDown={(e) => {
-                if (showQrDropdown && filteredQuickReplies.length > 0) {
-                  if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    setQrSelectedIndex(i => (i + 1) % filteredQuickReplies.length);
-                    return;
-                  }
-                  if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    setQrSelectedIndex(i => (i - 1 + filteredQuickReplies.length) % filteredQuickReplies.length);
-                    return;
-                  }
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    const selected = filteredQuickReplies[qrSelectedIndex];
-                    const match = messageText.match(/(?:^|\s)\/([a-zA-Z0-9_-]*)$/);
+                    // Check for Quick Reply trigger
+                    const match = val.match(/(?:^|\s)\/([a-zA-Z0-9_-]*)$/);
                     if (match) {
-                      const prefix = messageText.substring(0, match.index! + (match[0].startsWith(' /') ? 1 : 0));
-                      setMessageText(prefix + selected.content);
+                      setShowQrDropdown(true);
+                      setQrQuery(match[1].toLowerCase());
+                      setQrSelectedIndex(0);
+                    } else {
                       setShowQrDropdown(false);
                     }
-                    return;
-                  }
-                  if (e.key === 'Escape') {
-                    setShowQrDropdown(false);
-                    return;
-                  }
-                }
+                  }}
+                  onKeyDown={e => {
+                    if (showQrDropdown && filteredQuickReplies.length > 0) {
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setQrSelectedIndex(i => (i + 1) % filteredQuickReplies.length);
+                        return;
+                      }
+                      if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setQrSelectedIndex(i => (i - 1 + filteredQuickReplies.length) % filteredQuickReplies.length);
+                        return;
+                      }
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const selected = filteredQuickReplies[qrSelectedIndex];
+                        const match = messageText.match(/(?:^|\s)\/([a-zA-Z0-9_-]*)$/);
+                        if (match) {
+                          const prefix = messageText.substring(0, match.index! + (match[0].startsWith(' /') ? 1 : 0));
+                          setMessageText(prefix + selected.content);
+                          setShowQrDropdown(false);
+                        }
+                        return;
+                      }
+                    }
 
-                if (e.key !== 'Enter') return;
-                if (e.shiftKey) return; // Shift+Enter → newline (default textarea)
-                if (e.ctrlKey || e.metaKey) {
-                  // Ctrl/Cmd+Enter → sisipkan baris baru di posisi kursor
-                  e.preventDefault();
-                  const ta = e.currentTarget;
-                  const s = ta.selectionStart ?? messageText.length;
-                  const en = ta.selectionEnd ?? messageText.length;
-                  const next = messageText.slice(0, s) + '\n' + messageText.slice(en);
-                  setMessageText(next);
-                  requestAnimationFrame(() => {
-                    ta.selectionStart = ta.selectionEnd = s + 1;
-                    ta.style.height = 'auto';
-                    ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
-                  });
-                  return;
-                }
-                // Enter biasa → kirim
-                e.preventDefault();
-                handleSendText();
-              }}
-            />
-            <button className="icon-btn text-secondary" style={{ transform: 'rotate(45deg)' }} onClick={handlePickFile} disabled={isUploading} title="Kirim gambar/PDF">
-              <MdAttachFile size={22} />
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={handleFileChange}
-            />
-            <button
-              className="icon-btn text-secondary"
-              onClick={() => showToast(
-                <span>Aduh maaf voice note belum berfungsi, silahkan hubungi developer Sky<span style={{ color: 'var(--color-primary)' }}>Box</span> atau tim <span style={{ color: '#F59E0B', fontWeight: 600 }}>SkyFlowID</span></span>
-              )}
-            >
-              <MdMic size={24} />
-            </button>
+                    if (e.key !== 'Enter') return;
+                    if (e.shiftKey) return; // Shift+Enter → newline (default textarea)
+                    if (e.ctrlKey || e.metaKey) {
+                      // Ctrl/Cmd+Enter → sisipkan baris baru di posisi kursor
+                      e.preventDefault();
+                      const ta = e.currentTarget;
+                      const s = ta.selectionStart ?? messageText.length;
+                      const en = ta.selectionEnd ?? messageText.length;
+                      const next = messageText.slice(0, s) + '\n' + messageText.slice(en);
+                      setMessageText(next);
+                      requestAnimationFrame(() => {
+                        ta.selectionStart = ta.selectionEnd = s + 1;
+                        ta.style.height = 'auto';
+                        ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+                      });
+                      return;
+                    }
+                    // Enter biasa → kirim
+                    e.preventDefault();
+                    handleSendText();
+                  }}
+                />
+                <button className="icon-btn text-secondary" style={{ transform: 'rotate(45deg)' }} onClick={handlePickFile} disabled={isUploading} title="Kirim lampiran">
+                  <MdAttachFile size={22} />
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*,audio/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  style={{ display: 'none' }}
+                  onChange={handleFileChange}
+                />
+                <button
+                  className="icon-btn text-secondary"
+                  onClick={startRecording}
+                  title="Mulai Rekam Voice Note"
+                >
+                  <MdMic size={24} />
+                </button>
+              </>
+            )}
+            </div>
           </div>
-          <button className="btn-primary icon-only" onClick={handleSendText}><MdSend size={22} /></button>
+          {isRecording ? (
+            <button className="btn-primary icon-only recording-send-btn" onClick={stopAndSendRecording} title="Kirim Voice Note">
+              <MdSend size={22} />
+            </button>
+          ) : (
+            <button className="btn-primary icon-only" onClick={handleSendText}><MdSend size={22} /></button>
+          )}
         </div>
 
         {toastMessage && <div className="custom-toast">{toastMessage}</div>}
@@ -863,10 +1021,25 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             <div className="image-preview-modal">
               <div className="preview-header">
                 <button className="preview-close-btn" onClick={cancelPreview}>✕</button>
-                <h3>Kirim Gambar</h3>
+                <h3>Kirim Media</h3>
               </div>
-              <div className="preview-body">
-                <img src={previewUrl} alt="Preview" />
+              <div className="preview-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                {selectedFile?.type.startsWith('image/') && <img src={previewUrl} alt="Preview" />}
+                {selectedFile?.type.startsWith('video/') && <video src={previewUrl} controls style={{ maxWidth: '100%', maxHeight: '400px' }} />}
+                {selectedFile?.type.startsWith('audio/') && <audio src={previewUrl} controls style={{ width: '100%', marginTop: '20px' }} />}
+                {!selectedFile?.type.startsWith('image/') && !selectedFile?.type.startsWith('video/') && !selectedFile?.type.startsWith('audio/') && (
+                  <div style={{ padding: '40px 20px', textAlign: 'center', background: 'var(--color-surface-hover)', borderRadius: 8, width: '100%' }}>
+                    <svg viewBox="0 0 24 24" width="48" height="48" fill="var(--color-text-light)" style={{ marginBottom: 16 }}>
+                      <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                    </svg>
+                    <p style={{ margin: 0, fontWeight: 500 }}>{selectedFile?.name}</p>
+                    <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--color-text-light)' }}>
+                      {(selectedFile?.size || 0) / 1024 / 1024 > 1 
+                        ? `${((selectedFile?.size || 0) / 1024 / 1024).toFixed(2)} MB` 
+                        : `${Math.round((selectedFile?.size || 0) / 1024)} KB`}
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="preview-footer">
                 <input 

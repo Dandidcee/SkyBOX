@@ -24,6 +24,10 @@ create table if not exists accounts (
 alter table accounts add column if not exists owner_id uuid references auth.users(id) on delete cascade;
 create index if not exists idx_accounts_owner on accounts(owner_id);
 
+-- WhatsApp Official API credentials
+alter table accounts add column if not exists wa_phone_number_id text default '';
+alter table accounts add column if not exists wa_access_token text default '';
+
 create table if not exists conversations (
   id uuid primary key default gen_random_uuid(),
   account_id uuid not null references accounts(id) on delete cascade,
@@ -44,6 +48,7 @@ create table if not exists messages (
   id uuid primary key default gen_random_uuid(),
   conversation_id uuid not null references conversations(id) on delete cascade,
   external_message_id text unique, -- id pesan dari WAHA (payload.id) untuk cegah dobel insert
+  reply_to_message_id text, -- id pesan yang sedang direply (jika ada)
   direction text not null check (direction in ('in','out')),
   type text not null default 'text' check (type in ('text','image','document')),
   body text default '',

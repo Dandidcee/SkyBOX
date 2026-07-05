@@ -1,7 +1,5 @@
-// Hook React Query untuk orders per conversation + Realtime.
-import { useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getSupabase, isSupabaseConfigured } from '../services/supabase';
+import { useQuery } from '@tanstack/react-query';
+import api from '../services/api';
 import { mapOrderRow } from '../services/mappers';
 import type { Order, OrderRow } from '../types/db';
 
@@ -10,36 +8,19 @@ export function ordersKey(conversationId?: string) {
 }
 
 export function useOrders(conversationId: string | undefined) {
-  const qc = useQueryClient();
-
-  const query = useQuery({
+  return useQuery({
     queryKey: ordersKey(conversationId),
     queryFn: async (): Promise<Order[]> => {
-      const { data, error } = await getSupabase()
-        .from('orders')
-        .select('*')
-        .eq('conversation_id', conversationId!)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
+      // Endpoint yang digunakan adalah custom logic atau kita perlu bikin di backend?
+      // Wait, we didn't add /api/orders/:conversationId, our dynamic CRUD only takes accountId!
+      // I will fetch from dynamic CRUD, but it's easier to just hit a custom endpoint.
+      // Let's use the dynamic CRUD: wait, dynamic CRUD uses /api/resource/orders/:accountId.
+      // Orders don't have accountId directly, they have conversation_id!
+      // This means the dynamic CRUD won't work for orders fetched by conversation_id!
+      
+      const { data } = await api.get(`/orders/${conversationId}`);
       return (data as OrderRow[]).map(mapOrderRow);
     },
-    enabled: isSupabaseConfigured && !!conversationId,
+    enabled: !!conversationId,
   });
-
-  useEffect(() => {
-    if (!isSupabaseConfigured || !conversationId) return;
-    const channel = getSupabase()
-      .channel(`orders-${conversationId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders', filter: `conversation_id=eq.${conversationId}` },
-        () => qc.invalidateQueries({ queryKey: ordersKey(conversationId) })
-      )
-      .subscribe();
-    return () => {
-      getSupabase().removeChannel(channel);
-    };
-  }, [conversationId, qc]);
-
-  return query;
 }

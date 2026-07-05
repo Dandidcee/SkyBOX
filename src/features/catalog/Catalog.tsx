@@ -303,8 +303,10 @@ const Catalog = ({ accounts }: CatalogProps) => {
 
       {/* Modal Produk */}
       {productForm && (
-        <div className="cat-modal-overlay" onClick={() => setProductForm(null)}>
-          <div className="cat-modal" onClick={e => e.stopPropagation()}>
+        <div className="cat-modal-overlay" onMouseDown={(e) => {
+          if (e.target === e.currentTarget) setProductForm(null);
+        }}>
+          <div className="cat-modal">
             <div className="cat-modal-head">
               <h3>{productEditId ? 'Edit Produk' : 'Tambah Produk'}</h3>
               <button onClick={() => setProductForm(null)}><MdClose size={20} /></button>
@@ -359,8 +361,10 @@ const Catalog = ({ accounts }: CatalogProps) => {
 
       {/* Modal Knowledge */}
       {knowForm && (
-        <div className="cat-modal-overlay" onClick={() => setKnowForm(null)}>
-          <div className="cat-modal" onClick={e => e.stopPropagation()}>
+        <div className="cat-modal-overlay" onMouseDown={(e) => {
+          if (e.target === e.currentTarget) setKnowForm(null);
+        }}>
+          <div className="cat-modal">
             <div className="cat-modal-head">
               <h3>{knowEditId ? 'Edit Pengetahuan' : 'Tambah Pengetahuan'}</h3>
               <button onClick={() => setKnowForm(null)}><MdClose size={20} /></button>
@@ -380,8 +384,10 @@ const Catalog = ({ accounts }: CatalogProps) => {
 
       {/* Modal Promo */}
       {promoForm && (
-        <div className="cat-modal-overlay" onClick={() => setPromoForm(null)}>
-          <div className="cat-modal" onClick={e => e.stopPropagation()}>
+        <div className="cat-modal-overlay" onMouseDown={(e) => {
+          if (e.target === e.currentTarget) setPromoForm(null);
+        }}>
+          <div className="cat-modal">
             <div className="cat-modal-head">
               <h3>{promoEditId ? 'Edit Promo' : 'Tambah Promo'}</h3>
               <button onClick={() => setPromoForm(null)}><MdClose size={20} /></button>

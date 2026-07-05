@@ -82,7 +82,7 @@ const Sidebar = ({ isVisible = true, toggleSidebar, accounts, activeAccountIds, 
   };
 
   return (
-    <aside className={`sidebar ${!isVisible ? 'hidden-desktop' : ''}`}>
+    <aside className={`sidebar ${!isVisible ? 'hidden-desktop' : ''} ${isVisible ? 'mobile-open' : ''}`}>
       <button 
         className="sidebar-toggle-btn hide-on-mobile" 
         onClick={toggleSidebar}
