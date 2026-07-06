@@ -1002,7 +1002,61 @@ app.get('/', (req, res) => {
 // N8N INTEGRATION ENDPOINTS
 // ==========================================
 
-// Endpoint publik (tanpa token user) khusus untuk dipanggil oleh N8N.
+app.use('/api/n8n', authenticateToken);
+
+// Endpoint N8N untuk membuat order baru ke database
+app.post('/api/n8n/orders', async (req, res) => {
+  try {
+    const { conversation_id, type, status, address, amount, items, note } = req.body;
+    if (!conversation_id || !type || !status) {
+      return res.status(400).json({ error: 'Missing required fields: conversation_id, type, status' });
+    }
+
+    const query = `
+      INSERT INTO orders (conversation_id, type, status, address, amount, items, note)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `;
+    const values = [conversation_id, type, status, address, amount || 0, items || '[]', note || ''];
+    const result = await pool.query(query, values);
+    
+    // Update order status di tabel conversations juga
+    await pool.query('UPDATE conversations SET order_status = $1 WHERE id = $2', [status, conversation_id]);
+    
+    // Emit ke socket jika butuh update UI
+    const convInfo = await pool.query('SELECT account_id FROM conversations WHERE id = $1', [conversation_id]);
+    if (convInfo.rows.length > 0) {
+      io.to(`account_${convInfo.rows[0].account_id}`).emit('order_created', result.rows[0]);
+    }
+
+    res.json({ success: true, order: result.rows[0] });
+  } catch (err) {
+    console.error("N8N Create Order API Error:", err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Endpoint N8N untuk mengubah mode handler (contoh: dari 'ai' ke 'human')
+app.put('/api/n8n/conversations/:id/handler', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { handler } = req.body; // 'ai' atau 'human'
+    if (!handler) return res.status(400).json({ error: 'Missing handler value' });
+
+    const updateQuery = `UPDATE conversations SET handler = $1 WHERE id = $2 RETURNING *`;
+    const result = await pool.query(updateQuery, [handler, id]);
+    
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Conversation not found' });
+
+    io.to(`account_${result.rows[0].account_id}`).emit('conversation_updated', result.rows[0]);
+    res.json({ success: true, conversation: result.rows[0] });
+  } catch (err) {
+    console.error("N8N Update Handler API Error:", err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Endpoint publik (sekarang terlindungi) khusus untuk dipanggil oleh N8N.
 // N8N memanggil ini menggunakan wa_phone_number_id yang didapat dari webhook Meta.
 app.get('/api/n8n/context/:phoneId', async (req, res) => {
   try {
@@ -1022,7 +1076,7 @@ app.get('/api/n8n/context/:phoneId', async (req, res) => {
     const prodResult = await pool.query('SELECT name, price, stock, category, description FROM products WHERE account_id = $1', [account.id]);
 
     // 4. Ambil Templates
-    const tempResult = await pool.query('SELECT name, content FROM templates WHERE account_id = $1', [account.id]);
+    const tempResult = await pool.query('SELECT trigger_text, reply_text, image_url, variants FROM templates WHERE account_id = $1', [account.id]);
 
     // 5. Susun respons untuk N8N
     const context = {
@@ -1036,6 +1090,32 @@ app.get('/api/n8n/context/:phoneId', async (req, res) => {
     res.json(context);
   } catch (err) {
     console.error("N8N Context API Error:", err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Endpoint untuk dipanggil N8N menggunakan accountId (yang dikirim dari webhook dashboard)
+app.get('/api/n8n/context/account/:accountId', async (req, res) => {
+  try {
+    const { accountId } = req.params;
+    
+    const accResult = await pool.query('SELECT id, name FROM accounts WHERE id = $1 LIMIT 1', [accountId]);
+    if (accResult.rows.length === 0) return res.status(404).json({ error: 'Account not found' });
+    const account = accResult.rows[0];
+
+    const knowResult = await pool.query('SELECT title, content FROM knowledge WHERE account_id = $1', [accountId]);
+    const prodResult = await pool.query('SELECT name, price, stock, category, description FROM products WHERE account_id = $1', [accountId]);
+    const tempResult = await pool.query('SELECT trigger_text, reply_text, image_url, variants FROM templates WHERE account_id = $1', [accountId]);
+
+    res.json({
+      accountId: account.id,
+      accountName: account.name,
+      knowledge: knowResult.rows,
+      products: prodResult.rows,
+      templates: tempResult.rows
+    });
+  } catch (err) {
+    console.error("N8N Context Account API Error:", err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -1072,6 +1152,94 @@ app.post('/api/n8n/save-message', async (req, res) => {
     res.json({ success: true, message: result.rows[0] });
   } catch (err) {
     console.error("N8N Save Message API Error:", err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Endpoint untuk mengirim pesan dari N8N via Dashboard (Meta API) & simpan ke DB
+// Dengan ini N8N tidak perlu menyimpan token Meta, cukup panggil API ini
+app.post('/api/n8n/send-message', async (req, res) => {
+  try {
+    const { conversationId, body, type, externalMessageId } = req.body;
+    if (!conversationId || !body) return res.status(400).json({ error: 'Missing required fields' });
+
+    // 1. Ambil info akun dan percakapan
+    const convInfo = await pool.query(`
+      SELECT c.customer_phone, a.id as account_id, a.wa_phone_number_id, a.wa_access_token 
+      FROM conversations c 
+      JOIN accounts a ON a.id = c.account_id 
+      WHERE c.id = $1
+    `, [conversationId]);
+
+    if (convInfo.rows.length === 0) return res.status(404).json({ error: "Conversation not found" });
+
+    const { customer_phone, account_id, wa_phone_number_id, wa_access_token } = convInfo.rows[0];
+
+    // 2. Lakukan HTTP POST ke Graph API Meta
+    let metaMessageId = externalMessageId || `n8n_out_${Date.now()}`;
+    if (wa_phone_number_id && wa_access_token) {
+      try {
+        const payload = {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: customer_phone.replace(/\D/g, ''),
+          type: type || 'text',
+        };
+        
+        if (type === 'image' || type === 'video' || type === 'document' || type === 'audio' || type === 'sticker') {
+          payload[type] = { link: req.body.mediaUrl };
+          if ((type === 'image' || type === 'video' || type === 'document') && body && body !== `[${type}]`) {
+            payload[type].caption = body;
+          }
+        } else {
+          payload.text = { body: body };
+        }
+
+        const metaRes = await fetch(`https://graph.facebook.com/v17.0/${wa_phone_number_id}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${wa_access_token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        const metaData = await metaRes.json();
+        if (metaData.error) {
+          console.error('Meta API Error (N8N Send):', metaData.error);
+        } else if (metaData.messages && metaData.messages[0]) {
+          metaMessageId = metaData.messages[0].id; // Gunakan ID asli dari Meta jika berhasil
+        }
+      } catch (e) {
+        console.error('Failed to send message to Meta API from N8N:', e);
+      }
+    }
+    
+    // 3. Simpan pesan ke database
+    const insertMsg = `
+      INSERT INTO messages (conversation_id, external_message_id, direction, type, body, media_url)
+      VALUES ($1, $2, 'out', $3, $4, $5)
+      RETURNING *
+    `;
+    const result = await pool.query(insertMsg, [conversationId, metaMessageId, type || 'text', body, req.body.mediaUrl || null]);
+    const newMessage = result.rows[0];
+
+    // 4. Update conversation preview
+    const updateConvQuery = `
+      UPDATE conversations 
+      SET last_message = $1, last_time = NOW()
+      WHERE id = $2
+      RETURNING *
+    `;
+    const updateRes = await pool.query(updateConvQuery, [body.substring(0, 100), conversationId]);
+
+    // 5. Emit event socket.io ke client (jika terhubung)
+    io.to(`account_${account_id}`).emit('new_message', newMessage);
+    io.to(`account_${account_id}`).emit('conversation_updated', updateRes.rows[0]);
+
+    res.json({ success: true, message: newMessage });
+  } catch (err) {
+    console.error("N8N Send Message API Error:", err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -1236,8 +1404,9 @@ app.post('/api/webhook/meta', async (req, res) => {
             const n8nWebhookUrl = account.n8n_webhook_url;
             if (n8nWebhookUrl) {
               try {
-                // Teruskan payload asli dari Meta ke N8N beserta info conversation
-                await fetch(n8nWebhookUrl, {
+                // Teruskan payload asli dari Meta ke N8N secara asinkron (Fire and Forget)
+                // HAPUS 'await' agar webhook Meta tidak timeout saat AI loading lama di N8N!
+                fetch(n8nWebhookUrl, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
@@ -1246,10 +1415,11 @@ app.post('/api/webhook/meta', async (req, res) => {
                     account_id: account.id,
                     customer_phone: from
                   })
-                });
+                }).catch(e => console.error(`Failed to forward webhook to N8N: ${e.message}`));
+                
                 console.log(`Forwarded incoming message to N8N for account ${account.name}`);
               } catch (e) {
-                console.error(`Failed to forward webhook to N8N: ${e.message}`);
+                console.error(`Error initiating webhook to N8N: ${e.message}`);
               }
             }
           }

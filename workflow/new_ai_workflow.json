@@ -1,0 +1,654 @@
+{
+  "name": "Dashboard WA AI Core (v2)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "meta-webhook",
+        "options": {}
+      },
+      "name": "Webhook Masuk",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "dashboard-ai-webhook"
+    },
+    {
+      "parameters": {
+        "url": "=https://dashboard.leyatiofficial.xyz/api/n8n/context/account/{{ $json.body.account_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer <TOKEN_RAHASIA>"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Tarik Data Konteks AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://dashboard.leyatiofficial.xyz/api/n8n/chat-history/{{ $('Webhook Masuk').item.json.body.conversation_id }}?limit=15",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer <TOKEN_RAHASIA>"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Tarik Riwayat Chat",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Tarik Data Konteks AI').item.json;\nconst riwayatRaw = $input.first().json || [];\nctx.riwayat = riwayatRaw;\n\n\nconst produk = ctx.dataBarang || [];\nconst info   = ctx.dataToko || [];\nconst promo  = ctx.dataPromo || [];\n\n// Ambil 10 chat terakhir\nconst riwayatRaw = (ctx.riwayat || []).slice(0, 10);\n\nconst fase   = ctx.fase || 'none';\nconst orderStatus = ctx.orderStatus || 'none';\n\n// Format Produk (variants sekarang JSON: [{name, images:[]}])\nconst dataBarangStr = produk.length\n  ? produk.map(p => {\n      let text = `- ${p.name} | Rp${Number(p.price||0).toLocaleString('id-ID')} | stok: ${p.stock ?? '-'}`;\n\n      if (p.description) {\n        let desc = p.description.length > 100 ? p.description.substring(0, 100) + '...' : p.description;\n        text += `\\n  Desc: ${desc}`;\n      }\n\n      // Foto utama produk (image_url, bisa multi-baris)\n      if (p.image_url) {\n        const mainImgs = String(p.image_url).split('\\n').map(u => u.trim()).filter(Boolean);\n        if (mainImgs.length) text += `\\n  Foto Utama: ${mainImgs.join(', ')}`;\n      }\n\n      // Varian (JSON) → nama + foto per varian\n      if (p.variants) {\n        try {\n          const vars = JSON.parse(p.variants);\n          if (Array.isArray(vars) && vars.length) {\n            text += `\\n  Varian:`;\n            for (const v of vars) {\n              const imgs = (v.images || []).filter(Boolean);\n              text += `\\n    • ${v.name || 'varian'}${imgs.length ? ` (foto: ${imgs.join(', ')})` : ''}`;\n            }\n          }\n        } catch {\n          // fallback kalau variants masih teks lama\n          text += `\\n  Varian: ${String(p.variants).replace(/\\n/g, ' ')}`;\n        }\n      }\n\n      return text;\n    }).join('\\n\\n')\n  : '(belum ada produk)';\n\n// Format Basis Pengetahuan Toko\nconst dataTokoStr = info.length\n  ? info.map(k => {\n      let konten = k.content.length > 200 ? k.content.substring(0, 200) + '...' : k.content;\n      return `- ${k.title}: ${konten}`;\n  }).join('\\n\\n')\n  : '(belum ada info)';\n\n// Format Promo\nconst dataPromoStr = promo.length\n  ? promo.map(pr => `- ${pr.title}${pr.description ? `: ${pr.description}` : ''}`).join('\\n\\n')\n  : '(tidak ada promo aktif)';\n\n// Format Riwayat Chat\nconst riwayatStr = riwayatRaw.length\n  ? [...riwayatRaw].reverse().map(m => {\n      const sender = m.direction === 'in' ? 'Pelanggan' : 'CS (Kamu)';\n      const content = m.type === 'image' ? '[Mengirim Gambar]' : m.body;\n      return `${sender}: ${content}`;\n    }).join('\\n')\n  : '(belum ada riwayat)';\n\n// Format Fase\nconst faseTeks = `Fase Saat Ini: ${fase} | Status Order: ${orderStatus}`;\n\n// Ambil rekening\nconst rekening = ctx.rekeningTF || '';\n\n// Waktu sekarang (WIB)\nconst opsiWaktu = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' };\nconst waktuSekarang = new Date().toLocaleString('id-ID', opsiWaktu);\n\nreturn [{\n  json: {\n    dataBarang: dataBarangStr,\n    dataToko: dataTokoStr,\n    dataPromo: dataPromoStr,\n    riwayat: riwayatStr,\n    fase: faseTeks,\n    orderStatus: orderStatus,\n    rekeningTF: rekening,\n    waktuSekarang: waktuSekarang,\n  }\n}];\n"
+      },
+      "name": "Format Prompt AI (JS)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "text": "={{ $('Webhook Masuk').item.json.body.meta_payload.entry[0].changes[0].value.messages[0].text.body || 'Ada pesan masuk' }}",
+        "options": {
+          "systemMessage": "=Kamu adalah customer service toko via WhatsApp. Jawab dalam Bahasa Indonesia yang luwes, natural, dan to-the-point — seperti CS manusia.\n\n⚠️ WAJIB: Balasan HARUS berformat JSON valid dengan TEPAT 9 field. Jika \"confidence\" hilang, SISTEM CRASH. Selalu isi confidence dengan angka 0-100.\n\nIDENTITAS & GAYA BAHASA:\n- Kamu adalah CS manusia. JANGAN PERNAH mengaku sebagai AI/bot.\n- DILARANG mengulang sapaan seperti \"Halo kak!\" terus-menerus.\n\nWAKTU SAAT INI: {{ $json.waktuSekarang }}\n\nATURAN PROMO (KAMU YANG HITUNG, BUKAN PELANGGAN!):\n- JANGAN PERNAH menyuruh pelanggan yang menghitung, memikirkan, atau mengisi promo di dalam form!\n- KAMU (AI) yang wajib mengecek DATA PROMO. Jika memenuhi syarat, KAMU yang menuliskannya di form order (contoh: \"Promo : Beli 10 Gratis 1\").\n- JIKA TIDAK ADA PROMO, hilangkan baris \"Promo :\" dari form order. JANGAN mengirim teks instruksi dalam kurung [ ] ke pelanggan!\n\n🚨 ATURAN ESKALASI (TRUST, TESTIMONI, NEGO, COD CEK DULU, LUAR JAWA):\nJIKA PELANGGAN MENGALAMI SALAH SATU KONDISI INI:\n1. Tidak percaya, ragu, takut penipuan, atau minta testimoni.\n2. Meminta negosiasi harga / diskon tambahan.\n3. Meminta fitur \"COD Cek Dulu\".\n4. Marah-marah atau meremehkan toko.\n5. Alamat pengiriman berada di Luar Pulau Jawa atau Luar Negeri.\n\nMAKA KAMU WAJIB MELAKUKAN INI:\n- Set \"confidence\": 60\n- Isi \"reply\": \"Sebentar ya kak, untuk hal ini saya bantu sambungkan dengan Admin kami.\"\n- DILARANG KERAS memberikan penjelasan panjang lebar, janji, alasan, atau menyuruh pelanggan cek review! Cukup gunakan 1 kalimat patokan di atas saja!\n- Catatan: Jika pelanggan memilih COD biasa di Pulau Jawa tanpa drama, proses order form seperti biasa.\n\n🚨 ATURAN VALIDASI ALAMAT & VARIAN (SANGAT KETAT - WAJIB PATUHI!):\nKETIKA PELANGGAN MENGISI FORM ORDER, JANGAN LANGSUNG CLOSING! Lakukan pengecekan layaknya agen ekspedisi yang cerewet:\n1. CEK DETAIL LOKASI (RT/RW/DUSUN): Tanyakan RT/RW spesifiknya. NAMUN, jika pelanggan menyatakan bahwa daerahnya TIDAK MEMILIKI RT/RW (misalnya hanya ada nama Dusun, Blok, Banjar, atau Jalan & Nomor Rumah saja), MAKA TERIMALAH keterangan tersebut. JANGAN memaksa mereka memberikan angka RT/RW jika memang tidak ada. Cukup catat detail apa pun yang mereka berikan sebagai pelengkap alamat.\n2. CROSS-CHECK GEOGRAFIS: Gunakan pengetahuan bawaanmu (General Knowledge) tentang wilayah Indonesia. Cross-check apakah Desa/Kelurahan yang diisi pelanggan BENAR-BENAR ADA di dalam Kecamatan tersebut. Periksa juga apakah Kecamatan itu cocok dengan Kabupatennya. Jika datanya salah, janggal, atau nama desanya tidak cocok dengan kecamatan, KAMU WAJIB menegur dan menyuruh pelanggan mengecek kembali alamatnya!\n3. CEK TYPO DAERAH: Jika ada singkatan atau salah ketik nama kota/kecamatan (contoh: \"tskmalaya\", \"jkt\", \"bdg\"), KAMU WAJIB mengonfirmasi ejaan yang benarnya.\n4. CEK VARIAN PRODUK: Jika produk punya varian dan pelanggan belum menyebutkannya, KAMU WAJIB menanyakan varian apa yang dipilih.\n5. JANGAN CLOSING JIKA CACAT: Selama geografi desa/kecamatan tidak valid, typo belum dikonfirmasi, ukuran/varian belum jelas, atau detail alamat masih ambigu tanpa ada konfirmasi dari pelanggan, JANGAN UBAH intent ke `closing`. Tetap tanyakan kekurangannya sampai sempurna 100%!\n\nATURAN GAMBAR (WAJIB):\n- \"images\" = array objek {url, caption}.\n- Ambil url HANYA dari DATA PRODUK. Kirim HANYA saat pelanggan minta/pertama kali tertarik.\n- Jika pelanggan sudah merespons, images: [] (jangan kirim lagi).\n\nALUR PELAYANAN (WAJIB IKUTI URUTAN INI):\n1. TANYA KEBUTUHAN & VARIAN: Jelaskan produk dan WAJIB pastikan pelanggan memilih VARIAN SPESIFIK.\n2. KASIH FORM: Jika varian jelas dan mau order, kirim form order (susun form sesuai syarat).\n3. VALIDASI FORM (WAJIB!): TERAPKAN ATURAN VALIDASI ALAMAT. Jika ada yang cacat/typo/kurang, TEGUR RAMAH dan minta lengkapi.\n4. KONFIRMASI PEMBAYARAN TF: Jika transfer, bilang cek mutasi ke admin (set intent waiting_payment & confidence 60).\n5. CLOSING CHAT & TERIMA KASIH (WAJIB!): JIKA DAN HANYA JIKA alamat sudah SEMPURNA (Detail spesifik lokasi jelas atau dikonfirmasi tidak ada RT/RW, tidak typo, P. Jawa) dan varian tercatat, ubah intent ke `closing`. Kamu WAJIB menutup chat dengan kalimat: \"Terimakasih sudah berbelanja di toko kami...\"\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nFORMAT FORM ORDER\n⚠️ KAMU YANG WAJIB MENYUSUN FORM INI:\n━━━━━━━━━━━━━━━━━━━━━━━━\nMohon di bantu untuk mengisi format order nya kak, untuk di input ke tim packing\n\nNama Penerima :\nRT RW / Dusun / Blok :\nDesa / kelurahan :\nKecamatan :\nKabupaten :\nMetode pembayaran :\n[HANYA TULIS BARIS INI JIKA ADA PROMO] Promo : [Tulis nama promo yang kamu hitung sendiri]\nPosisi Rumah kira kira dekat dengan apa :\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nCONTOH BALASAN (PENTING! IKUTI FORMAT INI)\n━━━━━━━━━━━━━━━━━━━━━━━━\nContoh 1 — Pelanggan ragu, minta testimoni, takut penipuan, atau nawar harga:\n{\n  \"reply\": \"Sebentar ya kak, untuk hal ini saya bantu sambungkan dengan Admin kami.\",\n  \"intent\": \"none\",\n  \"confidence\": 60,\n  \"items\": null,\n  \"address\": null,\n  \"note\": null,\n  \"paymentMethod\": null,\n  \"images\": []\n}\n\nContoh 2 — Pelanggan isi form tapi cacat (Desa dan Kecamatan tidak nyambung, RT/RW belum jelas, typo):\n{\n  \"reply\": \"Kak, untuk RT dan RW-nya di Kp Cirput nomor berapa ya? (Atau memang tidak ada RT/RW kak?). Terus saya cek Desa Mandalagiri kok tidak ada di Kecamatan Leuwisari ya kak, boleh dicek lagi? Dan untuk kabupatennya maksudnya Tasikmalaya kah? Oh ya, sekalian mau pesan ukuran/varian apa kak?\",\n  \"intent\": \"lead\",\n  \"confidence\": 95,\n  \"items\": \"[Nama Produk] (varian belum disebut)\",\n  \"address\": \"dandi cahyaman, kp cirput, mandalagiri, leuwisari, tskmalaya\",\n  \"note\": null,\n  \"paymentMethod\": \"cod\",\n  \"images\": []\n}\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nINTENT (fase percakapan):\n━━━━━━━━━━━━━━━━━━━━━━━━\n- none            : tanya-tanya biasa\n- lead            : tertarik / butuh melengkapi data & form\n- waiting_payment : sudah sepakat transfer (butuh cek admin)\n- closing         : SEMUA DATA ALAMAT (JAWA) & VARIAN LENGKAP + SEMPURNA\n- complaint       : marah, barang rusak, retur, komplain\n\nCONFIDENCE (0-100):\n- 85-100 : sangat yakin\n- < 70   : ragu / butuh manusia\n- 60     : pelanggan eskalasi (ragu, marah, minta testi, luar pulau jawa, dll) atau cek mutasi\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nFORMAT BALASAN WAJIB (JSON valid, TEPAT 9 field):\n━━━━━━━━━━━━━━━━━━━━━━━━\n{\n  \"reply\": \"isi balasan, gunakan \\\\n\\\\n untuk jarak antar paragraf, \\\\n untuk antar field form.\",\n  \"intent\": \"none|lead|waiting_payment|closing|complaint\",\n  \"confidence\": 90,\n  \"items\": \"nama produk + VARIAN LENGKAP (null jika belum)\",\n  \"amount\": null,\n  \"address\": \"alamat SUPER LENGKAP BEBAS TYPO (null jika belum)\",\n  \"note\": \"catatan pengiriman (null jika tidak ada)\",\n  \"paymentMethod\": \"cod|tf|null\",\n  \"images\": [ { \"url\": \"url dari DATA PRODUK\", \"caption\": \"deskripsi singkat foto\" } ]\n}\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nKONTEKS:\n━━━━━━━━━━━━━━━━━━━━━━━━\nDATA PRODUK  : {{ $json.dataBarang }}\nINFO TOKO    : {{ $json.dataToko }}\nINFO PROMO   : {{ $json.dataPromo }}\nRIWAYAT CHAT : {{ $json.riwayat }}\nFASE CUSTOMER: {{ $json.fase }}\nORDER STATUS : {{ $json.orderStatus }}"
+        }
+      },
+      "name": "AI Agent (Otak Chatbot)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.2,
+      "position": [
+        800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {}
+      },
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        800,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Gunakan tool ini untuk mendapatkan daftar semua provinsi di Indonesia beserta ID-nya.",
+        "url": "https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json"
+      },
+      "name": "Tool: Cek Provinsi",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.1,
+      "position": [
+        950,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Gunakan tool ini untuk mencari daftar kabupaten atau kota. Membutuhkan ID Provinsi. Gunakan tool get_provinsi terlebih dahulu jika kamu belum tahu ID Provinsinya.",
+        "url": "=https://www.emsifa.com/api-wilayah-indonesia/api/regencies/{{$fromAI(\"id_provinsi\")}}.json"
+      },
+      "name": "Tool: Cek Kabupaten/Kota",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.1,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Gunakan tool ini untuk mencari daftar kecamatan. Membutuhkan ID Kabupaten/Kota. Gunakan tool get_kabupaten_kota terlebih dahulu jika kamu belum tahu ID Kabupaten/Kota-nya.",
+        "url": "=https://www.emsifa.com/api-wilayah-indonesia/api/districts/{{$fromAI(\"id_kabupaten\")}}.json"
+      },
+      "name": "Tool: Cek Kecamatan",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.1,
+      "position": [
+        1250,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Gunakan tool ini untuk mencari daftar desa atau kelurahan. Membutuhkan ID Kecamatan. Gunakan tool get_kecamatan terlebih dahulu jika kamu belum tahu ID Kecamatan-nya.",
+        "url": "=https://www.emsifa.com/api-wilayah-indonesia/api/villages/{{$fromAI(\"id_kecamatan\")}}.json"
+      },
+      "name": "Tool: Cek Desa/Kelurahan",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.1,
+      "position": [
+        1400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.output;\nlet parsed = {};\ntry {\n  const clean = raw.replace(/```json\\s*/gi, '').replace(/```/g, '').trim();\n  parsed = JSON.parse(clean);\n} catch (e) {\n  parsed = { reply: 'Mohon maaf, sistem sedang sibuk.', confidence: 60, images: [] };\n}\nreturn [{ json: parsed }];"
+      },
+      "name": "Baca Output AI (JS)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiData = $input.first().json;\nconst ctxStr = $('Tarik Data Konteks AI').item.json.dataBarang || '';\n\nlet hasHalu = false;\nlet validImages = [];\n\nif (aiData.images && Array.isArray(aiData.images)) {\n  for (const img of aiData.images) {\n    if (ctxStr.includes(img.url)) {\n      validImages.push(img);\n    } else {\n      hasHalu = true;\n    }\n  }\n}\n\nif (hasHalu && validImages.length === 0) {\n  aiData.reply = \"Maaf kak, kami tidak memiliki foto produk tersebut. Tunggu sebentar saya hubungkan ke admin ya.\";\n  aiData.confidence = 60;\n}\n\naiData.images = validImages;\nreturn [{ json: aiData }];"
+      },
+      "name": "Validasi Gambar Halu (JS)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://dashboard.leyatiofficial.xyz/api/n8n/send-message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer <TOKEN_RAHASIA>"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversationId",
+              "value": "={{ $('Webhook Masuk').item.json.body.conversation_id }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $json.reply }}"
+            },
+            {
+              "name": "type",
+              "value": "text"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Kirim Pesan Teks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1500,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "conf-check-1",
+              "leftValue": "={{ $json.confidence }}",
+              "rightValue": 70,
+              "operator": {
+                "type": "number",
+                "operation": "smaller"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Cek Confidence",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1700,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "intent-check-1",
+              "leftValue": "={{ $('Kirim Pesan Teks').item.json.intent || $('Validasi Gambar Halu (JS)').item.json.intent }}",
+              "rightValue": "closing",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Cek Closing",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1900,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://dashboard.leyatiofficial.xyz/api/n8n/conversations/{{ $('Webhook Masuk').item.json.body.conversation_id }}/handler",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer <TOKEN_RAHASIA>"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "handler",
+              "value": "human"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Update Mode ke Admin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1900,
+        -250
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://dashboard.leyatiofficial.xyz/api/n8n/orders",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer <TOKEN_RAHASIA>"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Webhook Masuk').item.json.body.conversation_id }}"
+            },
+            {
+              "name": "type",
+              "value": "sale"
+            },
+            {
+              "name": "status",
+              "value": "pending"
+            },
+            {
+              "name": "address",
+              "value": "={{ $('Validasi Gambar Halu (JS)').item.json.address }}"
+            },
+            {
+              "name": "amount",
+              "value": "={{ $('Validasi Gambar Halu (JS)').item.json.amount || 0 }}"
+            },
+            {
+              "name": "items",
+              "value": "={{ $('Validasi Gambar Halu (JS)').item.json.items }}"
+            },
+            {
+              "name": "note",
+              "value": "={{ $('Validasi Gambar Halu (JS)').item.json.note }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Simpan Orderan",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Loop Gambar",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [
+        2300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://dashboard.leyatiofficial.xyz/api/n8n/send-message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer <TOKEN_RAHASIA>"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversationId",
+              "value": "={{ $('Webhook Masuk').item.json.body.conversation_id }}"
+            },
+            {
+              "name": "type",
+              "value": "image"
+            },
+            {
+              "name": "mediaUrl",
+              "value": "={{ $json.url }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $json.caption }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Kirim Gambar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2500,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Masuk": {
+      "main": [
+        [
+          {
+            "node": "Tarik Data Konteks AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tarik Data Konteks AI": {
+      "main": [
+        [
+          {
+            "node": "Tarik Riwayat Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tarik Riwayat Chat": {
+      "main": [
+        [
+          {
+            "node": "Format Prompt AI (JS)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Prompt AI (JS)": {
+      "main": [
+        [
+          {
+            "node": "AI Agent (Otak Chatbot)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent (Otak Chatbot)": {
+      "main": [
+        [
+          {
+            "node": "Baca Output AI (JS)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent (Otak Chatbot)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Cek Provinsi": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent (Otak Chatbot)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Cek Kabupaten/Kota": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent (Otak Chatbot)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Cek Kecamatan": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent (Otak Chatbot)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Cek Desa/Kelurahan": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent (Otak Chatbot)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baca Output AI (JS)": {
+      "main": [
+        [
+          {
+            "node": "Validasi Gambar Halu (JS)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validasi Gambar Halu (JS)": {
+      "main": [
+        [
+          {
+            "node": "Kirim Pesan Teks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kirim Pesan Teks": {
+      "main": [
+        [
+          {
+            "node": "Cek Confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cek Confidence": {
+      "main": [
+        [
+          {
+            "node": "Update Mode ke Admin",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cek Closing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Mode ke Admin": {
+      "main": [
+        [
+          {
+            "node": "Loop Gambar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cek Closing": {
+      "main": [
+        [
+          {
+            "node": "Simpan Orderan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Gambar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simpan Orderan": {
+      "main": [
+        [
+          {
+            "node": "Loop Gambar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Gambar": {
+      "main": [
+        [
+          {
+            "node": "Kirim Gambar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kirim Gambar": {
+      "main": [
+        [
+          {
+            "node": "Loop Gambar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
