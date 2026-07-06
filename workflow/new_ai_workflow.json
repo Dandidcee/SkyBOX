@@ -1,5 +1,5 @@
 {
-  "name": "Dashboard WA AI Core (v2)",
+  "name": "Dashboard WA AI & Template (Unified)",
   "nodes": [
     {
       "parameters": {
@@ -12,13 +12,197 @@
       "typeVersion": 1,
       "position": [
         0,
-        0
+        200
       ],
       "webhookId": "dashboard-ai-webhook"
     },
     {
       "parameters": {
-        "url": "=https://dashboard.leyatiofficial.xyz/api/n8n/context/account/{{ $json.body.account_id }}",
+        "method": "POST",
+        "url": "https://dashboard.leyatiofficial.xyz/api/n8n/match-template",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer <TOKEN_RAHASIA>"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{ $('Webhook Masuk').item.json.body.conversation_id }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $('Webhook Masuk').item.json.body.meta_payload.entry[0].changes[0].value.messages[0].text.body || '' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Cek Template (Dashboard API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "tpl-match",
+              "leftValue": "={{ $json.matched }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Apakah Template Cocok?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        450,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://dashboard.leyatiofficial.xyz/api/n8n/send-message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer <TOKEN_RAHASIA>"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversationId",
+              "value": "={{ $('Webhook Masuk').item.json.body.conversation_id }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $json.template.reply_text }}"
+            },
+            {
+              "name": "type",
+              "value": "text"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Kirim Pesan Template",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        700,
+        -50
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "tpl-img",
+              "leftValue": "={{ $('Cek Template (Dashboard API)').item.json.template.image_url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Ada Gambar Template?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        950,
+        -50
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://dashboard.leyatiofficial.xyz/api/n8n/send-message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer <TOKEN_RAHASIA>"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversationId",
+              "value": "={{ $('Webhook Masuk').item.json.body.conversation_id }}"
+            },
+            {
+              "name": "type",
+              "value": "image"
+            },
+            {
+              "name": "mediaUrl",
+              "value": "={{ $('Cek Template (Dashboard API)').item.json.template.image_url }}"
+            },
+            {
+              "name": "body",
+              "value": ""
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Kirim Gambar Template",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1200,
+        -50
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://dashboard.leyatiofficial.xyz/api/n8n/context/account/{{ $('Webhook Masuk').item.json.body.account_id }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -34,8 +218,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        200,
-        0
+        700,
+        300
       ]
     },
     {
@@ -56,8 +240,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        400,
-        0
+        950,
+        300
       ]
     },
     {
@@ -68,8 +252,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        600,
-        0
+        1200,
+        300
       ]
     },
     {
@@ -83,8 +267,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.2,
       "position": [
-        800,
-        0
+        1450,
+        300
       ]
     },
     {
@@ -96,8 +280,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1,
       "position": [
-        800,
-        200
+        1400,
+        550
       ]
     },
     {
@@ -109,8 +293,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.1,
       "position": [
-        950,
-        200
+        1550,
+        500
       ]
     },
     {
@@ -122,8 +306,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.1,
       "position": [
-        1100,
-        200
+        1700,
+        550
       ]
     },
     {
@@ -135,8 +319,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.1,
       "position": [
-        1250,
-        200
+        1850,
+        600
       ]
     },
     {
@@ -148,8 +332,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.1,
       "position": [
-        1400,
-        200
+        2000,
+        650
       ]
     },
     {
@@ -160,8 +344,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1100,
-        0
+        1750,
+        300
       ]
     },
     {
@@ -172,14 +356,14 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1300,
-        0
+        2000,
+        300
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://dashboard.leyatiofficial.xyz/api/n8n/send-message",
+        "url": "https://dashboard.leyatiofficial.xyz/api/n8n/send-message",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -208,12 +392,12 @@
         },
         "options": {}
       },
-      "name": "Kirim Pesan Teks",
+      "name": "Kirim Pesan Teks AI",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        1500,
-        0
+        2250,
+        300
       ]
     },
     {
@@ -244,8 +428,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1700,
-        -100
+        2500,
+        300
       ]
     },
     {
@@ -260,7 +444,7 @@
           "conditions": [
             {
               "id": "intent-check-1",
-              "leftValue": "={{ $('Kirim Pesan Teks').item.json.intent || $('Validasi Gambar Halu (JS)').item.json.intent }}",
+              "leftValue": "={{ $('Kirim Pesan Teks AI').item.json.intent || $('Validasi Gambar Halu (JS)').item.json.intent }}",
               "rightValue": "closing",
               "operator": {
                 "type": "string",
@@ -276,8 +460,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1900,
-        100
+        2750,
+        450
       ]
     },
     {
@@ -308,14 +492,14 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        1900,
-        -250
+        2750,
+        150
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://dashboard.leyatiofficial.xyz/api/n8n/orders",
+        "url": "https://dashboard.leyatiofficial.xyz/api/n8n/orders",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -364,8 +548,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        2100,
-        0
+        3000,
+        450
       ]
     },
     {
@@ -373,18 +557,18 @@
         "batchSize": 1,
         "options": {}
       },
-      "name": "Loop Gambar",
+      "name": "Loop Gambar AI",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 2,
       "position": [
-        2300,
-        200
+        3250,
+        300
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://dashboard.leyatiofficial.xyz/api/n8n/send-message",
+        "url": "https://dashboard.leyatiofficial.xyz/api/n8n/send-message",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -417,12 +601,12 @@
         },
         "options": {}
       },
-      "name": "Kirim Gambar",
+      "name": "Kirim Gambar AI",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        2500,
-        200
+        3550,
+        300
       ]
     }
   ],
@@ -431,11 +615,63 @@
       "main": [
         [
           {
+            "node": "Cek Template (Dashboard API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cek Template (Dashboard API)": {
+      "main": [
+        [
+          {
+            "node": "Apakah Template Cocok?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apakah Template Cocok?": {
+      "main": [
+        [
+          {
+            "node": "Kirim Pesan Template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Tarik Data Konteks AI",
             "type": "main",
             "index": 0
           }
         ]
+      ]
+    },
+    "Kirim Pesan Template": {
+      "main": [
+        [
+          {
+            "node": "Ada Gambar Template?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ada Gambar Template?": {
+      "main": [
+        [
+          {
+            "node": "Kirim Gambar Template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     },
     "Tarik Data Konteks AI": {
@@ -552,14 +788,14 @@
       "main": [
         [
           {
-            "node": "Kirim Pesan Teks",
+            "node": "Kirim Pesan Teks AI",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Kirim Pesan Teks": {
+    "Kirim Pesan Teks AI": {
       "main": [
         [
           {
@@ -592,7 +828,7 @@
       "main": [
         [
           {
-            "node": "Loop Gambar",
+            "node": "Loop Gambar AI",
             "type": "main",
             "index": 0
           }
@@ -610,7 +846,7 @@
         ],
         [
           {
-            "node": "Loop Gambar",
+            "node": "Loop Gambar AI",
             "type": "main",
             "index": 0
           }
@@ -621,29 +857,29 @@
       "main": [
         [
           {
-            "node": "Loop Gambar",
+            "node": "Loop Gambar AI",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Loop Gambar": {
+    "Loop Gambar AI": {
       "main": [
         [
           {
-            "node": "Kirim Gambar",
+            "node": "Kirim Gambar AI",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Kirim Gambar": {
+    "Kirim Gambar AI": {
       "main": [
         [
           {
-            "node": "Loop Gambar",
+            "node": "Loop Gambar AI",
             "type": "main",
             "index": 0
           }
