@@ -182,7 +182,7 @@
             },
             {
               "name": "mediaUrl",
-              "value": "={{ $('Cek Template (Dashboard API)').item.json.template.image_url }}"
+              "value": "={{ $json.url }}"
             },
             {
               "name": "body",
@@ -196,7 +196,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        1200,
+        1450,
         -50
       ]
     },
@@ -554,19 +554,6 @@
     },
     {
       "parameters": {
-        "batchSize": 1,
-        "options": {}
-      },
-      "name": "Loop Gambar AI",
-      "type": "n8n-nodes-base.splitInBatches",
-      "typeVersion": 2,
-      "position": [
-        3250,
-        300
-      ]
-    },
-    {
-      "parameters": {
         "method": "POST",
         "url": "https://dashboard.leyatiofficial.xyz/api/n8n/send-message",
         "sendHeaders": true,
@@ -605,7 +592,31 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        3550,
+        3500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const tmpl = $('Cek Template (Dashboard API)').item.json.template || {};\nconst urlStr = tmpl.image_url || '';\nconst urls = urlStr.split(/[\\r\\n,]+/).map(u => u.trim()).filter(Boolean);\n\nif (urls.length === 0) {\n  return [];\n}\n\nreturn urls.map(u => ({ json: { url: u } }));"
+      },
+      "name": "Ekstrak Gambar Template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        -50
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiData = $('Validasi Gambar Halu (JS)').item.json || {};\nconst imgs = aiData.images || [];\n\nif (imgs.length === 0) {\n  return [];\n}\n\nreturn imgs.map(img => ({ json: img }));"
+      },
+      "name": "Ekstrak Gambar AI",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3250,
         300
       ]
     }
@@ -666,7 +677,7 @@
       "main": [
         [
           {
-            "node": "Kirim Gambar Template",
+            "node": "Ekstrak Gambar Template",
             "type": "main",
             "index": 0
           }
@@ -828,7 +839,7 @@
       "main": [
         [
           {
-            "node": "Loop Gambar AI",
+            "node": "Ekstrak Gambar AI",
             "type": "main",
             "index": 0
           }
@@ -846,7 +857,7 @@
         ],
         [
           {
-            "node": "Loop Gambar AI",
+            "node": "Ekstrak Gambar AI",
             "type": "main",
             "index": 0
           }
@@ -857,7 +868,7 @@
       "main": [
         [
           {
-            "node": "Loop Gambar AI",
+            "node": "Ekstrak Gambar AI",
             "type": "main",
             "index": 0
           }
@@ -875,11 +886,22 @@
         ]
       ]
     },
-    "Kirim Gambar AI": {
+    "Ekstrak Gambar Template": {
       "main": [
         [
           {
-            "node": "Loop Gambar AI",
+            "node": "Kirim Gambar Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ekstrak Gambar AI": {
+      "main": [
+        [
+          {
+            "node": "Kirim Gambar AI",
             "type": "main",
             "index": 0
           }
