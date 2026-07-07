@@ -17,6 +17,7 @@ create table if not exists accounts (
   send_media_webhook_url text default '',
   confidence_threshold int not null default 75 check (confidence_threshold between 0 and 100),
   bank_account text default '',
+  ai_enabled boolean not null default true,
   created_at timestamptz default now()
 );
 
@@ -27,6 +28,26 @@ create index if not exists idx_accounts_owner on accounts(owner_id);
 -- WhatsApp Official API credentials
 alter table accounts add column if not exists wa_phone_number_id text default '';
 alter table accounts add column if not exists wa_access_token text default '';
+
+-- TAMBAHAN: Mode AI toggle
+alter table accounts add column if not exists ai_enabled boolean not null default true;
+
+create table if not exists contacts (
+  id uuid primary key default gen_random_uuid(),
+  account_id uuid not null references accounts(id) on delete cascade,
+  name text not null,
+  phone text not null,
+  created_at timestamptz default now(),
+  unique(account_id, phone)
+);
+
+create index if not exists idx_contacts_account on contacts(account_id);
+
+alter table contacts enable row level security;
+drop policy if exists "own contacts all" on contacts;
+create policy "own contacts all" on contacts for all to authenticated
+  using (account_id in (select id from accounts where owner_id = auth.uid()))
+  with check (account_id in (select id from accounts where owner_id = auth.uid()));
 
 create table if not exists conversations (
   id uuid primary key default gen_random_uuid(),

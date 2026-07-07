@@ -12,10 +12,10 @@ import Ongkir from './features/ongkir/Ongkir';
 import QuickReplies from './features/quickreplies/QuickReplies';
 import Settings from './features/settings/Settings';
 import Notifications from './features/notifications/Notifications';
+import Contacts from './features/contacts/Contacts';
 import Templates from './features/templates/Templates';
 import Login from './features/auth/Login';
 import ResetPassword from './features/auth/ResetPassword';
-import LoadingScreen from './components/LoadingScreen';
 import NotificationHost from './components/NotificationHost';
 import { useAccounts, useAccountMutations } from './hooks/useAccounts';
 import { useSystemNotifications } from './hooks/useSystemNotifications';
@@ -43,7 +43,6 @@ const stateStyle: React.CSSProperties = {
 };
 
 function App() {
-  const [isLoading, setIsLoading] = useState(true);
   const [activeView, setActiveView] = useState<string>('dashboard');
   const [isSidebarVisible, setIsSidebarVisible] = useState(() => window.innerWidth > 768);
   const [activeAccountIds, setActiveAccountIds] = useState<string[]>([]);
@@ -160,10 +159,6 @@ function App() {
   const effectiveCols = Math.max(1, Math.min(activeAccounts.length, maxCols));
   const colWidthPct = `calc(${100 / effectiveCols}% - ${(3 * (effectiveCols - 1)) / effectiveCols}px)`;
 
-  if (isLoading) {
-    return <LoadingScreen onFinish={() => setIsLoading(false)} />;
-  }
-
   // Belum siap cek auth → tampilkan loading singkat.
   if (!authReady) {
     return <div style={stateStyle}>Memuat…</div>;
@@ -226,6 +221,8 @@ function App() {
           <QuickReplies />
         ) : activeView === 'templates' ? (
           <Templates accounts={accounts} />
+        ) : activeView === 'contacts' ? (
+          <Contacts accounts={accounts} onOpenChat={handleOpenChat} />
         ) : activeView === 'notifications' ? (
           <Notifications accounts={accounts} onOpenChat={handleOpenChat} />
         ) : activeView === 'settings' ? (

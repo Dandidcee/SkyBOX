@@ -471,18 +471,18 @@ app.post('/api/accounts', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     const {
       name, phone, color, wa_phone_number_id, wa_access_token, meta_verify_token,
-      n8n_webhook_url, confidence_threshold, bank_account, admin_notify_phone
+      n8n_webhook_url, confidence_threshold, bank_account, admin_notify_phone, ai_enabled
     } = req.body;
 
     const query = `
       INSERT INTO accounts (
         owner_id, name, phone, color, wa_phone_number_id, wa_access_token, meta_verify_token,
-        n8n_webhook_url, confidence_threshold, bank_account, admin_notify_phone
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *
+        n8n_webhook_url, confidence_threshold, bank_account, admin_notify_phone, ai_enabled
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *
     `;
     const values = [
       userId, name, phone, color, wa_phone_number_id || '', wa_access_token || '', meta_verify_token || '',
-      n8n_webhook_url || '', confidence_threshold || 75, bank_account || '', admin_notify_phone || ''
+      n8n_webhook_url || '', confidence_threshold || 75, bank_account || '', admin_notify_phone || '', ai_enabled !== undefined ? ai_enabled : true
     ];
     const result = await pool.query(query, values);
     res.json(result.rows[0]);
@@ -537,7 +537,7 @@ app.delete('/api/accounts/:id', authenticateToken, async (req, res) => {
 // DYNAMIC CRUD UNTUK TABEL DENGAN account_id
 // (products, knowledge, promos, orders, templates, quick_replies, dll)
 // ==========================================
-const ALLOWED_TABLES = ['products', 'knowledge', 'promos', 'orders', 'templates', 'quick_replies', 'notifications'];
+const ALLOWED_TABLES = ['products', 'knowledge', 'promos', 'orders', 'templates', 'quick_replies', 'notifications', 'contacts'];
 
 // GET list per accountId
 app.get('/api/resource/:table/:accountId', authenticateToken, async (req, res) => {
@@ -755,6 +755,39 @@ app.get('/api/conversations-list', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch all conversations" });
+  }
+});
+
+// Start/Get conversation with a contact
+app.post('/api/conversations/start', authenticateToken, async (req, res) => {
+  try {
+    const { accountId, phone, name } = req.body;
+    
+    // Verifikasi akun
+    const check = await pool.query('SELECT id FROM accounts WHERE id = $1 AND owner_id = $2', [accountId, req.user.id]);
+    if (check.rows.length === 0) return res.sendStatus(403);
+
+    // Cari atau buat percakapan
+    const findConv = await pool.query('SELECT * FROM conversations WHERE account_id = $1 AND customer_phone = $2 LIMIT 1', [accountId, phone]);
+    
+    if (findConv.rows.length > 0) {
+      return res.json(findConv.rows[0]);
+    } else {
+      const insertConv = `
+        INSERT INTO conversations (account_id, customer_phone, customer_name, unread, handler, last_preview, last_time)
+        VALUES ($1, $2, $3, 0, 'human', 'Percakapan dimulai via Kontak', NOW())
+        RETURNING *
+      `;
+      const newConv = await pool.query(insertConv, [accountId, phone, name || phone]);
+      
+      // Emit via socket
+      io.to(`account_${accountId}`).emit('conversation_updated', newConv.rows[0]);
+      
+      return res.json(newConv.rows[0]);
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to start conversation" });
   }
 });
 
@@ -1004,6 +1037,59 @@ app.get('/', (req, res) => {
 
 app.use('/api/n8n', authenticateToken);
 
+// Endpoint N8N untuk mencocokkan template
+app.post('/api/n8n/match-template', async (req, res) => {
+  try {
+    const { conversation_id, message } = req.body;
+    if (!conversation_id || !message) {
+      return res.status(400).json({ error: 'Missing conversation_id or message' });
+    }
+
+    // Cari account_id dari percakapan
+    const convResult = await pool.query('SELECT account_id FROM conversations WHERE id = $1', [conversation_id]);
+    if (convResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+    const account_id = convResult.rows[0].account_id;
+
+    // Ambil template untuk akun ini
+    const tmplResult = await pool.query('SELECT trigger_text, reply_text, image_url FROM templates WHERE account_id = $1', [account_id]);
+    const templates = tmplResult.rows;
+
+    const msgLower = message.toLowerCase();
+    
+    // Cari template yang trigger_text-nya cocok
+    let matchedTemplate = null;
+    for (const tmpl of templates) {
+      if (!tmpl.trigger_text) continue;
+      // Pecah trigger_text berdasarkan koma jika ada multi-keyword
+      const keywords = tmpl.trigger_text.split(',').map(k => k.trim().toLowerCase());
+      for (const kw of keywords) {
+        if (msgLower.includes(kw)) {
+          matchedTemplate = tmpl;
+          break;
+        }
+      }
+      if (matchedTemplate) break;
+    }
+
+    if (matchedTemplate) {
+      return res.json({ 
+        matched: true, 
+        template: {
+          reply_text: matchedTemplate.reply_text,
+          image_url: matchedTemplate.image_url
+        } 
+      });
+    }
+
+    return res.json({ matched: false });
+  } catch (err) {
+    console.error('Error matching template:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Endpoint N8N untuk membuat order baru ke database
 app.post('/api/n8n/orders', async (req, res) => {
   try {
@@ -1160,7 +1246,7 @@ app.post('/api/n8n/save-message', async (req, res) => {
 // Dengan ini N8N tidak perlu menyimpan token Meta, cukup panggil API ini
 app.post('/api/n8n/send-message', async (req, res) => {
   try {
-    const { conversationId, body, type, externalMessageId } = req.body;
+    const { conversationId, body, type, externalMessageId, intent } = req.body;
     if (!conversationId || !body) return res.status(400).json({ error: 'Missing required fields' });
 
     // 1. Ambil info akun dan percakapan
@@ -1224,14 +1310,23 @@ app.post('/api/n8n/send-message', async (req, res) => {
     const result = await pool.query(insertMsg, [conversationId, metaMessageId, type || 'text', body, req.body.mediaUrl || null]);
     const newMessage = result.rows[0];
 
-    // 4. Update conversation preview
-    const updateConvQuery = `
+    // 4. Update conversation preview dan order_status (jika ada intent)
+    let updateConvQuery = `
       UPDATE conversations 
       SET last_message = $1, last_time = NOW()
+    `;
+    const updateValues = [body.substring(0, 100), conversationId];
+    
+    if (intent && ['none', 'lead', 'waiting_payment', 'closing', 'complaint'].includes(intent)) {
+      updateConvQuery += `, order_status = $3`;
+      updateValues.push(intent);
+    }
+    
+    updateConvQuery += `
       WHERE id = $2
       RETURNING *
     `;
-    const updateRes = await pool.query(updateConvQuery, [body.substring(0, 100), conversationId]);
+    const updateRes = await pool.query(updateConvQuery, updateValues);
 
     // 5. Emit event socket.io ke client (jika terhubung)
     io.to(`account_${account_id}`).emit('new_message', newMessage);
@@ -1398,9 +1493,9 @@ app.post('/api/webhook/meta', async (req, res) => {
           io.to(`account_${account.id}`).emit('new_message', savedMsgResult.rows[0]);
           io.to(`account_${account.id}`).emit('conversation_updated', updatedConvResult.rows[0]);
 
-          // 4. Meneruskan ke N8N JIKA handler adalah AI dan BUKAN Media
+          // 4. Meneruskan ke N8N JIKA handler adalah AI, BUKAN Media, dan ai_enabled adalah true
           // Jika isMedia = true, kita otomatis human dan TIDAK kirim webhook.
-          if (!isMedia && newHandler === 'ai') {
+          if (!isMedia && newHandler === 'ai' && account.ai_enabled) {
             const n8nWebhookUrl = account.n8n_webhook_url;
             if (n8nWebhookUrl) {
               try {

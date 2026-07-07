@@ -5,7 +5,7 @@
 export const isSupabaseConfigured = true;
 
 // Mock function agar import getSupabase tidak menyebabkan crash
-export function getSupabase(): any {
+export function getSupabase(): unknown {
   console.warn("getSupabase called but Supabase has been removed. Use custom API instead.");
   return {
     auth: {},

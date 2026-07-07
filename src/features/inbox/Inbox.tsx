@@ -163,7 +163,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   // State untuk Reply Pesan
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
 
-  const handleSelectRate = (rate: OngkirRate, origin: OngkirDestination, dest: OngkirDestination, _weight: number) => {
+  const handleSelectRate = (rate: OngkirRate, origin: OngkirDestination, dest: OngkirDestination) => {
     const originName = origin.label.split(',')[0].trim();
     const destName = dest.label.split(',')[0].trim();
     const etd = rate.etd.replace(/hari|day/gi, '').trim();
@@ -496,7 +496,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
         conversationId: activeConversation.id,
         phone: activeConversation.customerPhone,
         chatId: activeConversation.chatId,
-        mediaType: mediaType as any,
+        mediaType: mediaType as 'image' | 'video' | 'audio' | 'document',
         filename: selectedFile.name,
         caption: fileCaption.trim() || undefined,
         mediaUrl: uploadData.url,
@@ -536,7 +536,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
         setActiveConversationId(null);
       }
       showToast('Berhasil menghapus chat terpilih.');
-    } catch (_err) {
+    } catch {
       showToast('Gagal menghapus chat.');
     }
   };

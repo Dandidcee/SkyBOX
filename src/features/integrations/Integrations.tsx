@@ -32,6 +32,7 @@ const emptyForm: AccountForm = {
   confidenceThreshold: 75,
   bankAccount: '',
   adminNotifyPhone: '',
+  aiEnabled: true,
 };
 
 const Integrations = ({ accounts, onAdd, onUpdate, onDelete }: IntegrationsProps) => {
@@ -139,6 +140,13 @@ const Integrations = ({ accounts, onAdd, onUpdate, onDelete }: IntegrationsProps
                 <span className="config-label">Webhook N8N (AI & Template)</span>
                 <span className={`config-value ${acc.n8nWebhookUrl ? 'ok' : 'warn'}`}>
                   {acc.n8nWebhookUrl || 'belum diatur'}
+                </span>
+              </div>
+              <div className="config-row">
+                <MdSpeed size={16} className="config-icon" />
+                <span className="config-label">Mode AI Aktif</span>
+                <span className={`config-value ${acc.aiEnabled ? 'ok' : 'danger'}`}>
+                  {acc.aiEnabled ? 'Aktif' : 'Nonaktif'}
                 </span>
               </div>
               <div className="config-row">
@@ -258,6 +266,50 @@ const Integrations = ({ accounts, onAdd, onUpdate, onDelete }: IntegrationsProps
                   placeholder="https://dashboard.leyatiofficial.xyz/webhook/ai-handler"
                 />
               </label>
+
+              <div 
+                className="field" 
+                style={{ 
+                  flexDirection: 'row', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between', 
+                  cursor: 'pointer', 
+                  padding: '16px', 
+                  backgroundColor: '#f8fafc', 
+                  borderRadius: '12px', 
+                  border: '1px solid #e2e8f0',
+                  marginTop: '8px',
+                  marginBottom: '16px'
+                }} 
+                onClick={() => setField('aiEnabled', form.aiEnabled === false ? true : false)}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>Mode AI Aktif</span>
+                  <span style={{ fontSize: '12px', color: '#64748b' }}>Teruskan pesan masuk ke webhook N8N untuk diproses oleh AI</span>
+                </div>
+                <div style={{
+                  width: '44px',
+                  height: '24px',
+                  backgroundColor: form.aiEnabled !== false ? '#25D366' : '#cbd5e1',
+                  borderRadius: '12px',
+                  position: 'relative',
+                  transition: 'background-color 0.3s ease',
+                  flexShrink: 0,
+                  boxShadow: form.aiEnabled !== false ? '0 0 8px rgba(37, 211, 102, 0.4)' : 'none'
+                }}>
+                  <div style={{
+                    width: '20px',
+                    height: '20px',
+                    backgroundColor: 'white',
+                    borderRadius: '50%',
+                    position: 'absolute',
+                    top: '2px',
+                    left: form.aiEnabled !== false ? '22px' : '2px',
+                    transition: 'left 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)',
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                  }} />
+                </div>
+              </div>
 
               <label className="field">
                 <span className="field-label">Nomor Rekening</span>

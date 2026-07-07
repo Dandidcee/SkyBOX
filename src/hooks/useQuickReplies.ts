@@ -37,7 +37,7 @@ export function useUpdateQuickReply() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (args: { id: string; patch: Partial<Pick<QuickReply, 'shortcut' | 'content'>> }) => {
-      const payload: any = {};
+      const payload: Record<string, string> = {};
       if (args.patch.shortcut !== undefined) payload.shortcut = args.patch.shortcut.replace(/^\/+/, '');
       if (args.patch.content !== undefined) payload.content = args.patch.content;
 

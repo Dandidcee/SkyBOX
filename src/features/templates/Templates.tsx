@@ -21,7 +21,7 @@ function parseCaptions(raw: string): { captions: CaptionEntry[], finalMessage: s
     if (Array.isArray(parsed)) {
       // Format lama: array langsung
       return {
-        captions: parsed.map((v: any) => {
+        captions: parsed.map((v: Record<string, unknown>) => {
           let imgStr = '';
           if (typeof v.image === 'string') imgStr = v.image;
           else if (Array.isArray(v.images) && v.images.length > 0) imgStr = v.images[0];
@@ -37,7 +37,7 @@ function parseCaptions(raw: string): { captions: CaptionEntry[], finalMessage: s
     } else if (parsed && typeof parsed === 'object') {
       // Format baru: { captions: [], finalMessage: '' }
       return {
-        captions: (parsed.captions || []).map((v: any) => {
+        captions: (parsed.captions || []).map((v: Record<string, unknown>) => {
           let imgStr = '';
           if (typeof v.image === 'string') imgStr = v.image;
           else if (Array.isArray(v.images) && v.images.length > 0) imgStr = v.images[0];

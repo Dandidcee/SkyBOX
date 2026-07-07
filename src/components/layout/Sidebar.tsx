@@ -19,7 +19,8 @@ import {
   MdChevronRight,
   MdLogout,
   MdFlashOn,
-  MdAutoAwesome
+  MdAutoAwesome,
+  MdContacts
 } from 'react-icons/md';
 import type { Account } from '../../App';
 import './Sidebar.css';
@@ -33,6 +34,7 @@ const menuItems = [
   { id: 'ongkir', icon: MdLocalShipping, label: 'Cek Ongkir' },
   { id: 'quickreplies', icon: MdFlashOn, label: 'Balasan Cepat' },
   { id: 'templates', icon: MdAutoAwesome, label: 'Template (Ads)' },
+  { id: 'contacts', icon: MdContacts, label: 'Kontak' },
   { id: 'notifications', icon: MdNotifications, label: 'Notifikasi' },
   { id: 'integrations', icon: MdIntegrationInstructions, label: 'Integrations' },
   { id: 'settings', icon: MdSettings, label: 'Settings' },

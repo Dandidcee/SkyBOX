@@ -126,14 +126,41 @@ export const OngkirCalculator = ({
       </div>
 
       <div className="ongkir-field">
-        <span className="ongkir-label">Kurir</span>
-        <div className="ongkir-couriers">
-          {COURIERS.map((c) => (
-            <label key={c} className={`ongkir-courier ${couriers.includes(c) ? 'on' : ''}`}>
-              <input type="checkbox" checked={couriers.includes(c)} onChange={() => toggleCourier(c)} />
-              {c.toUpperCase()}
-            </label>
-          ))}
+        <span className="ongkir-label" style={{ fontWeight: 600, color: '#1e293b', marginBottom: '8px', display: 'block' }}>Kurir</span>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {COURIERS.map((c) => {
+            const isSelected = couriers.includes(c);
+            return (
+              <label 
+                key={c} 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 16px',
+                  borderRadius: '24px',
+                  border: isSelected ? '1px solid #10b981' : '1px solid #e2e8f0',
+                  backgroundColor: isSelected ? '#ecfdf5' : '#f8fafc',
+                  color: isSelected ? '#047857' : '#64748b',
+                  fontSize: '14px',
+                  fontWeight: isSelected ? 600 : 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  userSelect: 'none',
+                  boxShadow: isSelected ? '0 2px 4px rgba(16, 185, 129, 0.1)' : 'none'
+                }}
+              >
+                <input 
+                  type="checkbox" 
+                  checked={isSelected} 
+                  onChange={() => toggleCourier(c)} 
+                  style={{ display: 'none' }} 
+                />
+                {isSelected && <span style={{ fontSize: '14px', fontWeight: 'bold' }}>✓</span>}
+                {c.toUpperCase()}
+              </label>
+            );
+          })}
         </div>
       </div>
 

@@ -11,6 +11,7 @@ import type {
   Promo, PromoRow,
   QuickReply, QuickReplyRow,
   Template, TemplateRow,
+  Contact, ContactRow,
 } from '../types/db';
 
 export const mapAccountRow = (r: AccountRow): Account => ({
@@ -27,6 +28,14 @@ export const mapAccountRow = (r: AccountRow): Account => ({
   confidenceThreshold: r.confidence_threshold,
   bankAccount: r.bank_account,
   adminNotifyPhone: r.admin_notify_phone ?? '',
+  aiEnabled: r.ai_enabled ?? true,
+});
+
+export const mapContactRow = (r: ContactRow): Contact => ({
+  id: r.id,
+  accountId: r.account_id,
+  name: r.name,
+  phone: r.phone,
 });
 
 export const mapConversationRow = (r: ConversationRow): Conversation => ({

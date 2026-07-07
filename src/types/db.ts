@@ -38,6 +38,8 @@ export interface Account {
   originCityId?: string;
   /** Cek ongkir: label kota asal (tampilan) */
   originLabel?: string;
+  /** Mode AI aktif/nonaktif */
+  aiEnabled?: boolean;
 }
 
 export interface Conversation {
@@ -94,6 +96,7 @@ export interface AccountRow {
   wa_phone_number_id?: string;
   wa_access_token?: string;
   meta_verify_token?: string;
+  ai_enabled?: boolean;
 }
 
 export interface ConversationRow {
@@ -142,6 +145,22 @@ export interface NotificationRow {
   message: string;
   conversation_id?: string | null;
   customer_phone?: string | null;
+  created_at: string;
+}
+
+// ---------- Kontak ----------
+export interface Contact {
+  id: string;
+  accountId: string;
+  name: string;
+  phone: string;
+}
+
+export interface ContactRow {
+  id: string;
+  account_id: string;
+  name: string;
+  phone: string;
   created_at: string;
 }
 

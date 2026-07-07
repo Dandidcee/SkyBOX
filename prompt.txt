@@ -1,0 +1,93 @@
+const ctx = $input.first().json;
+
+const produk = ctx.dataBarang || [];
+const info   = ctx.dataToko || [];
+const promo  = ctx.dataPromo || [];
+
+// Ambil 10 chat terakhir
+const riwayatRaw = (ctx.riwayat || []).slice(0, 10);
+
+const fase   = ctx.fase || 'none';
+const orderStatus = ctx.orderStatus || 'none';
+
+// Format Produk (variants sekarang JSON: [{name, images:[]}])
+const dataBarangStr = produk.length
+  ? produk.map(p => {
+      let text = `- ${p.name} | Rp${Number(p.price||0).toLocaleString('id-ID')} | stok: ${p.stock ?? '-'}`;
+
+      if (p.description) {
+        let desc = p.description.length > 100 ? p.description.substring(0, 100) + '...' : p.description;
+        text += `\n  Desc: ${desc}`;
+      }
+
+      // Foto utama produk (image_url, bisa multi-baris)
+      if (p.image_url) {
+        const mainImgs = String(p.image_url).split('\n').map(u => u.trim()).filter(Boolean);
+        if (mainImgs.length) text += `\n  Foto Utama: ${mainImgs.join(', ')}`;
+      }
+
+      // Varian (JSON) → nama + foto per varian
+      if (p.variants) {
+        try {
+          const vars = JSON.parse(p.variants);
+          if (Array.isArray(vars) && vars.length) {
+            text += `\n  Varian:`;
+            for (const v of vars) {
+              const imgs = (v.images || []).filter(Boolean);
+              text += `\n    • ${v.name || 'varian'}${imgs.length ? ` (foto: ${imgs.join(', ')})` : ''}`;
+            }
+          }
+        } catch {
+          // fallback kalau variants masih teks lama
+          text += `\n  Varian: ${String(p.variants).replace(/\n/g, ' ')}`;
+        }
+      }
+
+      return text;
+    }).join('\n\n')
+  : '(belum ada produk)';
+
+// Format Basis Pengetahuan Toko
+const dataTokoStr = info.length
+  ? info.map(k => {
+      let konten = k.content.length > 200 ? k.content.substring(0, 200) + '...' : k.content;
+      return `- ${k.title}: ${konten}`;
+  }).join('\n\n')
+  : '(belum ada info)';
+
+// Format Promo
+const dataPromoStr = promo.length
+  ? promo.map(pr => `- ${pr.title}${pr.description ? `: ${pr.description}` : ''}`).join('\n\n')
+  : '(tidak ada promo aktif)';
+
+// Format Riwayat Chat
+const riwayatStr = riwayatRaw.length
+  ? [...riwayatRaw].reverse().map(m => {
+      const sender = m.direction === 'in' ? 'Pelanggan' : 'CS (Kamu)';
+      const content = m.type === 'image' ? '[Mengirim Gambar]' : m.body;
+      return `${sender}: ${content}`;
+    }).join('\n')
+  : '(belum ada riwayat)';
+
+// Format Fase
+const faseTeks = `Fase Saat Ini: ${fase} | Status Order: ${orderStatus}`;
+
+// Ambil rekening
+const rekening = ctx.rekeningTF || '';
+
+// Waktu sekarang (WIB)
+const opsiWaktu = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' };
+const waktuSekarang = new Date().toLocaleString('id-ID', opsiWaktu);
+
+return [{
+  json: {
+    dataBarang: dataBarangStr,
+    dataToko: dataTokoStr,
+    dataPromo: dataPromoStr,
+    riwayat: riwayatStr,
+    fase: faseTeks,
+    orderStatus: orderStatus,
+    rekeningTF: rekening,
+    waktuSekarang: waktuSekarang,
+  }
+}];

@@ -34,10 +34,7 @@ export async function sendMedia(
   });
 }
 
-export async function analyzeConversation(
-  _account: Account,
-  _payload: { conversationId: string; phone: string; chatId: string }
-): Promise<string> {
+export async function analyzeConversation(): Promise<string> {
   // Fitur analyze dinonaktifkan karena sekarang berjalan native
   return "Fitur ringkasan AI dinonaktifkan dalam mode Native.";
 }

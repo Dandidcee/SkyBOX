@@ -20,6 +20,7 @@ function toRow(a: Partial<Omit<Account, 'id'>>): Record<string, unknown> {
   if (a.confidenceThreshold !== undefined) row.confidence_threshold = a.confidenceThreshold;
   if (a.bankAccount !== undefined) row.bank_account = a.bankAccount;
   if (a.adminNotifyPhone !== undefined) row.admin_notify_phone = a.adminNotifyPhone;
+  if (a.aiEnabled !== undefined) row.ai_enabled = a.aiEnabled;
   return row;
 }
 
