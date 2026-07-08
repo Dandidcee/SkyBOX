@@ -184,7 +184,13 @@ const Sidebar = ({ isVisible = true, toggleSidebar, accounts, activeAccountIds, 
               <a 
                 href="#" 
                 className={`nav-item ${activeView === item.id ? 'active' : ''}`}
-                onClick={(e) => { e.preventDefault(); setActiveView(item.id); }}
+                onClick={(e) => { 
+                  e.preventDefault(); 
+                  setActiveView(item.id); 
+                  if (window.innerWidth <= 768 && toggleSidebar) {
+                    toggleSidebar();
+                  }
+                }}
               >
                 <item.icon size={22} className="nav-icon" />
                 <span className="nav-label">{item.label}</span>

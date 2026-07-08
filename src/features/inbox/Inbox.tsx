@@ -222,6 +222,18 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     }
   }, [messages.length, resolvedConversationId, pending, isMobileChatOpen]);
 
+  // Handle tombol back di Android untuk menutup chat mobile
+  useEffect(() => {
+    const handlePopState = () => {
+      if (isMobileChatOpen) {
+        setIsMobileChatOpen(false);
+        onMobileChatOpenChange?.(false);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isMobileChatOpen, onMobileChatOpenChange]);
+
   const handleTimelineScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
     // Tampilkan tombol jika user scroll ke atas lebih dari 100px dari dasar
@@ -665,6 +677,9 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                       setActiveConversationId(conv.id);
                       setIsMobileChatOpen(true);
                       onMobileChatOpenChange?.(true);
+                      if (window.innerWidth <= 768) {
+                        window.history.pushState({ chatOpen: true }, '');
+                      }
                       
                       // Reset unread optimistically and in DB
                       if (conv.unread > 0) {
@@ -728,7 +743,14 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             style={{ cursor: activeConversation ? 'pointer' : 'default' }}
             title={activeConversation ? 'Lihat info kontak' : undefined}
           >
-            <button className="icon-btn mobile-only-btn" onClick={(e) => { e.stopPropagation(); setIsMobileChatOpen(false); onMobileChatOpenChange?.(false); }}>
+            <button className="icon-btn mobile-only-btn" onClick={(e) => { 
+              e.stopPropagation(); 
+              setIsMobileChatOpen(false); 
+              onMobileChatOpenChange?.(false); 
+              if (window.history.state?.chatOpen) {
+                window.history.back();
+              }
+            }}>
               <MdArrowBack size={24} />
             </button>
             <div className="chat-avatar" style={{ backgroundColor: 'var(--color-primary)' }}>
