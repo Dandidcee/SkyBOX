@@ -4,7 +4,7 @@ import { getSocket, connectSocket, disconnectSocket } from '../services/socket';
 import { useUiStore } from '../lib/uiStore';
 import { playEventSound } from '../lib/soundStore';
 // import { wasSelfHandlerChange } from '../lib/selfActions';
-import type { Account, ConversationRow } from '../types/db';
+import type { Account } from '../types/db';
 
 export function useGlobalAlerts(accounts: Account[], enabled: boolean) {
   const qc = useQueryClient();
@@ -31,7 +31,7 @@ export function useGlobalAlerts(accounts: Account[], enabled: boolean) {
       setRealtime('disconnected');
     });
 
-    socket.on('conversation_updated', (newRow: ConversationRow) => {
+    socket.on('conversation_updated', () => {
       qc.invalidateQueries({ queryKey: ['conversations'] });
     });
 
