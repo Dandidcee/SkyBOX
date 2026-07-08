@@ -210,7 +210,10 @@ function App() {
     import('./services/api').then(({ default: api }) => {
       api.post<{id: string}>('/conversations/start', { accountId, phone, name })
         .then(res => {
-          handleOpenChat(accountId, res.data.id);
+          queryClient.invalidateQueries({ queryKey: ['conversations', accountId] });
+          setTimeout(() => {
+            handleOpenChat(accountId, res.data.id);
+          }, 100);
         })
         .catch(err => {
           console.error('Gagal memulai chat dari link', err);
