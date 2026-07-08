@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { MdMenu } from 'react-icons/md';
 import Sidebar from './components/layout/Sidebar';
@@ -184,6 +184,40 @@ function App() {
     .filter((a): a is Account => Boolean(a));
   const effectiveCols = Math.max(1, Math.min(activeAccounts.length, maxCols));
   const colWidthPct = `calc(${100 / effectiveCols}% - ${(3 * (effectiveCols - 1)) / effectiveCols}px)`;
+
+  // Fitur "Klik Link Otomatis Chat" (dashboard.leyatiofficial.xyz/?phone=628xxx&name=Budi)
+  const hasHandledUrlRef = useRef(false);
+  useEffect(() => {
+    if (!authReady || !session || accounts.length === 0 || hasHandledUrlRef.current) return;
+    
+    const params = new URLSearchParams(window.location.search);
+    const phone = params.get('phone');
+    if (!phone) {
+      hasHandledUrlRef.current = true;
+      return;
+    }
+
+    hasHandledUrlRef.current = true;
+    
+    const name = params.get('name') || 'Pelanggan Baru';
+    const accountId = params.get('accountId') || accounts[0].id;
+
+    // Hapus parameter dari URL biar nggak kerender ulang pas refresh
+    const newUrl = window.location.pathname;
+    window.history.replaceState({}, '', newUrl);
+
+    // Bikin chat baru lewat API
+    import('./services/api').then(({ default: api }) => {
+      api.post<{id: string}>('/conversations/start', { accountId, phone, name })
+        .then(res => {
+          handleOpenChat(accountId, res.data.id);
+        })
+        .catch(err => {
+          console.error('Gagal memulai chat dari link', err);
+          alert('Gagal memulai chat otomatis. Pastikan format nomor benar (628...).');
+        });
+    });
+  }, [authReady, session, accounts.length]);
 
   // Belum siap cek auth → tampilkan loading singkat.
   if (!authReady) {
