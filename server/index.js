@@ -998,7 +998,7 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
     
     // Simpan pesan ke database
     const insertMsg = `
-      INSERT INTO messages (conversation_id, external_message_id, direction, type, body, media_url)
+      INSERT INTO messages (conversation_id, external_message_id, direction, type, content, media_url)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
