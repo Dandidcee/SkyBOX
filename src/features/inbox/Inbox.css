@@ -955,14 +955,25 @@
 }
 
 /* Jika bubble berisi gambar/media, pastikan tidak melebihi batas layar */
-.bubble:has(> .message-media) {
+.bubble.has-media {
   max-width: 350px;
   padding: 4px;
 }
 
-/* Jika bubble berisi media tapi TANPA caption teks, berikan ruang di bawah untuk timestamp agar tidak menabrak kontrol video */
-.bubble:has(> .message-media):not(:has(> .bubble-text)) {
-  padding-bottom: 24px;
+/* Timestamp melayang (floating pill) untuk media tanpa caption */
+.bubble.has-media.no-caption .bubble-time {
+  background-color: rgba(0, 0, 0, 0.45);
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 2px 6px;
+  bottom: 8px;
+  right: 8px;
+  z-index: 5;
+}
+
+/* Pastikan ikon centang juga putih */
+.bubble.has-media.no-caption .bubble-time .msg-ack {
+  color: #ffffff !important;
 }
 
 /* Quoted Reply Block dalam Bubble */

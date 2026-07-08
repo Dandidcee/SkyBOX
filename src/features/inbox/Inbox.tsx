@@ -959,9 +959,10 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             <>
               {messages.map(m => {
                 const quotedMsg = m.replyToMessageId ? messages.find(orig => orig.externalId === m.replyToMessageId) : null;
+                const hasCaption = m.body && !/^\[(?:Received )?(?:image|video|audio|document|sticker)\]$/i.test(m.body.trim());
                 return (
                   <div key={m.id} id={`msg-${m.id}`} className={`bubble-wrapper ${m.direction === 'out' ? 'sent' : 'received'}`}>
-                    <div className={`bubble ${(m.type === 'image' || m.type === 'video') && m.mediaUrl ? 'has-media' : ''}`}>
+                    <div className={`bubble ${(m.type === 'image' || m.type === 'video') && m.mediaUrl ? 'has-media' : ''} ${!hasCaption ? 'no-caption' : ''}`}>
                       {quotedMsg && (
                         <div className="quoted-message" onClick={() => {
                           const el = document.getElementById(`msg-${quotedMsg.id}`);
