@@ -364,7 +364,7 @@ app.post('/api/webhooks/meta/:accountId', async (req, res) => {
             // 2. Masukkan pesan ke tabel messages
             const insertMsgQuery = `
               INSERT INTO messages 
-              (conversation_id, external_message_id, direction, type, body, media_url) 
+              (conversation_id, external_message_id, direction, type, content, media_url) 
               VALUES ($1, $2, $3, $4, $5, $6)
               ON CONFLICT (external_message_id) DO NOTHING
               RETURNING *
@@ -1214,7 +1214,7 @@ app.post('/api/n8n/save-message', async (req, res) => {
     
     const messageId = externalMessageId || `n8n_out_${Date.now()}`;
     const insertMsg = `
-      INSERT INTO messages (conversation_id, external_message_id, direction, type, body)
+      INSERT INTO messages (conversation_id, external_message_id, direction, type, content)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `;
@@ -1303,7 +1303,7 @@ app.post('/api/n8n/send-message', async (req, res) => {
     
     // 3. Simpan pesan ke database
     const insertMsg = `
-      INSERT INTO messages (conversation_id, external_message_id, direction, type, body, media_url)
+      INSERT INTO messages (conversation_id, external_message_id, direction, type, content, media_url)
       VALUES ($1, $2, 'out', $3, $4, $5)
       RETURNING *
     `;
@@ -1355,7 +1355,7 @@ app.get('/api/n8n/chat-history/:conversationId', async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     
     const result = await pool.query(`
-      SELECT direction, type, body, media_url, created_at 
+      SELECT direction, type, content as body, media_url, created_at 
       FROM messages 
       WHERE conversation_id = $1 
       ORDER BY created_at DESC 
@@ -1458,7 +1458,7 @@ app.post('/api/webhook/meta', async (req, res) => {
         }
 
         const insertMsg = `
-          INSERT INTO messages (conversation_id, external_message_id, direction, type, body, media_url)
+          INSERT INTO messages (conversation_id, external_message_id, direction, type, content, media_url)
           VALUES ($1, $2, 'in', $3, $4, $5)
           ON CONFLICT (external_message_id) DO NOTHING
           RETURNING *
