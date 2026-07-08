@@ -16,6 +16,7 @@ import { useContacts } from '../../hooks/useContacts';
 import api from '../../services/api';
 import { useOrders } from '../../hooks/useOrders';
 import { useQuickReplies } from '../../hooks/useQuickReplies';
+import { useContactMutations } from '../../hooks/useContacts';
 import { setConversationHandler, sendTextMessage, sendMedia } from '../../services/n8n';
 import { deleteConversations } from '../../services/conversations';
 import ContactPanel from './ContactPanel';
@@ -189,11 +190,14 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   const { data: conversations = [], isLoading: convLoading, isError: convError, refetch: refetchConv } =
     useConversations(accountId);
   const { data: contacts = [] } = useContacts(accountId || '');
+  const { add: addContact } = useContactMutations(accountId || '');
 
   const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(!!initialConversationId);
   const [listWidth, setListWidth] = useState(isMultiView ? 240 : 320);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(initialConversationId ?? null);
+  const [addContactPhone, setAddContactPhone] = useState<string | null>(null);
+  
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [filterCriteria, setFilterCriteria] = useState<FilterKey>('all');
   const [messageText, setMessageText] = useState('');
@@ -274,6 +278,9 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   const activeConversation = resolvedConversationId
     ? conversations.find(c => c.id === resolvedConversationId) ?? null
     : null;
+    
+  const isSavedContact = activeConversation ? contacts.some(c => c.phone === activeConversation.customerPhone) : true;
+
   const { data: messages = [], isLoading: msgLoading } = useMessages(resolvedConversationId ?? undefined);
   const { data: orders = [] } = useOrders(resolvedConversationId ?? undefined);
   const latestOrder = orders[0] ?? null;
@@ -907,7 +914,18 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
               {(activeConversation?.customerName || activeConversation?.customerPhone || 'S').charAt(0)}
             </div>
             <div>
-              <h3>{activeConversation ? (activeConversation.customerName || activeConversation.customerPhone) : 'Pilih percakapan'}</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h3>{activeConversation ? (activeConversation.customerName || activeConversation.customerPhone) : 'Pilih percakapan'}</h3>
+                {!isSavedContact && activeConversation && (
+                  <span 
+                    style={{ fontSize: '11px', backgroundColor: 'var(--color-primary)', color: 'white', padding: '2px 8px', borderRadius: '12px', cursor: 'pointer', fontWeight: 600 }}
+                    onClick={(e) => { e.stopPropagation(); setAddContactPhone(activeConversation.customerPhone); }}
+                    title="Simpan Kontak"
+                  >
+                    Tambah Kontak
+                  </span>
+                )}
+              </div>
               <span className="chat-status text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', fontSize: '12px' }}>
                 {isMultiView && account ? (
                   <>
@@ -1310,6 +1328,49 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
           latestOrder={latestOrder}
           onClose={() => setIsContactOpen(false)}
         />
+      )}
+
+      {addContactPhone && (
+        <div className="inbox-modal-overlay">
+          <div className="inbox-modal" style={{ maxWidth: '400px' }}>
+            <div className="inbox-modal-header">
+              <h3>Simpan Kontak</h3>
+              <button className="inbox-modal-close-btn" onClick={() => setAddContactPhone(null)}>
+                <MdClose size={20} />
+              </button>
+            </div>
+            <div className="inbox-modal-body">
+              <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>Nomor: {addContactPhone}</p>
+              <input 
+                autoFocus
+                type="text" 
+                placeholder="Nama Kontak" 
+                className="chat-input"
+                style={{ width: '100%', marginBottom: '16px', border: '1px solid var(--color-border)', borderRadius: '6px', height: '40px', padding: '0 12px' }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const val = e.currentTarget.value;
+                    if (val.trim()) {
+                      addContact.mutate({ name: val.trim(), phone: addContactPhone });
+                      setAddContactPhone(null);
+                    }
+                  }
+                }}
+                id="new-contact-name-input"
+              />
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                <button className="btn-secondary" onClick={() => setAddContactPhone(null)}>Batal</button>
+                <button className="btn-primary" onClick={() => {
+                  const val = (document.getElementById('new-contact-name-input') as HTMLInputElement).value;
+                  if (val.trim()) {
+                    addContact.mutate({ name: val.trim(), phone: addContactPhone });
+                    setAddContactPhone(null);
+                  }
+                }}>Simpan</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
