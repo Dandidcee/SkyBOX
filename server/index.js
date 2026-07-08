@@ -978,7 +978,7 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
           payload.text = { body: body };
         }
 
-        const metaRes = await fetch(`https://graph.facebook.com/v17.0/${wa_phone_number_id}/messages`, {
+        const metaRes = await fetch(`https://graph.facebook.com/v25.0/${wa_phone_number_id}/messages`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${wa_access_token}`,
@@ -1281,7 +1281,7 @@ app.post('/api/n8n/send-message', async (req, res) => {
           payload.text = { body: body };
         }
 
-        const metaRes = await fetch(`https://graph.facebook.com/v17.0/${wa_phone_number_id}/messages`, {
+        const metaRes = await fetch(`https://graph.facebook.com/v25.0/${wa_phone_number_id}/messages`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${wa_access_token}`,
