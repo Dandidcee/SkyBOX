@@ -287,6 +287,20 @@
   z-index: 10;
 }
 
+@media (max-width: 768px) {
+  .bulk-action-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+  }
+  
+  .list-items {
+    padding-bottom: 70px; /* Ruang ekstra di bawah supaya chat terakhir tidak tertutup tombol/bar */
+  }
+}
+
 .bulk-action-bar span {
   font-size: var(--font-size-sm);
   color: var(--color-text-primary);

@@ -857,7 +857,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
           ))}
         </div>
 
-        {onNavigate && (
+        {!isSelectionMode && onNavigate && (
           <button 
             className="new-chat-fab"
             onClick={() => onNavigate('contacts')}
