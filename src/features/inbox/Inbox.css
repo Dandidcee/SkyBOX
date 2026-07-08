@@ -710,10 +710,10 @@
   gap: 8px;
   min-width: 240px;
   max-width: 300px;
-  padding: 4px 8px;
+  padding: 4px 50px 12px 8px; /* Kanan 50px dan Bawah 12px untuk tempat timestamp */
   border-radius: 12px;
   background-color: var(--color-surface);
-  margin-bottom: 2px;
+  margin-bottom: 0px;
 }
 .vn-in {
   background-color: transparent;
