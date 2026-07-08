@@ -222,6 +222,17 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     }
   }, [messages.length, resolvedConversationId, pending, isMobileChatOpen]);
 
+  // Handle otomatis reset unread jika chat sedang aktif terbuka
+  useEffect(() => {
+    if (activeConversationId && activeConversation?.unread && activeConversation.unread > 0) {
+      // Chat sedang dibuka, tapi ada pesan masuk yang membuat unread > 0
+      qc.setQueryData<Conversation[]>(conversationsKey(accountId), old => 
+        old?.map(c => c.id === activeConversationId ? { ...c, unread: 0 } : c) ?? old
+      );
+      api.put(`/resource/conversations/${activeConversationId}`, { unread: 0 }).catch(() => {});
+    }
+  }, [activeConversationId, activeConversation?.unread, accountId, qc]);
+
   // Handle tombol back di Android untuk menutup chat mobile
   useEffect(() => {
     const handlePopState = () => {
@@ -303,8 +314,8 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
         
         // Cek kalau sengaja dibatalkan, jangan set file
         if (!isRecordingCancelledRef.current && audioChunksRef.current.length > 0) {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mp4' });
-          const audioFile = new File([audioBlob], `VoiceNote_${Date.now()}.mp4`, { type: 'audio/mp4' });
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/ogg' });
+          const audioFile = new File([audioBlob], `VoiceNote_${Date.now()}.ogg`, { type: 'audio/ogg' });
           setSelectedFile(audioFile);
           // Preview modal otomatis terbuka ketika selectedFile ada
         }
