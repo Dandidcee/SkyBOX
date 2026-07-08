@@ -1346,22 +1346,7 @@ app.post('/api/n8n/send-message', async (req, res) => {
 
 const META_VERIFY_TOKEN = process.env.META_VERIFY_TOKEN || 'skybox_secret_token';
 
-// 1. Meta Webhook Verification
-app.get('/api/webhook/meta', (req, res) => {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
 
-  if (mode && token) {
-    if (mode === 'subscribe' && token === META_VERIFY_TOKEN) {
-      console.log('WEBHOOK_VERIFIED');
-      return res.status(200).send(challenge);
-    } else {
-      return res.sendStatus(403);
-    }
-  }
-  res.sendStatus(400);
-});
 
 // Endpoint Khusus N8N untuk mengambil riwayat chat (Tools N8N)
 app.get('/api/n8n/chat-history/:conversationId', async (req, res) => {
