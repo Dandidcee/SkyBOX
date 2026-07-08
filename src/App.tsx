@@ -77,6 +77,25 @@ function App() {
     localStorage.setItem('skybox_active_view', activeView);
   }, [activeView]);
 
+  // Sync activeView with browser history for mobile back button support
+  useEffect(() => {
+    // Initial replaceState so we have a base state
+    window.history.replaceState({ view: activeView }, '');
+
+    const handlePopState = (e: PopStateEvent) => {
+      if (e.state && e.state.view) {
+        setActiveView(prev => {
+          if (prev !== e.state.view) {
+            return e.state.view;
+          }
+          return prev;
+        });
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []); // Only run once on mount to attach listener
+
   // Auth: muat session awal + dengarkan perubahan login/logout.
   useEffect(() => {
     getSession()
@@ -101,7 +120,7 @@ function App() {
 
   // Buka chat tertentu (mis. dari Tracking Order klik No HP).
   const handleOpenChat = (accountId: string, conversationId: string) => {
-    setActiveView('inbox');
+    goView('inbox');
     setChatFocus({ accountId, conversationId });
     
     // Pastikan akun dari notifikasi terbuka tanpa menutup akun lain
@@ -126,7 +145,10 @@ function App() {
   // lompat ke percakapan lama saat dibuka ulang.
   const goView = (v: string) => {
     setChatFocus(null);
-    setActiveView(v);
+    if (v !== activeView) {
+      window.history.pushState({ view: v }, '');
+      setActiveView(v);
+    }
   };
 
   // Pilih akun aktif default saat daftar akun termuat / berubah.
