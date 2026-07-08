@@ -961,7 +961,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 const quotedMsg = m.replyToMessageId ? messages.find(orig => orig.externalId === m.replyToMessageId) : null;
                 return (
                   <div key={m.id} id={`msg-${m.id}`} className={`bubble-wrapper ${m.direction === 'out' ? 'sent' : 'received'}`}>
-                    <div className={`bubble ${m.type === 'image' && m.mediaUrl ? 'has-media' : ''}`}>
+                    <div className={`bubble ${(m.type === 'image' || m.type === 'video') && m.mediaUrl ? 'has-media' : ''}`}>
                       {quotedMsg && (
                         <div className="quoted-message" onClick={() => {
                           const el = document.getElementById(`msg-${quotedMsg.id}`);
@@ -981,15 +981,16 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                         <img
                           src={toEmbeddableUrl(m.mediaUrl, activeConversation?.accountId)}
                           alt="media"
+                          className="message-media"
                           onClick={() => window.open(toEmbeddableUrl(m.mediaUrl, activeConversation?.accountId), '_blank')}
-                          style={{ width: '100%', borderRadius: 6, marginBottom: 4, display: 'block', cursor: 'pointer' }}
+                          style={{ cursor: 'pointer' }}
                         />
                       )}
                       {m.type === 'video' && m.mediaUrl && (
                         <video 
                           controls 
                           src={toEmbeddableUrl(m.mediaUrl, activeConversation?.accountId)} 
-                          style={{ width: '100%', borderRadius: 6, marginBottom: 4, display: 'block' }} 
+                          className="message-media"
                         />
                       )}
                       {m.type === 'audio' && m.mediaUrl && (
