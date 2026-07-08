@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import './Inbox.css';
 import { 
-  MdSearch, MdFilterList, MdCheck, MdClose, MdRefresh, 
+  MdSearch, MdCheck, MdClose, MdAttachFile,
   MdArrowBack, MdSend, MdInsertEmoticon, MdFlashOn, MdReply,
-  MdMic, MdStop, MdDelete, MdDoneAll, MdErrorOutline,
-  MdMoreVert, MdKeyboardArrowDown, MdPlayArrow, MdPause, MdChat
+  MdMic, MdDelete, MdDoneAll, MdErrorOutline,
+  MdMoreVert, MdKeyboardArrowDown, MdPlayArrow, MdPause, MdChat,
+  MdChevronLeft, MdChevronRight
 } from 'react-icons/md';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -180,7 +181,7 @@ type PendingMsg = {
   createdAt: string;
 };
 
-const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange, initialConversationId }: InboxProps) => {
+const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange, initialConversationId, onNavigate }: InboxProps) => {
   const qc = useQueryClient();
   const accountId = account?.id;
 
@@ -192,7 +193,6 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(!!initialConversationId);
   const [listWidth, setListWidth] = useState(isMultiView ? 240 : 320);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(initialConversationId ?? null);
-  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [filterCriteria, setFilterCriteria] = useState<FilterKey>('all');
   const [messageText, setMessageText] = useState('');
