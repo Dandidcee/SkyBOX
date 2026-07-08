@@ -95,3 +95,47 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Responsive Styles */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .contacts-container {
+    padding: 16px;
+  }
+  
+  .contacts-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .contacts-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .account-selector, .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .contacts-table th,
+  .contacts-table td {
+    padding: 12px;
+    font-size: 14px;
+  }
+  
+  .icon-btn-text {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  
+  .actions-cell {
+    gap: 4px;
+  }
+}
