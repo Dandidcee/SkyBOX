@@ -722,12 +722,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 240px;
-  max-width: 300px;
-  padding: 4px 50px 12px 8px; /* Kanan 50px dan Bawah 12px untuk tempat timestamp */
-  border-radius: 12px;
-  background-color: var(--color-surface);
-  margin-bottom: 0px;
+  min-width: 200px;
+  max-width: 260px;
+  padding: 4px 12px 14px 4px; /* Bawah 14px untuk tempat timestamp */
+  background-color: transparent;
 }
 .vn-in {
   background-color: transparent;
