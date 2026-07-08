@@ -186,23 +186,17 @@ function App() {
   const colWidthPct = `calc(${100 / effectiveCols}% - ${(3 * (effectiveCols - 1)) / effectiveCols}px)`;
 
   // Fitur "Klik Link Otomatis Chat" (dashboard.leyatiofficial.xyz/?phone=628xxx&name=Budi)
-  const hasHandledUrlRef = useRef(false);
   useEffect(() => {
-    if (!authReady || !session || accounts.length === 0 || hasHandledUrlRef.current) return;
+    if (!authReady || !session || accounts.length === 0) return;
     
     const params = new URLSearchParams(window.location.search);
     const phone = params.get('phone');
-    if (!phone) {
-      hasHandledUrlRef.current = true;
-      return;
-    }
+    if (!phone) return;
 
-    hasHandledUrlRef.current = true;
-    
     const name = params.get('name') || 'Pelanggan Baru';
     const accountId = params.get('accountId') || accounts[0].id;
 
-    // Hapus parameter dari URL biar nggak kerender ulang pas refresh
+    // Hapus parameter dari URL biar nggak kerender ulang
     const newUrl = window.location.pathname;
     window.history.replaceState({}, '', newUrl);
 
@@ -213,14 +207,16 @@ function App() {
           queryClient.invalidateQueries({ queryKey: ['conversations', accountId] });
           setTimeout(() => {
             handleOpenChat(accountId, res.data.id);
-          }, 100);
+          }, 300); // tambah sedikit delay agar cache pasti update
         })
         .catch(err => {
           console.error('Gagal memulai chat dari link', err);
           alert('Gagal memulai chat otomatis. Pastikan format nomor benar (628...).');
         });
+    }).catch(err => {
+      console.error('Gagal load modul api', err);
     });
-  }, [authReady, session, accounts.length]);
+  }, [authReady, session, accounts.length, queryClient]);
 
   // Belum siap cek auth → tampilkan loading singkat.
   if (!authReady) {
