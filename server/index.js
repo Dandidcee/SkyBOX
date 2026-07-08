@@ -1457,10 +1457,12 @@ app.post('/api/webhook/meta', async (req, res) => {
           mediaUrl = mediaObj?.id; // ID media Meta
         }
 
+        const checkMsg = await pool.query('SELECT id FROM messages WHERE external_message_id = $1 LIMIT 1', [msgId]);
+        if (checkMsg.rows.length > 0) return res.sendStatus(200);
+
         const insertMsg = `
           INSERT INTO messages (conversation_id, external_message_id, direction, type, content, media_url)
           VALUES ($1, $2, 'in', $3, $4, $5)
-          ON CONFLICT (external_message_id) DO NOTHING
           RETURNING *
         `;
         const savedMsgResult = await pool.query(insertMsg, [conversation.id, msgId, msgType, msgBody, mediaUrl]);
