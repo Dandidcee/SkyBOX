@@ -137,5 +137,6 @@
   
   .actions-cell {
     gap: 4px;
+    white-space: nowrap;
   }
 }

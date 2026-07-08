@@ -104,8 +104,8 @@
 
 /* Floating Action Button untuk New Chat (Mobile) */
 .new-chat-fab {
-  position: absolute;
-  bottom: 24px;
+  position: fixed;
+  bottom: 32px;
   right: 24px;
   width: 56px;
   height: 56px;
@@ -117,7 +117,7 @@
   justify-content: center;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   cursor: pointer;
-  z-index: 100;
+  z-index: 999;
   border: none;
   transition: transform 0.2s, background-color 0.2s;
 }
