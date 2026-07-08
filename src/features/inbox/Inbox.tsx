@@ -314,8 +314,8 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
         
         // Cek kalau sengaja dibatalkan, jangan set file
         if (!isRecordingCancelledRef.current && audioChunksRef.current.length > 0) {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/ogg' });
-          const audioFile = new File([audioBlob], `VoiceNote_${Date.now()}.ogg`, { type: 'audio/ogg' });
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/ogg; codecs=opus' });
+          const audioFile = new File([audioBlob], `VoiceNote_${Date.now()}.opus`, { type: 'audio/ogg; codecs=opus' });
           setSelectedFile(audioFile);
           // Preview modal otomatis terbuka ketika selectedFile ada
         }
@@ -822,10 +822,13 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
               {messages.map(m => {
                 const quotedMsg = m.replyToMessageId ? messages.find(orig => orig.externalId === m.replyToMessageId) : null;
                 return (
-                  <div key={m.id} className={`bubble-wrapper ${m.direction === 'out' ? 'sent' : 'received'}`}>
+                  <div key={m.id} id={`msg-${m.id}`} className={`bubble-wrapper ${m.direction === 'out' ? 'sent' : 'received'}`}>
                     <div className={`bubble ${m.type === 'image' && m.mediaUrl ? 'has-media' : ''}`}>
                       {quotedMsg && (
-                        <div className="quoted-message" onClick={() => { /* Boleh scroll ke pesan original nanti */ }}>
+                        <div className="quoted-message" onClick={() => {
+                          const el = document.getElementById(`msg-${quotedMsg.id}`);
+                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }}>
                           <div className="quoted-sender">{quotedMsg.direction === 'in' ? activeConversation.customerName || activeConversation.customerPhone : 'Anda'}</div>
                           <div className="quoted-text">{quotedMsg.body || 'Media'}</div>
                         </div>
