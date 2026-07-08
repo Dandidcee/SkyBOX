@@ -14,13 +14,13 @@
   z-index: 5;
 }
 
-/* Column 1: Conversation List */
 .conversation-list {
   width: var(--list-width, 320px);
   background-color: var(--color-background); /* WA web list is 111b21 in dark mode */
   border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .inbox-resizer {
@@ -99,6 +99,38 @@
   color: var(--color-primary);
   background-color: rgba(37, 211, 102, 0.1);
   border-radius: 50%;
+  border-radius: 50%;
+}
+
+/* Floating Action Button untuk New Chat (Mobile) */
+.new-chat-fab {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  color: white;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  z-index: 100;
+  border: none;
+  transition: transform 0.2s, background-color 0.2s;
+}
+
+.new-chat-fab:hover {
+  background-color: var(--color-primary-dark);
+  transform: scale(1.05);
+}
+
+@media (max-width: 768px) {
+  .new-chat-fab {
+    display: flex;
+  }
 }
 
 .filter-dropdown {

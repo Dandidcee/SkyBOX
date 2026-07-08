@@ -869,6 +869,16 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
           ))}
         </div>
 
+        {onNavigate && (
+          <button 
+            className="new-chat-fab"
+            onClick={() => onNavigate('contacts')}
+            title="Tambah Chat Baru"
+          >
+            <MdChat size={24} />
+          </button>
+        )}
+
         {isSelectionMode && (
           <div className="bulk-action-bar">
             <span>{selectedChats.length} Dipilih</span>
