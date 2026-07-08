@@ -1401,6 +1401,7 @@ app.get('/api/webhook/meta', async (req, res) => {
 app.post('/api/webhook/meta', async (req, res) => {
   try {
     const body = req.body;
+    require('fs').appendFileSync('webhook_debug.log', new Date().toISOString() + ' - WEBHOOK RECEIVED: ' + JSON.stringify(body) + '\n');
 
     if (body.object) {
       if (body.entry && body.entry[0].changes && body.entry[0].changes[0] && body.entry[0].changes[0].value.messages && body.entry[0].changes[0].value.messages[0]) {
