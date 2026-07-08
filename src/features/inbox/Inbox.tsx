@@ -1212,7 +1212,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 />
                 <button 
                   className="preview-send-btn" 
-                  onClick={confirmSendMedia} 
+                  onClick={() => confirmSendMedia()} 
                   disabled={isUploading}
                 >
                   {isUploading ? 'Mengirim...' : (
