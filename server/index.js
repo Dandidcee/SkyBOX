@@ -19,6 +19,14 @@ const pool = new Pool({
   // ssl: { rejectUnauthorized: false } // Uncomment jika menggunakan SSL di VPS
 });
 
+// Initialize database tables
+pool.query(`
+  CREATE TABLE IF NOT EXISTS app_settings (
+    key text PRIMARY KEY,
+    value text
+  );
+`).catch(err => console.error("Failed to create app_settings table:", err));
+
 pool.on('error', (err) => {
   console.error('Unexpected error on idle client', err);
   process.exit(-1);
@@ -146,14 +154,23 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, registrationPassword } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email dan password wajib diisi' });
     
-    // Cek apakah sudah ada user di auth_users
-    const userCount = await pool.query('SELECT COUNT(*) FROM auth_users');
-    if (parseInt(userCount.rows[0].count) > 0) {
-      // Hardcode: Pendaftaran ditutup untuk umum setelah admin pertama terdaftar
-      return res.status(403).json({ error: 'Pendaftaran ditutup' });
+    // Cek apakah ada sandi pendaftaran di app_settings
+    const settingResult = await pool.query("SELECT value FROM app_settings WHERE key = 'registration_password'");
+    const requiredPassword = settingResult.rows.length > 0 ? settingResult.rows[0].value : null;
+
+    if (requiredPassword) {
+      if (!registrationPassword || registrationPassword !== requiredPassword) {
+        return res.status(403).json({ error: 'Sandi pendaftaran salah atau tidak diisi' });
+      }
+    } else {
+      // Jika belum ada sandi di setting, biarkan admin pertama daftar, sisanya ditolak
+      const userCount = await pool.query('SELECT COUNT(*) FROM auth_users');
+      if (parseInt(userCount.rows[0].count) > 0) {
+        return res.status(403).json({ error: 'Pendaftaran ditutup karena sandi pendaftaran belum diatur' });
+      }
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -164,6 +181,33 @@ app.post('/api/auth/register', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Gagal register' });
+  }
+});
+
+// Route: Get Registration Password (Admin only, but currently all users are admins)
+app.get('/api/settings/registration_password', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query("SELECT value FROM app_settings WHERE key = 'registration_password'");
+    const password = result.rows.length > 0 ? result.rows[0].value : '';
+    res.json({ password });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Gagal memuat pengaturan' });
+  }
+});
+
+// Route: Update Registration Password
+app.put('/api/settings/registration_password', authenticateToken, async (req, res) => {
+  try {
+    const { password } = req.body;
+    await pool.query(
+      "INSERT INTO app_settings (key, value) VALUES ('registration_password', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+      [password || '']
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Gagal menyimpan pengaturan' });
   }
 });
 
@@ -465,59 +509,7 @@ app.post('/api/webhooks/meta/:accountId', async (req, res) => {
   }
 });
 
-// Route: Auth Login
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email dan Password dibutuhkan" });
-    }
-
-    // Cari user di tabel auth_users (tabel kustom pengganti Supabase auth.users)
-    const result = await pool.query('SELECT * FROM auth_users WHERE email = $1', [email]);
-    const user = result.rows[0];
-
-    if (!user) {
-       return res.status(401).json({ error: "Kredensial tidak valid" });
-    }
-
-    const validPassword = await bcrypt.compare(password, user.password_hash);
-    if (!validPassword) {
-       return res.status(401).json({ error: "Kredensial tidak valid" });
-    }
-
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-    
-    // Hilangkan password_hash sebelum dikirim ke frontend
-    delete user.password_hash;
-    
-    res.json({ token, user });
-  } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-// Route: Auth Register (Opsional, hanya untuk dev/testing awal)
-app.post('/api/auth/register', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(password, salt);
-
-    const result = await pool.query(
-      'INSERT INTO auth_users (email, password_hash) VALUES ($1, $2) RETURNING id, email',
-      [email, hash]
-    );
-
-    res.json({ message: "User created", user: result.rows[0] });
-  } catch (err) {
-    console.error("Register error:", err);
-    res.status(500).json({ error: "Failed to register" });
-  }
-});
-
-// ==========================================
+// Route: Auth // ================================================
 // REST API untuk Frontend (Dilindungi oleh JWT)
 // ==========================================
 

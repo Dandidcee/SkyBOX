@@ -4,6 +4,8 @@ import {
   MdPlayArrow, MdVolumeUp, MdVolumeOff, MdLock, MdCheck, MdVisibility, MdVisibilityOff,
 } from 'react-icons/md';
 import { updatePassword } from '../../services/auth';
+import api from '../../services/api';
+import { useEffect } from 'react';
 import { useSoundStore, type SoundEvent } from '../../lib/soundStore';
 import { TONES, playTone } from '../../lib/sound';
 import '../dashboard/Dashboard.css';
@@ -169,6 +171,70 @@ const ApiKeySettings = () => {
   );
 };
 
+const RegistrationPasswordSettings = () => {
+  const [password, setPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    api.get('/settings/registration_password').then(res => {
+      if (res.data && res.data.password) {
+        setPassword(res.data.password);
+      }
+    }).catch(console.error);
+  }, []);
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      await api.put('/settings/registration_password', { password: password.trim() });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error(err);
+      alert('Gagal menyimpan sandi pendaftaran');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="settings-row" style={{ alignItems: 'flex-start' }}>
+      <div style={{ flex: 1, paddingRight: '16px' }}>
+        <div className="settings-label">Sandi Pendaftaran</div>
+        <div className="settings-desc">Sandi rahasia ini akan ditanyakan saat pendaftaran admin baru agar tidak sembarang orang bisa mendaftar. Kosongkan jika tidak dipakai.</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', flex: 1, position: 'relative' }}>
+            <input 
+              type={showPass ? "text" : "password"} 
+              className="settings-input" 
+              style={{ flex: 1, padding: '8px', paddingRight: '36px', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-primary)' }}
+              value={password}
+              placeholder="Masukkan sandi pendaftaran"
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+            />
+            <button 
+              type="button" 
+              onClick={() => setShowPass(!showPass)}
+              style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--color-text-secondary)', cursor: 'pointer' }}
+            >
+              {showPass ? <MdVisibilityOff size={18} /> : <MdVisibility size={18} />}
+            </button>
+          </div>
+          <button className="settings-btn primary" onClick={handleSave} disabled={loading} style={{ height: '36px', padding: '0 16px', margin: 0 }}>
+            Simpan
+          </button>
+        </div>
+        {saved && <div style={{ color: 'var(--color-primary)', fontSize: '12px' }}>Tersimpan!</div>}
+      </div>
+    </div>
+  );
+};
+
 const Settings = ({ setActiveView }: SettingsProps) => {
   const [theme, setTheme] = useState(document.documentElement.getAttribute('data-theme') || 'light');
 
@@ -208,6 +274,7 @@ const Settings = ({ setActiveView }: SettingsProps) => {
         </div>
 
         <ApiKeySettings />
+        <RegistrationPasswordSettings />
       </div>
 
       <h3 className="settings-section-title">Akun</h3>

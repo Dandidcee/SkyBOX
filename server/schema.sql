@@ -151,5 +151,12 @@ CREATE TABLE IF NOT EXISTS contacts (
   account_id uuid REFERENCES accounts(id) ON DELETE CASCADE,
   name text NOT NULL,
   phone text NOT NULL,
-  created_at timestamptz DEFAULT now()
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(account_id, phone)
+);
+
+-- 11. app_settings
+CREATE TABLE IF NOT EXISTS app_settings (
+  key text PRIMARY KEY,
+  value text
 );

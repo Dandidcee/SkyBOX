@@ -12,6 +12,7 @@ const Login = () => {
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [registrationPassword, setRegistrationPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +43,13 @@ const Login = () => {
       setError('Email wajib diisi.');
       return;
     }
+
+    // Validasi format email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError('Format email tidak valid.');
+      return;
+    }
     if (mode !== 'forgot' && !password) {
       setError('Password wajib diisi.');
       return;
@@ -53,7 +61,12 @@ const Login = () => {
         await signIn(email.trim(), password);
         // App pindah otomatis lewat listener onAuthChange.
       } else if (mode === 'register') {
-        const { needsConfirmation } = await signUp(email.trim(), password);
+        if (!registrationPassword.trim()) {
+          setLoading(false);
+          setError('Sandi Pendaftaran wajib diisi untuk keamanan.');
+          return;
+        }
+        const { needsConfirmation } = await signUp(email.trim(), password, registrationPassword.trim());
         if (needsConfirmation) {
           setInfo('Akun dibuat. Cek email kamu untuk konfirmasi, lalu masuk.');
           setMode('login');
@@ -135,6 +148,23 @@ const Login = () => {
               >
                 {showPass ? <MdVisibilityOff size={18} /> : <MdVisibility size={18} />}
               </button>
+            </div>
+          </label>
+        )}
+
+        {mode === 'register' && (
+          <label className="login-field">
+            <span className="login-label">Sandi Pendaftaran (Keamanan)</span>
+            <div className="login-input-wrap">
+              <MdLock size={18} className="login-input-icon" />
+              <input
+                type={showPass ? 'text' : 'password'}
+                autoComplete="off"
+                placeholder="Masukkan Sandi Pendaftaran"
+                value={registrationPassword}
+                onChange={(e) => setRegistrationPassword(e.target.value)}
+                disabled={loading}
+              />
             </div>
           </label>
         )}

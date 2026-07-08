@@ -46,8 +46,8 @@ export async function signOut(): Promise<void> {
 }
 
 // Dummy untuk signup/reset karena backend baru belum full support
-export async function signUp(email: string, password: string): Promise<{ needsConfirmation: boolean }> {
-  const { data } = await api.post('/auth/register', { email, password });
+export async function signUp(email: string, password: string, registrationPassword?: string): Promise<{ needsConfirmation: boolean }> {
+  const { data } = await api.post('/auth/register', { email, password, registrationPassword });
   if (data.success) {
     return { needsConfirmation: false }; // Kita otomatis approve karena ini internal
   }
