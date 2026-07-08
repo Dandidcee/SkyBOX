@@ -57,6 +57,12 @@ const authenticateToken = (req, res, next) => {
   
   if (token == null) return res.sendStatus(401);
 
+  // Bypass for n8n or external webhooks using a static API key
+  if (token === (process.env.N8N_API_KEY || 'skybox-secret-key-123')) {
+    req.user = { id: 'n8n-system', email: 'n8n@system' };
+    return next();
+  }
+
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) return res.sendStatus(401);
     req.user = user;
