@@ -1003,7 +1003,7 @@
   vertical-align: middle;
   margin-left: 3px;
 }
-.msg-ack.sent { color: #53bdeb; }       /* ✓✓ biru = terkirim */
+.msg-ack.sent { color: var(--color-text-secondary); }       /* ✓✓ abu-abu = terkirim (delivered) */
 .msg-ack.sending { color: var(--color-text-secondary); } /* jam = mengirim */
 .msg-ack.is-failed { color: var(--color-error); }        /* ! merah = gagal */
 
