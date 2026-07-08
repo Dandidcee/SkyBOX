@@ -144,3 +144,12 @@ CREATE TABLE IF NOT EXISTS templates (
   variants text,
   created_at timestamptz DEFAULT now()
 );
+
+-- 12. contacts
+CREATE TABLE IF NOT EXISTS contacts (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  account_id uuid REFERENCES accounts(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  phone text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
