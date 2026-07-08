@@ -362,11 +362,13 @@ app.post('/api/webhooks/meta/:accountId', async (req, res) => {
             }
 
             // 2. Masukkan pesan ke tabel messages
+            const checkMsg = await pool.query('SELECT id FROM messages WHERE external_message_id = $1 LIMIT 1', [messageId]);
+            if (checkMsg.rows.length > 0) continue; // Skip duplicate
+
             const insertMsgQuery = `
               INSERT INTO messages 
               (conversation_id, external_message_id, direction, type, content, media_url) 
               VALUES ($1, $2, $3, $4, $5, $6)
-              ON CONFLICT (external_message_id) DO NOTHING
               RETURNING *
             `;
             const msgRes = await pool.query(insertMsgQuery, [
