@@ -669,7 +669,81 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Custom Voice Note Player */
+.vn-player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 260px;
+  max-width: 320px;
+  padding: 8px 12px;
+  border-radius: 20px;
+  background-color: var(--color-surface);
+  margin-bottom: 4px;
+}
+.vn-in {
+  background-color: transparent;
+}
+.vn-out {
+  background-color: transparent;
+}
+.vn-avatar-wrapper {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.vn-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vn-play-btn {
+  background: none;
+  border: none;
+  color: var(--color-text);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vn-waveform-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.vn-slider {
+  width: 100%;
+  accent-color: var(--color-primary);
+  height: 4px;
+  cursor: pointer;
+}
+.vn-duration {
   font-size: 11px;
+  color: var(--color-text-secondary);
+}
+
+/* Highlight Animation for Quoted Messages */
+@keyframes highlightMessage {
+  0% {
+    background-color: rgba(59, 130, 246, 0.4);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.highlighted-msg {
+  animation: highlightMessage 2s ease-out forwards;
 }
 
 /* Mobile Responsiveness (Layar asli sempit) */

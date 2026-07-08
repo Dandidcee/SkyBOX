@@ -18,6 +18,8 @@ import {
   MdKeyboardArrowDown,
   MdDelete,
   MdReply,
+  MdPlayArrow,
+  MdPause,
 } from 'react-icons/md';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -88,6 +90,85 @@ const ProgressAvatar = ({ name, confidence }: { name: string; confidence: number
       <div className="chat-avatar" style={{ backgroundColor: 'var(--color-primary)', width: 36, height: 36, fontSize: '16px', zIndex: 1, margin: 0 }}>
         {initial}
       </div>
+    </div>
+  );
+};
+
+const CustomAudioPlayer = ({ src, isIncoming }: { src: string, isIncoming: boolean }) => {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [durationStr, setDurationStr] = useState('0:00');
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const updateProgress = () => {
+      setProgress(audio.currentTime / (audio.duration || 1) * 100);
+      const ct = audio.currentTime;
+      const m = Math.floor(ct / 60);
+      const s = Math.floor(ct % 60).toString().padStart(2, '0');
+      setDurationStr(`${m}:${s}`);
+    };
+    const onLoadedMetadata = () => {
+      const d = audio.duration;
+      if (d && !isNaN(d) && d !== Infinity) {
+        const m = Math.floor(d / 60);
+        const s = Math.floor(d % 60).toString().padStart(2, '0');
+        setDurationStr(`${m}:${s}`);
+      }
+    };
+    const onEnded = () => { 
+      setIsPlaying(false); 
+      setProgress(0); 
+      onLoadedMetadata();
+    };
+    audio.addEventListener('timeupdate', updateProgress);
+    audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('ended', onEnded);
+    return () => {
+      audio.removeEventListener('timeupdate', updateProgress);
+      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('ended', onEnded);
+    };
+  }, []);
+
+  const togglePlay = () => {
+    if (audioRef.current) {
+      if (isPlaying) audioRef.current.pause();
+      else audioRef.current.play();
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const newTime = (Number(e.target.value) / 100) * (audio.duration || 1);
+    audio.currentTime = newTime;
+    setProgress(Number(e.target.value));
+  };
+
+  return (
+    <div className={`vn-player ${isIncoming ? 'vn-in' : 'vn-out'}`}>
+      <div className="vn-avatar-wrapper">
+        <div className="vn-avatar"><MdMic size={20} color="#fff" /></div>
+      </div>
+      <button className="vn-play-btn" onClick={togglePlay}>
+        {isPlaying ? <MdPause size={28} /> : <MdPlayArrow size={28} />}
+      </button>
+      <div className="vn-waveform-container">
+        <input 
+          type="range" 
+          min="0" 
+          max="100" 
+          value={progress} 
+          onChange={handleSeek} 
+          className="vn-slider" 
+        />
+        <div className="vn-duration">{durationStr || '0:00'}</div>
+      </div>
+      <audio ref={audioRef} src={src} preload="metadata" />
     </div>
   );
 };
@@ -829,7 +910,13 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                       {quotedMsg && (
                         <div className="quoted-message" onClick={() => {
                           const el = document.getElementById(`msg-${quotedMsg.id}`);
-                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            el.classList.remove('highlighted-msg');
+                            // Trigger reflow
+                            void el.offsetWidth;
+                            el.classList.add('highlighted-msg');
+                          }
                         }}>
                           <div className="quoted-sender">{quotedMsg.direction === 'in' ? activeConversation.customerName || activeConversation.customerPhone : 'Anda'}</div>
                           <div className="quoted-text">{quotedMsg.body || 'Media'}</div>
@@ -851,10 +938,9 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                         />
                       )}
                       {m.type === 'audio' && m.mediaUrl && (
-                        <audio 
-                          controls 
-                          src={toEmbeddableUrl(m.mediaUrl, activeConversation?.accountId)} 
-                          style={{ width: '100%', marginBottom: 4, display: 'block' }} 
+                        <CustomAudioPlayer 
+                          src={toEmbeddableUrl(m.mediaUrl, activeConversation?.accountId)}
+                          isIncoming={m.direction === 'in'}
                         />
                       )}
                       {m.type === 'document' && m.mediaUrl && (

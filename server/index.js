@@ -1569,12 +1569,14 @@ app.post('/api/webhook/meta', async (req, res) => {
         const checkMsg = await pool.query('SELECT id FROM messages WHERE external_message_id = $1 LIMIT 1', [msgId]);
         if (checkMsg.rows.length > 0) return res.sendStatus(200);
 
+        const replyToMessageId = msg.context?.id || null;
+
         const insertMsg = `
-          INSERT INTO messages (conversation_id, external_message_id, direction, type, content, media_url)
-          VALUES ($1, $2, 'in', $3, $4, $5)
+          INSERT INTO messages (conversation_id, external_message_id, direction, type, content, media_url, reply_to_message_id)
+          VALUES ($1, $2, 'in', $3, $4, $5, $6)
           RETURNING *
         `;
-        const savedMsgResult = await pool.query(insertMsg, [conversation.id, msgId, msgType, msgBody, mediaUrl]);
+        const savedMsgResult = await pool.query(insertMsg, [conversation.id, msgId, msgType, msgBody, mediaUrl, replyToMessageId]);
 
         if (savedMsgResult.rows.length > 0) {
           // Update Conversation last_preview, last_time, unread, dan handler
