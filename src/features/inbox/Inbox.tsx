@@ -1,25 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import './Inbox.css';
-import {
-  MdSearch,
-  MdAttachFile,
-  MdInsertEmoticon,
-  MdMic,
-  MdSend,
-  MdArrowBack,
-  MdFilterList,
-  MdClose,
-  MdChevronLeft,
-  MdChevronRight,
-  MdDoneAll,
-  MdCheck,
-  MdErrorOutline,
-  MdFlashOn,
-  MdKeyboardArrowDown,
-  MdDelete,
-  MdReply,
-  MdPlayArrow,
-  MdPause,
+import { 
+  MdSearch, MdFilterList, MdCheck, MdClose, MdRefresh, 
+  MdArrowBack, MdSend, MdInsertEmoticon, MdFlashOn, MdReply,
+  MdMic, MdStop, MdDelete, MdDoneAll, MdErrorOutline,
+  MdMoreVert, MdKeyboardArrowDown, MdPlayArrow, MdPause, MdChat
 } from 'react-icons/md';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -208,6 +193,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   const [listWidth, setListWidth] = useState(isMultiView ? 240 : 320);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(initialConversationId ?? null);
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+  const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [filterCriteria, setFilterCriteria] = useState<FilterKey>('all');
   const [messageText, setMessageText] = useState('');
   const [searchText, setSearchText] = useState('');
@@ -702,13 +688,60 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     <div className={`inbox-container ${isMultiView ? 'compact-mode' : ''} ${isMultiView && isMobileChatOpen ? 'is-active-chat' : ''}`} style={containerStyle}>
       {/* Column 1: Conversation List */}
       <div ref={listRef} className={`conversation-list ${isMobileChatOpen ? 'mobile-hidden' : ''}`}>
-        <div className="list-header" style={{ paddingBottom: '8px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <h2 style={{ fontSize: '1.2rem', margin: 0 }}>
-              Sky<span style={{ color: 'var(--color-primary)' }}>Box</span>
+        <div className="list-header" style={{ paddingBottom: '8px', position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <h2 style={{ fontSize: '1.2rem', margin: 0, fontWeight: 600 }}>
+              {account ? account.name : 'SkyBox'}
             </h2>
-            {account && <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>{account.name}</span>}
           </div>
+          <button
+            className={`icon-btn ${(isSelectionMode || filterCriteria !== 'all') ? 'active-filter' : 'text-secondary'}`}
+            onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
+          >
+            <MdMoreVert size={24} />
+          </button>
+          
+          {isHeaderMenuOpen && (
+            <div className="header-dropdown" style={{
+              position: 'absolute',
+              top: '100%',
+              right: '16px',
+              backgroundColor: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              zIndex: 100,
+              minWidth: '200px',
+              padding: '8px 0'
+            }}>
+              <div 
+                className="filter-item" 
+                onClick={() => { handleToggleSelectionMode(); setIsHeaderMenuOpen(false); }}
+              >
+                <MdCheck size={20} />
+                <span>{isSelectionMode ? "Batal Pilih Obrolan" : "Pilih Obrolan"}</span>
+              </div>
+              
+              <div style={{ padding: '8px 16px 4px', fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                Filter Confidence
+              </div>
+              <div className={`filter-item ${filterCriteria === 'all' ? 'active' : ''}`} onClick={() => { setFilterCriteria('all'); setIsHeaderMenuOpen(false); }}>
+                Semua Obrolan
+              </div>
+              <div className={`filter-item ${filterCriteria === 'confidence_high' ? 'active' : ''}`} onClick={() => { setFilterCriteria('confidence_high'); setIsHeaderMenuOpen(false); }}>
+                <div className="status-indicator" style={{ backgroundColor: '#3B82F6' }}></div>
+                Yakin
+              </div>
+              <div className={`filter-item ${filterCriteria === 'confidence_med' ? 'active' : ''}`} onClick={() => { setFilterCriteria('confidence_med'); setIsHeaderMenuOpen(false); }}>
+                <div className="status-indicator" style={{ backgroundColor: '#EAB308' }}></div>
+                Cukup Yakin
+              </div>
+              <div className={`filter-item ${filterCriteria === 'confidence_low' ? 'active' : ''}`} onClick={() => { setFilterCriteria('confidence_low'); setIsHeaderMenuOpen(false); }}>
+                <div className="status-indicator" style={{ backgroundColor: '#EF4444' }}></div>
+                Butuh Bantuan
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="search-bar" style={{ position: 'relative' }}>
@@ -716,51 +749,6 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             <MdSearch size={20} className="search-icon" />
             <input type="text" placeholder="Search chats or contacts..." className="search-input" value={searchText} onChange={(e) => setSearchText(e.target.value)} />
           </div>
-          <div className="inbox-header-icons">
-          {window.innerWidth <= 768 && onNavigate && (
-            <button
-              className="icon-btn text-secondary"
-              onClick={() => onNavigate('contacts')}
-              title="Add Chat / Contacts"
-            >
-              <MdChat size={22} />
-            </button>
-          )}
-          <button
-            className={`icon-btn ${isSelectionMode ? 'active-filter' : 'text-secondary'}`}
-            onClick={handleToggleSelectionMode}
-            title={isSelectionMode ? "Batal Pilih" : "Pilih Obrolan untuk Dihapus"}
-          >
-            {isSelectionMode ? <MdClose size={22} /> : <MdCheck size={22} />}
-          </button>
-          <button
-            className={`icon-btn ${filterCriteria !== 'all' ? 'active-filter' : 'text-secondary'}`}
-            onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
-            title="Filter Chats"
-          >
-            <MdFilterList size={22} />
-          </button>
-          </div>
-
-          {isFilterDropdownOpen && (
-            <div className="filter-dropdown">
-              <div className={`filter-item ${filterCriteria === 'all' ? 'active' : ''}`} onClick={() => { setFilterCriteria('all'); setIsFilterDropdownOpen(false); }}>
-                Semua Obrolan
-              </div>
-              <div className={`filter-item ${filterCriteria === 'confidence_high' ? 'active' : ''}`} onClick={() => { setFilterCriteria('confidence_high'); setIsFilterDropdownOpen(false); }}>
-                <div className="status-indicator" style={{ backgroundColor: '#3B82F6' }}></div>
-                Yakin
-              </div>
-              <div className={`filter-item ${filterCriteria === 'confidence_med' ? 'active' : ''}`} onClick={() => { setFilterCriteria('confidence_med'); setIsFilterDropdownOpen(false); }}>
-                <div className="status-indicator" style={{ backgroundColor: '#EAB308' }}></div>
-                Cukup Yakin
-              </div>
-              <div className={`filter-item ${filterCriteria === 'confidence_low' ? 'active' : ''}`} onClick={() => { setFilterCriteria('confidence_low'); setIsFilterDropdownOpen(false); }}>
-                <div className="status-indicator" style={{ backgroundColor: '#EF4444' }}></div>
-                Butuh Bantuan
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="inbox-tabs-container">
