@@ -172,6 +172,47 @@ app.put('/api/auth/password', authenticateToken, async (req, res) => {
 });
 
 // Route: Delete Media
+app.get('/api/media/:mediaId', async (req, res) => {
+  try {
+    const { mediaId } = req.params;
+    const { accountId } = req.query;
+    if (!accountId) return res.status(400).send('Missing accountId');
+
+    const accResult = await pool.query('SELECT wa_access_token FROM accounts WHERE id = $1', [accountId]);
+    if (accResult.rows.length === 0) return res.sendStatus(404);
+    const token = accResult.rows[0].wa_access_token;
+
+    // 1. Get media URL
+    const metaRes = await fetch(`https://graph.facebook.com/v19.0/${mediaId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    if (!metaRes.ok) return res.sendStatus(404);
+    const metaData = await metaRes.json();
+    if (!metaData.url) return res.sendStatus(404);
+
+    // 2. Fetch binary data
+    const mediaRes = await fetch(metaData.url, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (!mediaRes.ok) return res.sendStatus(404);
+
+    res.set('Content-Type', mediaRes.headers.get('content-type') || 'application/octet-stream');
+    
+    // Pipe the response body to Express res (Node 18+ Web Streams to Node Stream)
+    if (mediaRes.body) {
+      const { Readable } = require('stream');
+      Readable.fromWeb(mediaRes.body).pipe(res);
+    } else {
+      res.sendStatus(404);
+    }
+  } catch (err) {
+    console.error('Media proxy error:', err);
+    res.sendStatus(500);
+  }
+});
+
 app.delete('/api/media', async (req, res) => {
   try {
     const { url } = req.body;

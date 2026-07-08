@@ -50,8 +50,13 @@ const fmtTime = (iso: string) => {
 
 // Ubah link Google Drive jadi URL lh3.googleusercontent (Google CDN) yang bisa di-embed
 // sebagai <img> dari domain lain. URL non-Drive dibiarkan apa adanya.
-const toEmbeddableUrl = (url: string | null) => {
+const toEmbeddableUrl = (url: string | null, accountId?: string | null) => {
   if (!url) return url ?? '';
+  // Jika url hanya berisi angka, berarti ini adalah Media ID asli dari Meta
+  if (/^\d+$/.test(url)) {
+    // Arahkan ke endpoint proxy server kita
+    return `${import.meta.env.VITE_API_URL || ''}/api/media/${url}?accountId=${accountId || ''}`;
+  }
   if (url.includes('lh3.googleusercontent.com')) return url; // sudah CDN
   if (url.includes('drive.google.com')) {
     const m = url.match(/(?:id=|\/d\/)([\w-]+)/);
@@ -787,14 +792,14 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                       )}
                       {m.type === 'image' && m.mediaUrl && (
                         <img
-                          src={toEmbeddableUrl(m.mediaUrl)}
+                          src={toEmbeddableUrl(m.mediaUrl, activeConversation?.accountId)}
                           alt="media"
-                          onClick={() => window.open(toEmbeddableUrl(m.mediaUrl), '_blank')}
+                          onClick={() => window.open(toEmbeddableUrl(m.mediaUrl, activeConversation?.accountId), '_blank')}
                           style={{ width: '100%', borderRadius: 6, marginBottom: 4, display: 'block', cursor: 'pointer' }}
                         />
                       )}
                       {m.type === 'document' && m.mediaUrl && (
-                        <a href={m.mediaUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary-dark)' }}>📄 Buka dokumen</a>
+                        <a href={toEmbeddableUrl(m.mediaUrl, activeConversation?.accountId)} target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary-dark)' }}>📄 Buka dokumen</a>
                       )}
                       {m.body && <span className="bubble-text">{renderWaText(m.body)}</span>}
                       <span className="bubble-time">
