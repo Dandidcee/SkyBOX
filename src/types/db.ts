@@ -9,7 +9,7 @@
 export type Handler = 'ai' | 'human';
 export type OrderStatus = 'none' | 'lead' | 'waiting_payment' | 'closing' | 'complaint';
 export type MessageDirection = 'in' | 'out';
-export type MessageType = 'text' | 'image' | 'document';
+export type MessageType = 'text' | 'image' | 'document' | 'video' | 'audio' | 'sticker';
 export type OrderType = 'tf' | 'cod';
 export type NotificationLevel = 'info' | 'success' | 'warn' | 'error';
 
