@@ -689,7 +689,7 @@ app.get('/api/messages/:conversationId', authenticateToken, async (req, res) => 
     
     if (convCheck.rows.length === 0) return res.sendStatus(403);
 
-    const result = await pool.query('SELECT * FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC', [conversationId]);
+    const result = await pool.query('SELECT id, conversation_id, external_message_id, direction, type, content as body, media_url, created_at FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC', [conversationId]);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
