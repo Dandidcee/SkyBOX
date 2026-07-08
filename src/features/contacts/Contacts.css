@@ -1,7 +1,11 @@
 .contacts-container {
-  padding: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
+  flex: 1;
+  width: 100%;
+  padding: 32px 40px;
+  height: 100vh;
+  overflow-y: auto;
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
 }
 
 .contacts-header {
