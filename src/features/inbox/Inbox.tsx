@@ -903,6 +903,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             <button className="icon-btn mobile-only-btn" onClick={(e) => { 
               e.stopPropagation(); 
               setIsMobileChatOpen(false); 
+              setIsContactOpen(false);
               onMobileChatOpenChange?.(false); 
               if (window.history.state?.chatOpen) {
                 window.history.back();
