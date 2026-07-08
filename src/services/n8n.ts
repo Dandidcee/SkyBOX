@@ -18,7 +18,8 @@ export async function sendTextMessage(
   await api.post('/messages', {
     conversationId: payload.conversationId,
     body: payload.text,
-    type: 'text'
+    type: 'text',
+    replyToMessageId: payload.replyToMessageId
   });
 }
 
@@ -30,7 +31,8 @@ export async function sendMedia(
     conversationId: payload.conversationId,
     body: payload.caption || `[${payload.mediaType}]`,
     type: payload.mediaType,
-    mediaUrl: payload.mediaUrl
+    mediaUrl: payload.mediaUrl,
+    replyToMessageId: payload.replyToMessageId
   });
 }
 

@@ -1001,7 +1001,7 @@ app.put('/api/conversations/:id/handler', authenticateToken, async (req, res) =>
 // Kirim pesan ke pelanggan via Meta API & Simpan ke DB
 app.post('/api/messages', authenticateToken, async (req, res) => {
   try {
-    const { conversationId, body, type } = req.body; // type = 'text', 'image', dll
+    const { conversationId, body, type, replyToMessageId } = req.body; // type = 'text', 'image', dll
     
     // Ambil info akun dan percakapan untuk kirim via Meta API
     const convInfo = await pool.query(`
@@ -1024,6 +1024,10 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
           to: customer_phone.replace(/\D/g, ''), // Pastikan hanya angka
           type: type || 'text',
         };
+        
+        if (replyToMessageId) {
+          payload.context = { message_id: replyToMessageId };
+        }
         
         if (type === 'image' || type === 'video' || type === 'document' || type === 'audio' || type === 'sticker') {
           // req.body.mediaUrl harus ada dari frontend
@@ -1057,12 +1061,12 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
     
     // Simpan pesan ke database
     const insertMsg = `
-      INSERT INTO messages (conversation_id, external_message_id, direction, type, content, media_url)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO messages (conversation_id, external_message_id, direction, type, content, media_url, reply_to_message_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `;
     const messageId = `out_${Date.now()}`;
-    const result = await pool.query(insertMsg, [conversationId, messageId, 'out', type || 'text', body, req.body.mediaUrl || null]);
+    const result = await pool.query(insertMsg, [conversationId, messageId, 'out', type || 'text', body, req.body.mediaUrl || null, replyToMessageId || null]);
     const newMessage = result.rows[0];
 
     // Update conversation preview
