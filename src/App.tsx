@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { MdMenu } from 'react-icons/md';
+import api from './services/api';
 import Sidebar from './components/layout/Sidebar';
 import Inbox from './features/inbox/Inbox';
 import Dashboard from './features/dashboard/Dashboard';
@@ -201,21 +202,17 @@ function App() {
     window.history.replaceState({}, '', newUrl);
 
     // Bikin chat baru lewat API
-    import('./services/api').then(({ default: api }) => {
-      api.post<{id: string}>('/conversations/start', { accountId, phone, name })
-        .then(res => {
-          queryClient.invalidateQueries({ queryKey: ['conversations', accountId] });
-          setTimeout(() => {
-            handleOpenChat(accountId, res.data.id);
-          }, 300); // tambah sedikit delay agar cache pasti update
-        })
-        .catch(err => {
-          console.error('Gagal memulai chat dari link', err);
-          alert('Gagal memulai chat otomatis. Pastikan format nomor benar (628...).');
-        });
-    }).catch(err => {
-      console.error('Gagal load modul api', err);
-    });
+    api.post<{id: string}>('/conversations/start', { accountId, phone, name })
+      .then(res => {
+        queryClient.invalidateQueries({ queryKey: ['conversations', accountId] });
+        setTimeout(() => {
+          handleOpenChat(accountId, res.data.id);
+        }, 300); // tambah sedikit delay agar cache pasti update
+      })
+      .catch(err => {
+        console.error('Gagal memulai chat dari link', err);
+        alert('Gagal memulai chat otomatis. Pastikan format nomor benar (628...).');
+      });
   }, [authReady, session, accounts.length, queryClient]);
 
   // Belum siap cek auth → tampilkan loading singkat.
