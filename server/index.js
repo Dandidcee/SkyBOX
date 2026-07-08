@@ -211,13 +211,9 @@ app.get('/api/media/:mediaId', async (req, res) => {
 
     res.set('Content-Type', mediaRes.headers.get('content-type') || 'application/octet-stream');
     
-    // Pipe the response body to Express res (Node 18+ Web Streams to Node Stream)
-    if (mediaRes.body) {
-      const { Readable } = require('stream');
-      Readable.fromWeb(mediaRes.body).pipe(res);
-    } else {
-      res.sendStatus(404);
-    }
+    // Convert arrayBuffer to Node Buffer (safer across Node versions than Readable.fromWeb)
+    const arrayBuffer = await mediaRes.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
   } catch (err) {
     console.error('Media proxy error:', err);
     res.sendStatus(500);
@@ -600,7 +596,7 @@ app.delete('/api/accounts/:id', authenticateToken, async (req, res) => {
 // DYNAMIC CRUD UNTUK TABEL DENGAN account_id
 // (products, knowledge, promos, orders, templates, quick_replies, dll)
 // ==========================================
-const ALLOWED_TABLES = ['products', 'knowledge', 'promos', 'orders', 'templates', 'quick_replies', 'notifications', 'contacts'];
+const ALLOWED_TABLES = ['products', 'knowledge', 'promos', 'orders', 'templates', 'quick_replies', 'notifications', 'contacts', 'conversations'];
 
 // GET list per accountId
 app.get('/api/resource/:table/:accountId', authenticateToken, async (req, res) => {
