@@ -316,8 +316,9 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
         if (!isRecordingCancelledRef.current && audioChunksRef.current.length > 0) {
           const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/ogg; codecs=opus' });
           const audioFile = new File([audioBlob], `VoiceNote_${Date.now()}.opus`, { type: 'audio/ogg; codecs=opus' });
-          setSelectedFile(audioFile);
-          // Preview modal otomatis terbuka ketika selectedFile ada
+          
+          // Langsung kirim tanpa lewat preview
+          confirmSendMedia(audioFile);
         }
         
         setIsRecording(false);
@@ -489,12 +490,13 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     setFileCaption('');
   };
 
-  const confirmSendMedia = async () => {
-    if (!selectedFile || !activeConversation || !account) return;
+  const confirmSendMedia = async (fileToUpload?: File) => {
+    const file = fileToUpload || selectedFile;
+    if (!file || !activeConversation || !account) return;
     setIsUploading(true);
     try {
       const formData = new FormData();
-      formData.append('file', selectedFile);
+      formData.append('file', file);
 
       // Upload ke VPS / Backend URL
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -513,9 +515,9 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
       }
 
       let mediaType = 'document';
-      if (selectedFile.type.startsWith('image/')) mediaType = 'image';
-      else if (selectedFile.type.startsWith('video/')) mediaType = 'video';
-      else if (selectedFile.type.startsWith('audio/')) mediaType = 'audio';
+      if (file.type.startsWith('image/')) mediaType = 'image';
+      else if (file.type.startsWith('video/')) mediaType = 'video';
+      else if (file.type.startsWith('audio/')) mediaType = 'audio';
 
       // Kirim URL ke N8N
       const replyId = replyToMessage?.externalId || null;
@@ -524,8 +526,8 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
         phone: activeConversation.customerPhone,
         chatId: activeConversation.chatId,
         mediaType: mediaType as 'image' | 'video' | 'audio' | 'document',
-        filename: selectedFile.name,
-        caption: fileCaption.trim() || undefined,
+        filename: file.name,
+        caption: (fileToUpload ? undefined : fileCaption.trim()) || undefined,
         mediaUrl: uploadData.url,
         replyToMessageId: replyId,
       });
