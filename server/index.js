@@ -362,12 +362,12 @@ app.post('/api/webhooks/meta/:accountId', async (req, res) => {
             }
 
             // 2. Masukkan pesan ke tabel messages
-            const checkMsg = await pool.query('SELECT id FROM messages WHERE message_id = $1 LIMIT 1', [messageId]);
+            const checkMsg = await pool.query('SELECT id FROM messages WHERE external_message_id = $1 LIMIT 1', [messageId]);
             if (checkMsg.rows.length > 0) continue; // Skip duplicate
 
             const insertMsgQuery = `
               INSERT INTO messages 
-              (conversation_id, message_id, direction, type, content, media_url) 
+              (conversation_id, external_message_id, direction, type, content, media_url) 
               VALUES ($1, $2, $3, $4, $5, $6)
               RETURNING *
             `;
@@ -691,7 +691,7 @@ app.get('/api/messages/:conversationId', authenticateToken, async (req, res) => 
     
     if (convCheck.rows.length === 0) return res.sendStatus(403);
 
-    const result = await pool.query('SELECT id, conversation_id, message_id, direction, type, content as body, media_url, created_at FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC', [conversationId]);
+    const result = await pool.query('SELECT id, conversation_id, external_message_id, direction, type, content as body, media_url, created_at FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC', [conversationId]);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -1000,7 +1000,7 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
     
     // Simpan pesan ke database
     const insertMsg = `
-      INSERT INTO messages (conversation_id, message_id, direction, type, content, media_url)
+      INSERT INTO messages (conversation_id, external_message_id, direction, type, content, media_url)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
@@ -1216,7 +1216,7 @@ app.post('/api/n8n/save-message', async (req, res) => {
     
     const messageId = externalMessageId || `n8n_out_${Date.now()}`;
     const insertMsg = `
-      INSERT INTO messages (conversation_id, message_id, direction, type, content)
+      INSERT INTO messages (conversation_id, external_message_id, direction, type, content)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `;
@@ -1305,7 +1305,7 @@ app.post('/api/n8n/send-message', async (req, res) => {
     
     // 3. Simpan pesan ke database
     const insertMsg = `
-      INSERT INTO messages (conversation_id, message_id, direction, type, content, media_url)
+      INSERT INTO messages (conversation_id, external_message_id, direction, type, content, media_url)
       VALUES ($1, $2, 'out', $3, $4, $5)
       RETURNING *
     `;
@@ -1460,11 +1460,11 @@ app.post('/api/webhook/meta', async (req, res) => {
           mediaUrl = mediaObj?.id; // ID media Meta
         }
 
-        const checkMsg = await pool.query('SELECT id FROM messages WHERE message_id = $1 LIMIT 1', [msgId]);
+        const checkMsg = await pool.query('SELECT id FROM messages WHERE external_message_id = $1 LIMIT 1', [msgId]);
         if (checkMsg.rows.length > 0) return res.sendStatus(200);
 
         const insertMsg = `
-          INSERT INTO messages (conversation_id, message_id, direction, type, content, media_url)
+          INSERT INTO messages (conversation_id, external_message_id, direction, type, content, media_url)
           VALUES ($1, $2, 'in', $3, $4, $5)
           RETURNING *
         `;
