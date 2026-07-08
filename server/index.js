@@ -1431,6 +1431,39 @@ app.get('/api/n8n/chat-history/:conversationId', async (req, res) => {
   }
 });
 
+// Fungsi helper untuk download media WhatsApp
+async function downloadIncomingMedia(mediaId, token) {
+  try {
+    const metaRes = await fetch(`https://graph.facebook.com/v20.0/${mediaId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const metaData = await metaRes.json();
+    if (!metaData.url) return null;
+
+    const fileRes = await fetch(metaData.url, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    if (!fileRes.ok) return null;
+    
+    const arrayBuffer = await fileRes.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const mimeType = metaData.mime_type || '';
+    const ext = mimeType.split('/')[1]?.split(';')[0] || 'bin';
+    const filename = `incoming_${mediaId}_${Date.now()}.${ext}`;
+    
+    const uploadPath = path.join(__dirname, 'uploads', filename);
+    await fs.ensureDir(path.join(__dirname, 'uploads'));
+    await fs.writeFile(uploadPath, buffer);
+
+    return filename;
+  } catch (err) {
+    console.error('Failed to download incoming media:', err);
+    return null;
+  }
+}
+
 // 1. Meta Webhook Verification
 app.get('/api/webhook/meta', async (req, res) => {
   let mode = req.query["hub.mode"];
@@ -1518,7 +1551,19 @@ app.post('/api/webhook/meta', async (req, res) => {
         } else if (isMedia) {
           const mediaObj = msg[msgType];
           msgBody = mediaObj?.caption || `[Received ${msgType}]`;
-          mediaUrl = mediaObj?.id; // ID media Meta
+          const mediaId = mediaObj?.id; // ID media Meta
+          
+          if (mediaId) {
+             const downloadedFilename = await downloadIncomingMedia(mediaId, account.wa_access_token);
+             if (downloadedFilename) {
+                 const host = req.get('host') || 'localhost:3001';
+                 const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+                 // We don't have req.get('host') here easily if behind proxy, but we can use the same logic as /api/upload
+                 mediaUrl = `${protocol}://${host}/uploads/${downloadedFilename}`;
+             } else {
+                 mediaUrl = mediaId; // fallback ke ID kalau gagal download
+             }
+          }
         }
 
         const checkMsg = await pool.query('SELECT id FROM messages WHERE external_message_id = $1 LIMIT 1', [msgId]);
