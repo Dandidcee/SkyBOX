@@ -43,7 +43,7 @@ const stateStyle: React.CSSProperties = {
 };
 
 function App() {
-  const [activeView, setActiveView] = useState<string>('dashboard');
+  const [activeView, setActiveView] = useState<string>(() => localStorage.getItem('skybox_active_view') || 'dashboard');
   const [isSidebarVisible, setIsSidebarVisible] = useState(() => window.innerWidth > 768);
   const [activeAccountIds, setActiveAccountIds] = useState<string[]>([]);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
@@ -72,6 +72,10 @@ function App() {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('skybox_active_view', activeView);
+  }, [activeView]);
 
   // Auth: muat session awal + dengarkan perubahan login/logout.
   useEffect(() => {
@@ -253,6 +257,7 @@ function App() {
                 colWidth={colWidthPct}
                 onMobileChatOpenChange={setMobileChatOpen}
                 initialConversationId={chatFocus?.accountId === account.id ? chatFocus.conversationId : undefined}
+                onNavigate={goView}
               />
             ))
           )

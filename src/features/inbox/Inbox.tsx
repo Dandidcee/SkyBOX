@@ -26,6 +26,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { Account, Conversation, Message } from '../../types/db';
 import { useConversations, conversationsKey } from '../../hooks/useConversations';
 import { useMessages } from '../../hooks/useMessages';
+import { useContacts } from '../../hooks/useContacts';
 import api from '../../services/api';
 import { useOrders } from '../../hooks/useOrders';
 import { useQuickReplies } from '../../hooks/useQuickReplies';
@@ -179,6 +180,7 @@ interface InboxProps {
   colWidth?: string;
   onMobileChatOpenChange?: (open: boolean) => void;
   initialConversationId?: string;
+  onNavigate?: (view: string) => void;
 }
 
 type TabKey = 'all' | 'ai' | 'human' | 'lead' | 'waiting_payment' | 'closing' | 'complaint';
@@ -199,6 +201,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
   const { data: conversations = [], isLoading: convLoading, isError: convError, refetch: refetchConv } =
     useConversations(accountId);
+  const { data: contacts = [] } = useContacts(accountId || '');
 
   const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(!!initialConversationId);
@@ -670,6 +673,27 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     return true;
   });
 
+  const filteredContacts = searchText.trim() ? contacts.filter(c => 
+    c.name.toLowerCase().includes(searchText.trim().toLowerCase()) || 
+    c.phone.includes(searchText.trim())
+  ) : [];
+
+  const handleStartContactChat = async (contact: any) => {
+    if (!accountId) return;
+    try {
+      const res = await api.post<{id: string}>('/conversations/start', {
+        accountId: accountId,
+        phone: contact.phone,
+        name: contact.name
+      });
+      setActiveConversationId(res.data.id);
+      setSearchText('');
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal memulai chat dengan kontak.');
+    }
+  };
+
   const containerStyle: React.CSSProperties = colWidth
     ? ({ width: colWidth, minWidth: colWidth, maxWidth: colWidth, flexShrink: 0, flexGrow: 0, '--list-width': `${listWidth}px` } as React.CSSProperties)
     : ({ '--list-width': `${listWidth}px` } as React.CSSProperties);
@@ -690,9 +714,18 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
         <div className="search-bar" style={{ position: 'relative' }}>
           <div className="search-input-container">
             <MdSearch size={20} className="search-icon" />
-            <input type="text" placeholder="Search chats..." className="search-input" value={searchText} onChange={(e) => setSearchText(e.target.value)} />
+            <input type="text" placeholder="Search chats or contacts..." className="search-input" value={searchText} onChange={(e) => setSearchText(e.target.value)} />
           </div>
           <div className="inbox-header-icons">
+          {window.innerWidth <= 768 && onNavigate && (
+            <button
+              className="icon-btn text-secondary"
+              onClick={() => onNavigate('contacts')}
+              title="Add Chat / Contacts"
+            >
+              <MdChat size={22} />
+            </button>
+          )}
           <button
             className={`icon-btn ${isSelectionMode ? 'active-filter' : 'text-secondary'}`}
             onClick={handleToggleSelectionMode}
@@ -810,6 +843,30 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
               );
             })
           )}
+          {filteredContacts.length > 0 && (
+            <div style={{ padding: '8px 16px', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-secondary)', background: 'var(--color-bg-primary)' }}>
+              Kontak Tersimpan ({filteredContacts.length})
+            </div>
+          )}
+          {filteredContacts.map(c => (
+            <div 
+              key={`contact-${c.id}`}
+              className="conversation-item"
+              onClick={() => handleStartContactChat(c)}
+            >
+              <div className="chat-avatar" style={{ backgroundColor: 'var(--color-primary)' }}>
+                {(c.name || 'S').charAt(0).toUpperCase()}
+              </div>
+              <div className="chat-info">
+                <div className="chat-name-row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span className="chat-name" style={{ fontWeight: 600 }}>{c.name}</span>
+                </div>
+                <div className="chat-preview-row">
+                  <span className="chat-preview" style={{ color: 'var(--color-primary)', fontSize: '13px' }}>Klik untuk mulai chat</span>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
 
         {isSelectionMode && (

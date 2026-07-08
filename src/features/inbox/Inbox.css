@@ -867,12 +867,14 @@
 }
 
 .bubble-text {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.4;
   display: block;
-  margin-bottom: 4px;
-  white-space: pre-wrap;     /* hormati \n / enter biar rapi seperti WA */
-  overflow-wrap: anywhere;   /* teks/URL panjang tetap wrap, tidak melebar */
+  margin-bottom: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding-right: 48px; /* Ruang untuk timestamp di pojok kanan bawah */
+  padding-bottom: 4px;
 }
 
 .bubble-text .wa-mono {
@@ -888,10 +890,15 @@
   color: var(--color-text-secondary);
   display: flex;
   align-items: center;
-  gap: 4px;
-  align-self: flex-end;
-  margin-top: 4px;
+  gap: 2px;
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+  background: transparent; /* if it overlaps text, the text might be covered, but we added padding-right to text */
 }
+
+/* Jika bubble hanya berisi gambar/media tanpa teks, padding-right tidak ada di text.
+   Tapi .bubble.has-media punya logic sendiri, kita abaikan dulu. */
 
 /* Quoted Reply Block dalam Bubble */
 .quoted-message {
@@ -899,9 +906,12 @@
   border-left: 4px solid var(--color-primary);
   border-radius: 4px;
   padding: 6px 8px;
-  margin-bottom: 6px;
+  margin: -2px -6px 6px -6px; /* Tarik keluar agar lebih mepet ke ujung bubble */
   cursor: pointer;
   font-size: 13px;
+}
+[data-theme='dark'] .quoted-message {
+  background-color: rgba(255, 255, 255, 0.05);
 }
 .quoted-sender {
   color: var(--color-primary-dark);
