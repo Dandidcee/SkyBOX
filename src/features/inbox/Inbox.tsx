@@ -144,7 +144,7 @@ const CustomAudioPlayer = ({ src, isIncoming }: { src: string, isIncoming: boole
       <button className="vn-play-btn" onClick={togglePlay}>
         {isPlaying ? <MdPause size={28} /> : <MdPlayArrow size={28} />}
       </button>
-      <div className="vn-waveform-container">
+      <div className="vn-slider-wrapper">
         <input 
           type="range" 
           min="0" 
@@ -152,9 +152,10 @@ const CustomAudioPlayer = ({ src, isIncoming }: { src: string, isIncoming: boole
           value={progress} 
           onChange={handleSeek} 
           className="vn-slider" 
+          style={{ '--progress': `${progress}%` } as React.CSSProperties}
         />
-        <div className="vn-duration">{durationStr || '0:00'}</div>
       </div>
+      <div className="vn-duration">{durationStr || '0:00'}</div>
       <audio ref={audioRef} src={src} preload="metadata" />
     </div>
   );
