@@ -32,22 +32,34 @@ export function useGlobalAlerts(accounts: Account[], enabled: boolean) {
     });
 
     socket.on('conversation_updated', (newRow: ConversationRow) => {
-      // Asumsikan payload ini adalah data baru yang di-update
-      const label = newRow.customer_name || newRow.customer_phone || 'Pelanggan';
-      const accName = accounts.find((a) => a.id === newRow.account_id)?.name;
-      const prefix = accName ? `[${accName}] ` : '';
-
-      // Untuk notifikasi unread naik (dari backend, saat ini kita tidak kirim oldRow, tapi hanya kirim saat ada pesan masuk)
-      // Karena kita trigger ini di Meta webhook, ini pasti ada unread naik.
-      notify(`${prefix}Pesan baru dari ${label}`, 'info');
-      playEventSound('incoming');
-
       qc.invalidateQueries({ queryKey: ['conversations'] });
     });
 
     socket.on('new_message', (msgRow) => {
       // Invalidate pesan untuk conversation id tsb
       qc.invalidateQueries({ queryKey: ['messages', msgRow.conversation_id] });
+      
+      if (msgRow.direction === 'in') {
+        let customerName = 'Pelanggan';
+        let accName = '';
+        
+        for (const acc of accounts) {
+          // Note: we use 'any' here just to safely check the cache structure since it might be Conversation or ConversationRow
+          const convs = qc.getQueryData<any[]>(['conversations', acc.id]);
+          if (convs) {
+            const conv = convs.find(c => c.id === msgRow.conversation_id);
+            if (conv) {
+              customerName = conv.customerName || conv.customer_name || conv.customerPhone || conv.customer_phone || 'Pelanggan';
+              accName = acc.name;
+              break;
+            }
+          }
+        }
+        
+        const prefix = accName ? `[${accName}] ` : '';
+        notify(`${prefix}Pesan baru dari ${customerName}`, 'info');
+        playEventSound('incoming');
+      }
     });
 
     return () => {
