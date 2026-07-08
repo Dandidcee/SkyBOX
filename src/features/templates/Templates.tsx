@@ -28,7 +28,7 @@ function parseCaptions(raw: string): { captions: CaptionEntry[], finalMessage: s
           else if (typeof v.images === 'string') imgStr = v.images;
           
           return {
-            caption: v.caption || v.guide || v.name || '',
+            caption: String(v.caption || v.guide || v.name || ''),
             image: imgStr
           };
         }),
@@ -44,11 +44,11 @@ function parseCaptions(raw: string): { captions: CaptionEntry[], finalMessage: s
           else if (typeof v.images === 'string') imgStr = v.images;
           
           return {
-            caption: v.caption || '',
+            caption: String(v.caption || ''),
             image: imgStr
           };
         }),
-        finalMessage: parsed.finalMessage || ''
+        finalMessage: String(parsed.finalMessage || '')
       };
     }
   } catch { /* bukan JSON, fallback */ }

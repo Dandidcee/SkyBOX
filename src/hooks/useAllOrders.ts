@@ -24,6 +24,8 @@ const KEY = ['orders', 'list'];
 interface OrderRowRaw {
   id: string;
   conversation_id: string;
+  account_id?: string;
+  order_status?: string;
   created_at: string;
   type: 'tf' | 'cod';
   status: string;

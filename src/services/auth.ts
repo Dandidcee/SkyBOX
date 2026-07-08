@@ -54,7 +54,7 @@ export async function signUp(email: string, password: string): Promise<{ needsCo
   throw new Error('Gagal mendaftar');
 }
 
-export async function resetPassword(): Promise<void> {
+export async function resetPassword(_email: string): Promise<void> {
   throw new Error("Belum diimplementasikan");
 }
 
