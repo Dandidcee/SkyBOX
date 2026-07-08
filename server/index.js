@@ -64,6 +64,15 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+app.get('/api/debug/db', async (req, res) => {
+  try {
+    const result = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'messages'");
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Middleware
 app.use(cors()); // Mengizinkan semua origin untuk dipanggil dari frontend kita
 app.use(express.json({ limit: '50mb' }));
