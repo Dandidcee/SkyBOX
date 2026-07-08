@@ -859,7 +859,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
         {!isSelectionMode && onNavigate && (
           <button 
-            className="new-chat-fab"
+            className={`new-chat-fab ${isMobileChatOpen ? 'mobile-hidden' : ''}`}
             onClick={() => onNavigate('contacts')}
             title="Tambah Chat Baru"
           >
