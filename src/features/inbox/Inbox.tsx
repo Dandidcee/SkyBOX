@@ -396,7 +396,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
         // Cek kalau sengaja dibatalkan, jangan set file
         if (!isRecordingCancelledRef.current && audioChunksRef.current.length > 0) {
           const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/ogg; codecs=opus' });
-          const audioFile = new File([audioBlob], `VoiceNote_${Date.now()}.opus`, { type: 'audio/ogg; codecs=opus' });
+          const audioFile = new File([audioBlob], `VoiceNote_${Date.now()}.ogg`, { type: 'audio/ogg; codecs=opus' });
           
           // Langsung kirim tanpa lewat preview
           confirmSendMedia(audioFile);

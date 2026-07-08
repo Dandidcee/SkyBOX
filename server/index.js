@@ -79,7 +79,13 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Static folder untuk media yang di-upload
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  setHeaders: (res, path, stat) => {
+    if (path.endsWith('.ogg')) {
+      res.set('Content-Type', 'audio/ogg; codecs=opus');
+    }
+  }
+}));
 
 // Setup Multer untuk upload file
 const storage = multer.diskStorage({
