@@ -1298,7 +1298,7 @@ app.post('/api/n8n/save-message', async (req, res) => {
     // Update conversation preview
     await pool.query(`
       UPDATE conversations 
-      SET last_message = $1, last_time = NOW()
+      SET last_preview = $1, last_time = NOW()
       WHERE id = $2
     `, [body.substring(0, 50), conversationId]);
 
@@ -1388,7 +1388,7 @@ app.post('/api/n8n/send-message', async (req, res) => {
     // 4. Update conversation preview dan order_status (jika ada intent)
     let updateConvQuery = `
       UPDATE conversations 
-      SET last_message = $1, last_time = NOW()
+      SET last_preview = $1, last_time = NOW()
     `;
     const updateValues = [body.substring(0, 100), conversationId];
     
