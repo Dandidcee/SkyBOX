@@ -901,12 +901,13 @@
 .bubble-text {
   font-size: 14px;
   line-height: 1.4;
-  display: block;
+  display: inline-block;
   margin-bottom: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  padding-right: 48px; /* Ruang untuk timestamp di pojok kanan bawah */
-  padding-bottom: 4px;
+  padding-right: 65px; /* Ruang lebih besar untuk timestamp & centang */
+  padding-bottom: 6px;
+  min-width: 0;
 }
 
 .bubble-text .wa-mono {
@@ -929,8 +930,21 @@
   background: transparent; /* if it overlaps text, the text might be covered, but we added padding-right to text */
 }
 
-/* Jika bubble hanya berisi gambar/media tanpa teks, padding-right tidak ada di text.
-   Tapi .bubble.has-media punya logic sendiri, kita abaikan dulu. */
+/* Custom Media Image/Video Styling inside Bubble */
+.message-media {
+  max-width: 100%;
+  max-height: 350px;
+  border-radius: 6px;
+  display: block;
+  object-fit: contain;
+  margin-bottom: 4px;
+}
+
+/* Jika bubble berisi gambar/media, pastikan tidak melebihi batas layar */
+.bubble:has(> .message-media) {
+  max-width: 350px;
+  padding: 4px;
+}
 
 /* Quoted Reply Block dalam Bubble */
 .quoted-message {
