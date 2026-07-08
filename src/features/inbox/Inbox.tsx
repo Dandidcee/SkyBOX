@@ -24,6 +24,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { Account, Conversation, Message } from '../../types/db';
 import { useConversations, conversationsKey } from '../../hooks/useConversations';
 import { useMessages } from '../../hooks/useMessages';
+import api from '../../services/api';
 import { useOrders } from '../../hooks/useOrders';
 import { useQuickReplies } from '../../hooks/useQuickReplies';
 import { setConversationHandler, sendTextMessage, sendMedia } from '../../services/n8n';
@@ -290,10 +291,8 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
         
         // Cek kalau sengaja dibatalkan, jangan set file
         if (!isRecordingCancelledRef.current && audioChunksRef.current.length > 0) {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          const mime = mediaRecorder.mimeType || 'audio/webm';
-          const ext = mime.includes('mp4') ? 'mp4' : mime.includes('ogg') ? 'ogg' : 'webm';
-          const audioFile = new File([audioBlob], `VoiceNote_${Date.now()}.${ext}`, { type: mime });
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mp4' });
+          const audioFile = new File([audioBlob], `VoiceNote_${Date.now()}.mp4`, { type: 'audio/mp4' });
           setSelectedFile(audioFile);
           // Preview modal otomatis terbuka ketika selectedFile ada
         }
@@ -666,6 +665,14 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                       setActiveConversationId(conv.id);
                       setIsMobileChatOpen(true);
                       onMobileChatOpenChange?.(true);
+                      
+                      // Reset unread optimistically and in DB
+                      if (conv.unread > 0) {
+                        qc.setQueryData<Conversation[]>(conversationsKey(accountId), old => 
+                          old?.map(c => c.id === conv.id ? { ...c, unread: 0 } : c) ?? old
+                        );
+                        api.put(`/resource/conversations/${conv.id}`, { unread: 0 }).catch(() => {});
+                      }
                     }
                   }}
                 >
@@ -798,10 +805,26 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                           style={{ width: '100%', borderRadius: 6, marginBottom: 4, display: 'block', cursor: 'pointer' }}
                         />
                       )}
+                      {m.type === 'video' && m.mediaUrl && (
+                        <video 
+                          controls 
+                          src={toEmbeddableUrl(m.mediaUrl, activeConversation?.accountId)} 
+                          style={{ width: '100%', borderRadius: 6, marginBottom: 4, display: 'block' }} 
+                        />
+                      )}
+                      {m.type === 'audio' && m.mediaUrl && (
+                        <audio 
+                          controls 
+                          src={toEmbeddableUrl(m.mediaUrl, activeConversation?.accountId)} 
+                          style={{ width: '100%', marginBottom: 4, display: 'block' }} 
+                        />
+                      )}
                       {m.type === 'document' && m.mediaUrl && (
                         <a href={toEmbeddableUrl(m.mediaUrl, activeConversation?.accountId)} target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary-dark)' }}>📄 Buka dokumen</a>
                       )}
-                      {m.body && <span className="bubble-text">{renderWaText(m.body)}</span>}
+                      {m.body && !/^\[(?:Received )?(?:image|video|audio|document|sticker)\]$/i.test(m.body.trim()) && (
+                        <span className="bubble-text">{renderWaText(m.body)}</span>
+                      )}
                       <span className="bubble-time">
                         {fmtTime(m.createdAt)}
                         {m.direction === 'out' && <MdDoneAll size={14} className="msg-ack sent" />}
@@ -822,7 +845,9 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                     style={p.status === 'failed' ? { cursor: 'pointer' } : undefined}
                     title={p.status === 'failed' ? 'Klik untuk kirim ulang' : undefined}
                   >
-                    <span className="bubble-text">{renderWaText(p.body)}</span>
+                    {p.body && !/^\[(?:Received )?(?:image|video|audio|document|sticker)\]$/i.test(p.body.trim()) && (
+                      <span className="bubble-text">{renderWaText(p.body)}</span>
+                    )}
                     <span className="bubble-time">
                       {fmtTime(p.createdAt)}
                       {p.status === 'sending' && <MdCheck size={14} className="msg-ack sending" />}

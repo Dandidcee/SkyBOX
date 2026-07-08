@@ -187,16 +187,27 @@ app.get('/api/media/:mediaId', async (req, res) => {
       headers: { Authorization: `Bearer ${token}` }
     });
     
-    if (!metaRes.ok) return res.sendStatus(404);
+    if (!metaRes.ok) {
+      const errText = await metaRes.text();
+      console.error(`Meta API Error for mediaId ${mediaId}:`, metaRes.status, errText);
+      return res.status(404).send(`Meta API Error: ${metaRes.status}`);
+    }
     const metaData = await metaRes.json();
-    if (!metaData.url) return res.sendStatus(404);
+    if (!metaData.url) {
+      console.error(`Meta API no URL for mediaId ${mediaId}:`, metaData);
+      return res.status(404).send('No URL returned from Meta');
+    }
 
     // 2. Fetch binary data
     const mediaRes = await fetch(metaData.url, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
-    if (!mediaRes.ok) return res.sendStatus(404);
+    if (!mediaRes.ok) {
+      const errText = await mediaRes.text();
+      console.error(`Meta Media Download Error for URL ${metaData.url}:`, mediaRes.status, errText);
+      return res.status(404).send(`Media Download Error: ${mediaRes.status}`);
+    }
 
     res.set('Content-Type', mediaRes.headers.get('content-type') || 'application/octet-stream');
     
