@@ -23,6 +23,19 @@ export async function sendTextMessage(
   });
 }
 
+export async function sendTemplateMessage(
+  _account: Account,
+  payload: { conversationId: string; phone: string; chatId: string; templateName: string; templateLang: string }
+): Promise<void> {
+  await api.post('/messages', {
+    conversationId: payload.conversationId,
+    body: `[Template: ${payload.templateName}]`,
+    type: 'template',
+    templateName: payload.templateName,
+    templateLang: payload.templateLang
+  });
+}
+
 export async function sendMedia(
   _account: Account,
   payload: { conversationId: string; phone: string; chatId: string; mediaType: MediaType; filename: string; caption?: string; mediaUrl: string; replyToMessageId?: string | null }

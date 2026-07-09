@@ -1045,7 +1045,12 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
           payload.context = { message_id: replyToMessageId };
         }
         
-        if (type === 'image' || type === 'video' || type === 'document' || type === 'audio' || type === 'sticker') {
+        if (type === 'template') {
+          payload.template = {
+            name: req.body.templateName,
+            language: { code: req.body.templateLang || 'id' }
+          };
+        } else if (type === 'image' || type === 'video' || type === 'document' || type === 'audio' || type === 'sticker') {
           // req.body.mediaUrl harus ada dari frontend
           payload[type] = { link: req.body.mediaUrl };
           if (type === 'image' || type === 'video' || type === 'document') {

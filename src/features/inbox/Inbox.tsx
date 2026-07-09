@@ -5,7 +5,7 @@ import {
   MdArrowBack, MdSend, MdInsertEmoticon, MdFlashOn, MdReply,
   MdMic, MdDelete, MdDoneAll, MdErrorOutline,
   MdMoreVert, MdKeyboardArrowDown, MdPlayArrow, MdPause, MdChat,
-  MdChevronLeft, MdChevronRight
+  MdChevronLeft, MdChevronRight, MdAutoAwesome
 } from 'react-icons/md';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -17,7 +17,7 @@ import api from '../../services/api';
 import { useOrders } from '../../hooks/useOrders';
 import { useQuickReplies } from '../../hooks/useQuickReplies';
 import { useContactMutations } from '../../hooks/useContacts';
-import { setConversationHandler, sendTextMessage, sendMedia } from '../../services/n8n';
+import { setConversationHandler, sendTextMessage, sendMedia, sendTemplateMessage } from '../../services/n8n';
 import { deleteConversations } from '../../services/conversations';
 import ContactPanel from './ContactPanel';
 import { OngkirCalculator } from '../ongkir/Ongkir';
@@ -236,6 +236,12 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   // State untuk Voice Note
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  
+  // State untuk Modal Template Meta
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [templateLang, setTemplateLang] = useState('id');
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<number | null>(null);
@@ -491,6 +497,32 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     } catch (err) {
       qc.setQueryData(key, prev); // rollback
       showToast(err instanceof Error ? err.message : 'Gagal menghubungi N8N, status dikembalikan.');
+    }
+  };
+
+  // Kirim Pesan Template Meta
+  const handleSendTemplateMessage = async () => {
+    const tName = templateName.trim();
+    if (!tName || !activeConversation || !account) return;
+    
+    const tempId = `tmp-${tempIdRef.current++}`;
+    const convId = activeConversation.id;
+    setPending(prev => [...prev, { id: tempId, conversationId: convId, body: `[Template: ${tName}]`, status: 'sending', createdAt: new Date().toISOString(), type: 'template' as any }]);
+    setShowTemplateModal(false);
+    setTemplateName('');
+    
+    try {
+      await sendTemplateMessage(account, {
+        conversationId: convId,
+        phone: activeConversation.customerPhone,
+        chatId: activeConversation.chatId,
+        templateName: tName,
+        templateLang: templateLang
+      });
+      setPending(prev => prev.map(m => (m.id === tempId ? { ...m, status: 'sent' } : m)));
+    } catch (err) {
+      setPending(prev => prev.map(m => (m.id === tempId ? { ...m, status: 'failed' } : m)));
+      showToast(err instanceof Error ? err.message : 'Gagal mengirim template.');
     }
   };
 
@@ -1231,6 +1263,13 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 >
                   <MdMic size={24} />
                 </button>
+                <button
+                  className="icon-btn text-secondary"
+                  onClick={() => setShowTemplateModal(true)}
+                  title="Kirim Pesan Template Meta"
+                >
+                  <MdAutoAwesome size={24} />
+                </button>
               </>
             )}
             </div>
@@ -1373,6 +1412,59 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
           </div>
         </div>
       )}
+
+      {/* Modal Template Meta */}
+      {showTemplateModal && (
+        <div className="image-preview-modal-overlay">
+          <div className="image-preview-modal" style={{ maxWidth: '400px', backgroundColor: 'var(--color-surface)' }}>
+            <div className="preview-header" style={{ padding: '16px', borderBottom: '1px solid var(--color-border)', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px' }}>Kirim Pesan Template Meta</h3>
+              <button className="preview-close-btn" onClick={() => setShowTemplateModal(false)} style={{ color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px' }}>✕</button>
+            </div>
+            <div className="preview-body" style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <p style={{ margin: 0, fontSize: '14px', color: 'var(--color-text-secondary)' }}>
+                Gunakan ini untuk mengirim pesan pertama ke pelanggan atau mengirim pesan yang sudah di-approve oleh Meta.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '14px', fontWeight: 600 }}>Nama Template *</label>
+                <input
+                  type="text"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder="Contoh: hello_world"
+                  style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-background)', color: 'var(--color-text-primary)' }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '14px', fontWeight: 600 }}>Kode Bahasa *</label>
+                <input
+                  type="text"
+                  value={templateLang}
+                  onChange={(e) => setTemplateLang(e.target.value)}
+                  placeholder="Contoh: id, en_US"
+                  style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-background)', color: 'var(--color-text-primary)' }}
+                />
+              </div>
+            </div>
+            <div className="preview-footer" style={{ padding: '16px', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                className="cat-btn-ghost"
+                onClick={() => setShowTemplateModal(false)}
+              >
+                Batal
+              </button>
+              <button
+                className="cat-btn-primary"
+                onClick={handleSendTemplateMessage}
+                disabled={!templateName.trim()}
+              >
+                Kirim Template
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
