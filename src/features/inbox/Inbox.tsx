@@ -241,6 +241,27 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templateLang, setTemplateLang] = useState('id');
+  const [savedMetaTemplates, setSavedMetaTemplates] = useState<{name: string, lang: string}[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('savedMetaTemplates') || '[]');
+    } catch(e) {
+      return [];
+    }
+  });
+
+  const handleSaveMetaTemplate = () => {
+    if (!templateName.trim()) return;
+    const newTemplate = { name: templateName.trim(), lang: templateLang.trim() || 'id' };
+    const updated = [...savedMetaTemplates.filter(t => t.name !== newTemplate.name), newTemplate];
+    setSavedMetaTemplates(updated);
+    localStorage.setItem('savedMetaTemplates', JSON.stringify(updated));
+  };
+
+  const handleDeleteMetaTemplate = (name: string) => {
+    const updated = savedMetaTemplates.filter(t => t.name !== name);
+    setSavedMetaTemplates(updated);
+    localStorage.setItem('savedMetaTemplates', JSON.stringify(updated));
+  };
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -1416,16 +1437,32 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
       {/* Modal Template Meta */}
       {showTemplateModal && (
-        <div className="image-preview-modal-overlay">
-          <div className="image-preview-modal" style={{ maxWidth: '400px', backgroundColor: 'var(--color-surface)' }}>
-            <div className="preview-header" style={{ padding: '16px', borderBottom: '1px solid var(--color-border)', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px' }}>Kirim Pesan Template Meta</h3>
+        <div className="template-modal-overlay" onClick={() => setShowTemplateModal(false)}>
+          <div className="template-modal" onClick={e => e.stopPropagation()}>
+            <div className="template-modal-header">
+              <h3>Kirim Pesan Template Meta</h3>
               <button className="preview-close-btn" onClick={() => setShowTemplateModal(false)} style={{ color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px' }}>✕</button>
             </div>
-            <div className="preview-body" style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            
+            <div className="template-modal-body">
               <p style={{ margin: 0, fontSize: '14px', color: 'var(--color-text-secondary)' }}>
                 Gunakan ini untuk mengirim pesan pertama ke pelanggan atau mengirim pesan yang sudah di-approve oleh Meta.
               </p>
+
+              {savedMetaTemplates.length > 0 && (
+                <div>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-secondary)', display: 'block', marginBottom: '8px' }}>Template Tersimpan</label>
+                  <div className="saved-templates-list">
+                    {savedMetaTemplates.map(t => (
+                      <div key={t.name} className="saved-template-chip" onClick={() => { setTemplateName(t.name); setTemplateLang(t.lang); }}>
+                        <span>{t.name} ({t.lang})</span>
+                        <button className="delete-chip" onClick={(e) => { e.stopPropagation(); handleDeleteMetaTemplate(t.name); }} title="Hapus Template">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <label style={{ fontSize: '14px', fontWeight: 600 }}>Nama Template *</label>
                 <input
@@ -1447,7 +1484,18 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 />
               </div>
             </div>
-            <div className="preview-footer" style={{ padding: '16px', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+
+            <div className="template-modal-footer">
+              <button 
+                className="btn-secondary" 
+                onClick={handleSaveMetaTemplate}
+                disabled={!templateName.trim()}
+                title="Simpan nama template ini agar tidak perlu mengetik lagi"
+                style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <MdCheck size={16} /> Simpan Template
+              </button>
+              
               <button
                 className="cat-btn-ghost"
                 onClick={() => setShowTemplateModal(false)}
@@ -1459,7 +1507,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 onClick={handleSendTemplateMessage}
                 disabled={!templateName.trim()}
               >
-                Kirim Template
+                Kirim
               </button>
             </div>
           </div>
