@@ -1231,13 +1231,17 @@ app.get('/api/n8n/context/:phoneId', async (req, res) => {
     // 4. Ambil Templates
     const tempResult = await pool.query('SELECT trigger_text, reply_text, image_url, variants FROM templates WHERE account_id = $1', [account.id]);
 
-    // 5. Susun respons untuk N8N
+    // 5. Ambil Promos
+    const promoResult = await pool.query('SELECT title, description FROM promos WHERE account_id = $1', [account.id]);
+
+    // 6. Susun respons untuk N8N
     const context = {
       accountId: account.id,
       accountName: account.name,
       knowledge: knowResult.rows,
       products: prodResult.rows,
-      templates: tempResult.rows
+      templates: tempResult.rows,
+      promos: promoResult.rows
     };
 
     res.json(context);
@@ -1259,13 +1263,15 @@ app.get('/api/n8n/context/account/:accountId', async (req, res) => {
     const knowResult = await pool.query('SELECT title, content FROM knowledge WHERE account_id = $1', [accountId]);
     const prodResult = await pool.query('SELECT name, price, stock, category, description, image_url, variants FROM products WHERE account_id = $1', [accountId]);
     const tempResult = await pool.query('SELECT trigger_text, reply_text, image_url, variants FROM templates WHERE account_id = $1', [accountId]);
+    const promoResult = await pool.query('SELECT title, description FROM promos WHERE account_id = $1', [accountId]);
 
     res.json({
       accountId: account.id,
       accountName: account.name,
       knowledge: knowResult.rows,
       products: prodResult.rows,
-      templates: tempResult.rows
+      templates: tempResult.rows,
+      promos: promoResult.rows
     });
   } catch (err) {
     console.error("N8N Context Account API Error:", err);
