@@ -1226,7 +1226,7 @@ app.get('/api/n8n/context/:phoneId', async (req, res) => {
     const knowResult = await pool.query('SELECT title, content FROM knowledge WHERE account_id = $1', [account.id]);
     
     // 3. Ambil Products / Stock
-    const prodResult = await pool.query('SELECT name, price, stock, category, description FROM products WHERE account_id = $1', [account.id]);
+    const prodResult = await pool.query('SELECT name, price, stock, category, description, image_url, variants FROM products WHERE account_id = $1', [account.id]);
 
     // 4. Ambil Templates
     const tempResult = await pool.query('SELECT trigger_text, reply_text, image_url, variants FROM templates WHERE account_id = $1', [account.id]);
@@ -1257,7 +1257,7 @@ app.get('/api/n8n/context/account/:accountId', async (req, res) => {
     const account = accResult.rows[0];
 
     const knowResult = await pool.query('SELECT title, content FROM knowledge WHERE account_id = $1', [accountId]);
-    const prodResult = await pool.query('SELECT name, price, stock, category, description FROM products WHERE account_id = $1', [accountId]);
+    const prodResult = await pool.query('SELECT name, price, stock, category, description, image_url, variants FROM products WHERE account_id = $1', [accountId]);
     const tempResult = await pool.query('SELECT trigger_text, reply_text, image_url, variants FROM templates WHERE account_id = $1', [accountId]);
 
     res.json({
