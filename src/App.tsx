@@ -173,6 +173,11 @@ function App() {
     if (windowWidth >= 1440) maxAccounts = 4;
     else if (windowWidth >= 1024) maxAccounts = 3;
     else if (windowWidth >= 768) maxAccounts = 2;
+    if (maxAccounts === 1) {
+      setActiveAccountIds([id]);
+      return;
+    }
+
     if (prev.length >= maxAccounts) {
       alert(`Maaf, maksimal yang bisa dibuka di layar Anda sekarang adalah ${maxAccounts} akun.`);
       return;
