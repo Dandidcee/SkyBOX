@@ -1314,7 +1314,7 @@ app.post('/api/n8n/save-message', async (req, res) => {
 app.post('/api/n8n/send-message', async (req, res) => {
   try {
     const { conversationId, body, type, externalMessageId, intent } = req.body;
-    if (!conversationId || !body) return res.status(400).json({ error: 'Missing required fields' });
+    if (!conversationId || body == null) return res.status(400).json({ error: 'Missing required fields' });
 
     // 1. Ambil info akun dan percakapan
     const convInfo = await pool.query(`
