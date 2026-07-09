@@ -612,6 +612,18 @@ app.get('/api/resource/:table/:accountId', authenticateToken, async (req, res) =
     if (check.rows.length === 0) return res.sendStatus(403);
 
     const result = await pool.query(`SELECT * FROM ${table} WHERE account_id = $1 ORDER BY created_at DESC`, [accountId]);
+    
+    // PERBAIKAN DARURAT: Paksa product_ids jadi array khusus untuk tabel promos agar frontend lama tidak crash
+    if (table === 'promos') {
+      const safeRows = result.rows.map(row => {
+        if (!Array.isArray(row.product_ids)) {
+          row.product_ids = [];
+        }
+        return row;
+      });
+      return res.json(safeRows);
+    }
+
     res.json(result.rows);
   } catch (err) {
     console.error(err);
