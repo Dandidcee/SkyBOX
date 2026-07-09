@@ -969,7 +969,15 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
               </span>
             </div>
           </div>
-          <div className="chat-header-actions">
+          <div className="chat-header-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button
+              className="icon-btn text-secondary"
+              onClick={() => setShowTemplateModal(true)}
+              title="Kirim Pesan Template Meta"
+              style={{ backgroundColor: 'var(--color-primary)', color: 'white', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <MdAutoAwesome size={20} />
+            </button>
             <div
               className={`handler-switch ${activeConversation?.handler === 'human' ? 'is-human' : 'is-ai'}`}
               onClick={handleToggleHandler}
@@ -1262,13 +1270,6 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                   title="Mulai Rekam Voice Note"
                 >
                   <MdMic size={24} />
-                </button>
-                <button
-                  className="icon-btn text-secondary"
-                  onClick={() => setShowTemplateModal(true)}
-                  title="Kirim Pesan Template Meta"
-                >
-                  <MdAutoAwesome size={24} />
                 </button>
               </>
             )}
