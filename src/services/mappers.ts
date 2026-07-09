@@ -98,15 +98,23 @@ export const mapKnowledgeRow = (r: KnowledgeRow): Knowledge => ({
   tags: r.tags,
 });
 
-export const mapPromoRow = (r: PromoRow): Promo => ({
-  id: r.id,
-  accountId: r.account_id,
-  title: r.title,
-  description: r.description,
-  bannerUrl: r.banner_url || '',
-  productIds: r.product_ids || [],
-  isActive: r.is_active,
-});
+export const mapPromoRow = (r: PromoRow): Promo => {
+  let pIds = r.product_ids;
+  if (typeof pIds === 'string') {
+    try { pIds = JSON.parse(pIds); } catch { pIds = []; }
+  }
+  if (!Array.isArray(pIds)) pIds = [];
+
+  return {
+    id: r.id,
+    accountId: r.account_id,
+    title: r.title,
+    description: r.description,
+    bannerUrl: r.banner_url || '',
+    productIds: pIds,
+    isActive: r.is_active,
+  };
+};
 
 export const mapQuickReplyRow = (r: QuickReplyRow): QuickReply => ({
   id: r.id,
