@@ -1140,7 +1140,7 @@ app.post('/api/n8n/match-template', async (req, res) => {
     const account_id = convResult.rows[0].account_id;
 
     // Ambil template untuk akun ini
-    const tmplResult = await pool.query('SELECT trigger_text, reply_text, image_url FROM templates WHERE account_id = $1', [account_id]);
+    const tmplResult = await pool.query('SELECT trigger_text, reply_text, image_url, variants FROM templates WHERE account_id = $1', [account_id]);
     const templates = tmplResult.rows;
 
     const msgLower = message.toLowerCase();
@@ -1165,7 +1165,8 @@ app.post('/api/n8n/match-template', async (req, res) => {
         matched: true, 
         template: {
           reply_text: matchedTemplate.reply_text,
-          image_url: matchedTemplate.image_url
+          image_url: matchedTemplate.image_url,
+          variants: matchedTemplate.variants
         } 
       });
     }
