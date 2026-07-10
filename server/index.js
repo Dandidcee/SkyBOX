@@ -1221,9 +1221,22 @@ app.put('/api/n8n/conversations/:id/handler', async (req, res) => {
     const result = await pool.query(updateQuery, [handler, id]);
     
     if (result.rows.length === 0) return res.status(404).json({ error: 'Conversation not found' });
+    
+    const conv = result.rows[0];
 
-    io.to(`account_${result.rows[0].account_id}`).emit('conversation_updated', result.rows[0]);
-    res.json({ success: true, conversation: result.rows[0] });
+    if (handler === 'human') {
+      const notifMsg = `Mode AI dinonaktifkan (Chat butuh penanganan Admin).`;
+      const notifQuery = `
+        INSERT INTO notifications (account_id, level, message, conversation_id, customer_phone)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING *
+      `;
+      const notifRes = await pool.query(notifQuery, [conv.account_id, 'warning', notifMsg, conv.id, conv.customer_phone]);
+      io.to(`account_${conv.account_id}`).emit('new_notification', notifRes.rows[0]);
+    }
+
+    io.to(`account_${conv.account_id}`).emit('conversation_updated', conv);
+    res.json({ success: true, conversation: conv });
   } catch (err) {
     console.error("N8N Update Handler API Error:", err);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -1340,7 +1353,7 @@ app.post('/api/n8n/save-message', async (req, res) => {
 // Dengan ini N8N tidak perlu menyimpan token Meta, cukup panggil API ini
 app.post('/api/n8n/send-message', async (req, res) => {
   try {
-    const { conversationId, body, type, externalMessageId, intent } = req.body;
+    const { conversationId, body, type, externalMessageId, intent, confidence } = req.body;
     if (!conversationId || body == null) return res.status(400).json({ error: 'Missing required fields' });
 
     // 1. Ambil info akun dan percakapan
@@ -1404,7 +1417,7 @@ app.post('/api/n8n/send-message', async (req, res) => {
     const result = await pool.query(insertMsg, [conversationId, metaMessageId, type || 'text', body, req.body.mediaUrl || null]);
     const newMessage = result.rows[0];
 
-    // 4. Update conversation preview dan order_status (jika ada intent)
+    // 4. Update conversation preview, order_status, dan confidence
     let updateConvQuery = `
       UPDATE conversations 
       SET last_preview = $1, last_time = NOW()
@@ -1412,8 +1425,13 @@ app.post('/api/n8n/send-message', async (req, res) => {
     const updateValues = [body.substring(0, 100), conversationId];
     
     if (intent && ['none', 'lead', 'waiting_payment', 'closing', 'complaint'].includes(intent)) {
-      updateConvQuery += `, order_status = $3`;
+      updateConvQuery += `, order_status = $${updateValues.length + 1}`;
       updateValues.push(intent);
+    }
+    
+    if (confidence !== undefined && confidence !== null) {
+      updateConvQuery += `, confidence = $${updateValues.length + 1}`;
+      updateValues.push(Number(confidence));
     }
     
     updateConvQuery += `

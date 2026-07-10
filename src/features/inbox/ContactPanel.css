@@ -108,7 +108,7 @@
   padding: 2px 10px;
   border-radius: 999px;
 }
-.cp-badge.ai { background: color-mix(in srgb, var(--color-primary) 16%, transparent); color: var(--color-primary-dark); }
+.cp-badge.ai { background: color-mix(in srgb, #EAB308 16%, transparent); color: #B48500; }
 .cp-badge.human { background: color-mix(in srgb, var(--color-warning) 18%, transparent); color: var(--color-warning); }
 
 .cp-analyze-btn {

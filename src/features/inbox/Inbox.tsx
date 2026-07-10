@@ -58,12 +58,13 @@ const toEmbeddableUrl = (url: string | null, accountId?: string | null) => {
 
 // No longer used since we use FormData for uploads
 
-const ProgressAvatar = ({ name, confidence }: { name: string; confidence: number }) => {
+const ProgressAvatar = ({ name, confidence, handler }: { name: string; confidence: number; handler?: string }) => {
   const ringColor = getConfidenceColor(confidence);
   const radius = 21;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (confidence / 100) * circumference;
   const initial = (name || '?').charAt(0).toUpperCase();
+  const avatarBg = handler === 'ai' ? '#EAB308' : 'var(--color-primary)';
 
   return (
     <div style={{ position: 'relative', width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -75,7 +76,7 @@ const ProgressAvatar = ({ name, confidence }: { name: string; confidence: number
           strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round"
         />
       </svg>
-      <div className="chat-avatar" style={{ backgroundColor: 'var(--color-primary)', width: 36, height: 36, fontSize: '16px', zIndex: 1, margin: 0 }}>
+      <div className="chat-avatar" style={{ backgroundColor: avatarBg, width: 36, height: 36, fontSize: '16px', zIndex: 1, margin: 0 }}>
         {initial}
       </div>
     </div>
@@ -891,7 +892,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                       />
                     </div>
                   )}
-                  <ProgressAvatar name={conv.customerName || conv.customerPhone} confidence={conv.confidence} />
+                  <ProgressAvatar name={conv.customerName || conv.customerPhone} confidence={conv.confidence} handler={conv.handler} />
                   <div className="chat-info">
                     <div className="chat-name-time">
                       <span className="chat-name">{conv.customerName || conv.customerPhone}</span>

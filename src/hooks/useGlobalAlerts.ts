@@ -61,6 +61,25 @@ export function useGlobalAlerts(accounts: Account[], enabled: boolean) {
         playEventSound('incoming');
       }
     });
+    socket.on('new_notification', (notifRow) => {
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+      
+      let level = notifRow.level || 'info';
+      if (level === 'warning') {
+        playEventSound('lowConfidence');
+      } else if (level === 'error') {
+        playEventSound('error');
+      } else {
+        playEventSound('incoming');
+      }
+      notify(notifRow.message, level);
+    });
+
+    socket.on('order_created', (orderRow) => {
+      qc.invalidateQueries({ queryKey: ['orders'] });
+      notify(`Order baru berhasil dibuat (Status: ${orderRow.status})!`, 'success');
+      playEventSound('incoming'); // Anda bisa mengganti dengan suara khusus order jika nanti ditambah
+    });
 
     return () => {
       socket.off('connect');
@@ -68,6 +87,8 @@ export function useGlobalAlerts(accounts: Account[], enabled: boolean) {
       socket.off('connect_error');
       socket.off('conversation_updated');
       socket.off('new_message');
+      socket.off('new_notification');
+      socket.off('order_created');
       disconnectSocket();
     };
   }, [accounts, qc, enabled]);
