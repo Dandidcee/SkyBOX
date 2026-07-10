@@ -1424,9 +1424,12 @@ app.post('/api/n8n/send-message', async (req, res) => {
     `;
     const updateValues = [body.substring(0, 100), conversationId];
     
-    if (intent && ['none', 'lead', 'waiting_payment', 'closing', 'complaint'].includes(intent)) {
-      updateConvQuery += `, order_status = $${updateValues.length + 1}`;
-      updateValues.push(intent);
+    if (intent) {
+      const cleanIntent = intent.toLowerCase().trim();
+      if (['none', 'lead', 'waiting_payment', 'closing', 'complaint'].includes(cleanIntent)) {
+        updateConvQuery += `, order_status = $${updateValues.length + 1}`;
+        updateValues.push(cleanIntent);
+      }
     }
     
     if (confidence !== undefined && confidence !== null) {

@@ -72,7 +72,7 @@ export function useGlobalAlerts(accounts: Account[], enabled: boolean) {
       } else {
         playEventSound('incoming');
       }
-      notify(notifRow.message, level);
+      notify(notifRow.message, level === 'warning' ? 'warn' : level);
     });
 
     socket.on('order_created', (orderRow) => {
