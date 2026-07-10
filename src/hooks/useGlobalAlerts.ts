@@ -75,7 +75,7 @@ export function useGlobalAlerts(accounts: Account[], enabled: boolean) {
       notify(notifRow.message, level === 'warning' ? 'warn' : level);
     });
 
-    socket.on('order_created', (orderRow) => {
+    socket.on('order_created', () => {
       qc.invalidateQueries({ queryKey: ['orders'] });
     });
 
