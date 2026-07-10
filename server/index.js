@@ -1077,9 +1077,11 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
         const metaData = await metaRes.json();
         if (metaData.error) {
           console.error('Meta API Error:', metaData.error);
+          return res.status(400).json({ error: `Gagal dikirim (Meta API): ${metaData.error.message || 'Format/Ukuran tidak didukung'}` });
         }
       } catch (e) {
         console.error('Failed to send message to Meta API:', e);
+        return res.status(500).json({ error: 'Gagal menghubungi server WhatsApp Meta.' });
       }
     }
     
@@ -1327,16 +1329,16 @@ app.get('/api/n8n/context/account/:accountId', async (req, res) => {
 // Endpoint untuk menyimpan balasan dari AI N8N ke database
 app.post('/api/n8n/save-message', async (req, res) => {
   try {
-    const { conversationId, body, type, direction = 'out', externalMessageId } = req.body;
-    if (!conversationId || !body) return res.status(400).json({ error: 'Missing required fields' });
+    const { conversationId, body, type, direction = 'out', externalMessageId, mediaUrl } = req.body;
+    if (!conversationId || body == null) return res.status(400).json({ error: 'Missing required fields' });
     
     const messageId = externalMessageId || `n8n_out_${Date.now()}`;
     const insertMsg = `
-      INSERT INTO messages (conversation_id, external_message_id, direction, type, content)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO messages (conversation_id, external_message_id, direction, type, content, media_url)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
-    const result = await pool.query(insertMsg, [conversationId, messageId, direction, type || 'text', body]);
+    const result = await pool.query(insertMsg, [conversationId, messageId, direction, type || 'text', body, mediaUrl || null]);
     
     // Update conversation preview
     await pool.query(`

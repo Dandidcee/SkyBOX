@@ -182,6 +182,8 @@ type PendingMsg = {
   body: string;
   status: 'sending' | 'sent' | 'failed';
   createdAt: string;
+  mediaType?: 'image' | 'video' | 'audio' | 'document' | 'sticker';
+  mediaUrl?: string;
 };
 
 const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange, initialConversationId, onNavigate }: InboxProps) => {
@@ -588,19 +590,30 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     }
   };
 
-  // Kirim ulang pesan yang gagal (klik bubble merah).
   const retryPending = async (p: PendingMsg) => {
     if (!account) return;
     const conv = conversations.find(c => c.id === p.conversationId);
     if (!conv) return;
     setPending(prev => prev.map(m => (m.id === p.id ? { ...m, status: 'sending' } : m)));
     try {
-      await sendTextMessage(account, {
-        conversationId: conv.id,
-        phone: conv.customerPhone,
-        chatId: conv.chatId,
-        text: p.body,
-      });
+      if (p.mediaType && p.mediaUrl) {
+        await sendMedia(account, {
+          conversationId: conv.id,
+          phone: conv.customerPhone,
+          chatId: conv.chatId,
+          mediaType: p.mediaType as any,
+          filename: 'retry',
+          caption: p.body && !/^\[(?:Received )?(?:image|video|audio|document|sticker)\]$/i.test(p.body.trim()) ? p.body : undefined,
+          mediaUrl: p.mediaUrl,
+        });
+      } else {
+        await sendTextMessage(account, {
+          conversationId: conv.id,
+          phone: conv.customerPhone,
+          chatId: conv.chatId,
+          text: p.body,
+        });
+      }
       setPending(prev => prev.map(m => (m.id === p.id ? { ...m, status: 'sent' } : m)));
     } catch {
       setPending(prev => prev.map(m => (m.id === p.id ? { ...m, status: 'failed' } : m)));
@@ -665,22 +678,42 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
       else if (file.type.startsWith('video/')) mediaType = 'video';
       else if (file.type.startsWith('audio/')) mediaType = 'audio';
 
-      // Kirim URL ke N8N
-      const replyId = replyToMessage?.externalId || null;
-      await sendMedia(account, {
-        conversationId: activeConversation.id,
-        phone: activeConversation.customerPhone,
-        chatId: activeConversation.chatId,
-        mediaType: mediaType as 'image' | 'video' | 'audio' | 'document',
-        filename: file.name,
-        caption: (fileToUpload ? undefined : fileCaption.trim()) || undefined,
-        mediaUrl: uploadData.url,
-        replyToMessageId: replyId,
-      });
+      const tempId = `tmp-${tempIdRef.current++}`;
+      const convId = activeConversation.id;
+      const finalCaption = (fileToUpload ? undefined : fileCaption.trim()) || '';
+      
+      setPending(prev => [...prev, { 
+        id: tempId, 
+        conversationId: convId, 
+        body: finalCaption, 
+        status: 'sending', 
+        createdAt: new Date().toISOString(),
+        mediaType: mediaType as any,
+        mediaUrl: uploadData.url
+      }]);
 
       setMessageText('');
       setReplyToMessage(null);
       cancelPreview();
+
+      // Kirim URL ke N8N
+      const replyId = replyToMessage?.externalId || null;
+      try {
+        await sendMedia(account, {
+          conversationId: convId,
+          phone: activeConversation.customerPhone,
+          chatId: activeConversation.chatId,
+          mediaType: mediaType as 'image' | 'video' | 'audio' | 'document',
+          filename: file.name,
+          caption: finalCaption || undefined,
+          mediaUrl: uploadData.url,
+          replyToMessageId: replyId,
+        });
+        setPending(prev => prev.map(m => (m.id === tempId ? { ...m, status: 'sent' } : m)));
+      } catch (err) {
+        setPending(prev => prev.map(m => (m.id === tempId ? { ...m, status: 'failed' } : m)));
+        showToast(err instanceof Error ? err.message : 'Gagal mengirim media.');
+      }
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Gagal mengirim media.');
     } finally {
