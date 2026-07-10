@@ -1050,6 +1050,9 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
             name: req.body.templateName,
             language: { code: req.body.templateLang || 'id' }
           };
+          if (req.body.templateComponents && Array.isArray(req.body.templateComponents)) {
+            payload.template.components = req.body.templateComponents;
+          }
         } else if (type === 'image' || type === 'video' || type === 'document' || type === 'audio' || type === 'sticker') {
           // req.body.mediaUrl harus ada dari frontend
           payload[type] = { link: req.body.mediaUrl };
@@ -1575,6 +1578,16 @@ app.post('/api/webhook/meta', async (req, res) => {
         let mediaUrl = null;
         if (msgType === 'text') {
           msgBody = msg.text.body;
+        } else if (msgType === 'interactive') {
+          if (msg.interactive?.type === 'button_reply') {
+            msgBody = msg.interactive.button_reply.title;
+          } else if (msg.interactive?.type === 'list_reply') {
+            msgBody = msg.interactive.list_reply.title;
+          } else {
+            msgBody = '[Interactive]';
+          }
+        } else if (msgType === 'button') {
+          msgBody = msg.button?.text || '[Button Click]';
         } else if (isMedia) {
           const mediaObj = msg[msgType];
           msgBody = mediaObj?.caption || `[Received ${msgType}]`;

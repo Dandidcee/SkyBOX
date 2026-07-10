@@ -26,13 +26,36 @@
   align-items: center;
 }
 
+.contacts-actions .btn-primary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.contacts-actions .btn-primary:hover {
+  opacity: 0.9;
+}
+
 .account-selector {
-  padding: 8px 12px;
+  padding: 0 12px;
+  height: 38px;
   border-radius: 6px;
   border: 1px solid var(--color-border);
-  background: var(--color-bg-elevated);
+  background: var(--color-surface, #fff);
   color: var(--color-text-primary);
-  font-size: 14px;
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
 }
 
 .contacts-table {

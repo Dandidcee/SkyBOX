@@ -241,6 +241,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templateLang, setTemplateLang] = useState('id');
+  const [templateVariables, setTemplateVariables] = useState('');
   const [savedMetaTemplates, setSavedMetaTemplates] = useState<{name: string, lang: string}[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('savedMetaTemplates') || '[]');
@@ -532,13 +533,26 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     setShowTemplateModal(false);
     setTemplateName('');
     
+    let templateComponents: any[] | undefined = undefined;
+    if (templateVariables.trim()) {
+      const vars = templateVariables.split(',').map(v => ({ type: 'text', text: v.trim() }));
+      templateComponents = [
+        {
+          type: 'body',
+          parameters: vars
+        }
+      ];
+    }
+    setTemplateVariables('');
+    
     try {
       await sendTemplateMessage(account, {
         conversationId: convId,
         phone: activeConversation.customerPhone,
         chatId: activeConversation.chatId,
         templateName: tName,
-        templateLang: templateLang
+        templateLang: templateLang,
+        templateComponents: templateComponents
       });
       setPending(prev => prev.map(m => (m.id === tempId ? { ...m, status: 'sent' } : m)));
     } catch (err) {
@@ -970,15 +984,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <h3>{activeConversation ? (activeConversation.customerName || activeConversation.customerPhone) : 'Pilih percakapan'}</h3>
-                {!isSavedContact && activeConversation && (
-                  <span 
-                    style={{ fontSize: '11px', backgroundColor: 'var(--color-primary)', color: 'white', padding: '2px 8px', borderRadius: '12px', cursor: 'pointer', fontWeight: 600 }}
-                    onClick={(e) => { e.stopPropagation(); setAddContactPhone(activeConversation.customerPhone); }}
-                    title="Simpan Kontak"
-                  >
-                    Tambah Kontak
-                  </span>
-                )}
+                {/* Tambah Kontak dipindah ke ContactPanel */}
               </div>
               <span className="chat-status text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', fontSize: '12px' }}>
                 {isMultiView && account ? (
@@ -999,17 +1005,19 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             >
               <MdAutoAwesome size={20} />
             </button>
-            <div
-              className={`handler-switch ${activeConversation?.handler === 'human' ? 'is-human' : 'is-ai'}`}
-              onClick={handleToggleHandler}
-              title={activeConversation?.handler === 'human' ? 'Klik untuk kembalikan ke AI' : 'Klik untuk ambil alih (Mode Manusia)'}
-              role="switch"
-              aria-checked={activeConversation?.handler === 'human'}
-            >
-              <div className="handler-switch-thumb"></div>
-              <span className="handler-switch-option opt-ai">AI</span>
-              <span className="handler-switch-option opt-human">Human</span>
-            </div>
+            {account?.aiEnabled && (
+              <div
+                className={`handler-switch ${activeConversation?.handler === 'human' ? 'is-human' : 'is-ai'}`}
+                onClick={handleToggleHandler}
+                title={activeConversation?.handler === 'human' ? 'Klik untuk kembalikan ke AI' : 'Klik untuk ambil alih (Mode Manusia)'}
+                role="switch"
+                aria-checked={activeConversation?.handler === 'human'}
+              >
+                <div className="handler-switch-thumb"></div>
+                <span className="handler-switch-option opt-ai">AI</span>
+                <span className="handler-switch-option opt-human">Human</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1389,6 +1397,8 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
           conversation={activeConversation}
           latestOrder={latestOrder}
           onClose={() => setIsContactOpen(false)}
+          isSavedContact={isSavedContact}
+          onAddContact={() => setAddContactPhone(activeConversation.customerPhone)}
         />
       )}
 
@@ -1437,21 +1447,23 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
       {/* Modal Template Meta */}
       {showTemplateModal && (
-        <div className="template-modal-overlay" onClick={() => setShowTemplateModal(false)}>
-          <div className="template-modal" onClick={e => e.stopPropagation()}>
-            <div className="template-modal-header">
+        <div className="inbox-modal-overlay" onClick={() => setShowTemplateModal(false)}>
+          <div className="inbox-modal" style={{ maxWidth: '420px' }} onClick={e => e.stopPropagation()}>
+            <div className="inbox-modal-header">
               <h3>Kirim Pesan Template Meta</h3>
-              <button className="preview-close-btn" onClick={() => setShowTemplateModal(false)} style={{ color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px' }}>✕</button>
+              <button className="inbox-modal-close-btn" onClick={() => setShowTemplateModal(false)}>
+                <MdClose size={20} />
+              </button>
             </div>
             
-            <div className="template-modal-body">
-              <p style={{ margin: 0, fontSize: '14px', color: 'var(--color-text-secondary)' }}>
+            <div className="inbox-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: '1.5' }}>
                 Gunakan ini untuk mengirim pesan pertama ke pelanggan atau mengirim pesan yang sudah di-approve oleh Meta.
               </p>
 
               {savedMetaTemplates.length > 0 && (
                 <div>
-                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-secondary)', display: 'block', marginBottom: '8px' }}>Template Tersimpan</label>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Template Tersimpan</label>
                   <div className="saved-templates-list">
                     {savedMetaTemplates.map(t => (
                       <div key={t.name} className="saved-template-chip" onClick={() => { setTemplateName(t.name); setTemplateLang(t.lang); }}>
@@ -1463,49 +1475,64 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 </div>
               )}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontSize: '14px', fontWeight: 600 }}>Nama Template *</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 600 }}>Nama Template <span style={{color: 'var(--color-error)'}}>*</span></label>
                 <input
                   type="text"
                   value={templateName}
                   onChange={(e) => setTemplateName(e.target.value)}
                   placeholder="Contoh: hello_world"
-                  style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-background)', color: 'var(--color-text-primary)' }}
+                  className="chat-input"
+                  style={{ width: '100%', border: '1px solid var(--color-border)', borderRadius: '8px', height: '40px', padding: '0 12px' }}
                 />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontSize: '14px', fontWeight: 600 }}>Kode Bahasa *</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 600 }}>Kode Bahasa <span style={{color: 'var(--color-error)'}}>*</span></label>
                 <input
                   type="text"
                   value={templateLang}
                   onChange={(e) => setTemplateLang(e.target.value)}
                   placeholder="Contoh: id, en_US"
-                  style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-background)', color: 'var(--color-text-primary)' }}
+                  className="chat-input"
+                  style={{ width: '100%', border: '1px solid var(--color-border)', borderRadius: '8px', height: '40px', padding: '0 12px' }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 600 }}>Variabel (Opsional)</label>
+                <textarea
+                  value={templateVariables}
+                  onChange={(e) => setTemplateVariables(e.target.value)}
+                  placeholder="Pisahkan dengan koma. Contoh: Sepatu, JP1234, J&T"
+                  rows={2}
+                  className="chat-input"
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--color-border)', resize: 'vertical' }}
                 />
               </div>
             </div>
 
-            <div className="template-modal-footer">
+            <div style={{ padding: '16px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
               <button 
                 className="btn-secondary" 
                 onClick={handleSaveMetaTemplate}
                 disabled={!templateName.trim()}
-                title="Simpan nama template ini agar tidak perlu mengetik lagi"
-                style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}
+                title="Simpan template ini"
+                style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '6px 10px', height: '36px' }}
               >
-                <MdCheck size={16} /> Simpan Template
+                <MdCheck size={16} /> Simpan
               </button>
               
               <button
-                className="cat-btn-ghost"
+                className="btn-secondary"
                 onClick={() => setShowTemplateModal(false)}
+                style={{ height: '36px', fontSize: '13px', padding: '6px 16px' }}
               >
                 Batal
               </button>
               <button
-                className="cat-btn-primary"
+                className="btn-primary"
                 onClick={handleSendTemplateMessage}
                 disabled={!templateName.trim()}
+                style={{ height: '36px', fontSize: '13px', padding: '6px 16px' }}
               >
                 Kirim
               </button>

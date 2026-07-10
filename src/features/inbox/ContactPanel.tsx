@@ -9,6 +9,8 @@ interface ContactPanelProps {
   conversation: Conversation;
   latestOrder: Order | null;
   onClose: () => void;
+  isSavedContact?: boolean;
+  onAddContact?: () => void;
 }
 
 const confColor = (p: number) => (p >= 85 ? '#3B82F6' : p >= 75 ? '#EAB308' : '#EF4444');
@@ -17,7 +19,7 @@ const statusLabel: Record<string, string> = {
   none: 'Belum ada', lead: 'Lead', waiting_payment: 'Menunggu Bayar', closing: 'Closing',
 };
 
-const ContactPanel = ({ account, conversation, latestOrder, onClose }: ContactPanelProps) => {
+const ContactPanel = ({ account, conversation, latestOrder, onClose, isSavedContact, onAddContact }: ContactPanelProps) => {
   const [summary, setSummary] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,27 +71,39 @@ const ContactPanel = ({ account, conversation, latestOrder, onClose }: ContactPa
             <span className="cp-row-value">{conversation.customerPhone}</span>
             <button className="cp-copy" onClick={copyPhone} title="Salin nomor"><MdContentCopy size={14} /></button>
           </div>
+          {!isSavedContact && onAddContact && (
+            <button 
+              onClick={onAddContact} 
+              style={{ marginTop: '12px', width: '100%', padding: '8px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', transition: 'opacity 0.2s' }}
+              onMouseOver={e => e.currentTarget.style.opacity = '0.9'}
+              onMouseOut={e => e.currentTarget.style.opacity = '1'}
+            >
+              Simpan ke Kontak
+            </button>
+          )}
         </div>
 
         {/* Status */}
-        <div className="cp-section">
-          <div className="cp-stat">
-            <span className="cp-stat-label">Penanganan</span>
-            <span className={`cp-badge ${conversation.handler === 'human' ? 'human' : 'ai'}`}>
-              {conversation.handler === 'human' ? 'Manusia' : 'AI'}
-            </span>
+        {account.aiEnabled && (
+          <div className="cp-section">
+            <div className="cp-stat">
+              <span className="cp-stat-label">Penanganan</span>
+              <span className={`cp-badge ${conversation.handler === 'human' ? 'human' : 'ai'}`}>
+                {conversation.handler === 'human' ? 'Manusia' : 'AI'}
+              </span>
+            </div>
+            <div className="cp-stat">
+              <span className="cp-stat-label">Confidence</span>
+              <span className="cp-conf" style={{ color: confColor(conversation.confidence) }}>
+                {conversation.confidence} · {confLabel(conversation.confidence)}
+              </span>
+            </div>
+            <div className="cp-stat">
+              <span className="cp-stat-label">Fase Order</span>
+              <span className="cp-stat-value">{statusLabel[conversation.orderStatus] ?? conversation.orderStatus}</span>
+            </div>
           </div>
-          <div className="cp-stat">
-            <span className="cp-stat-label">Confidence</span>
-            <span className="cp-conf" style={{ color: confColor(conversation.confidence) }}>
-              {conversation.confidence} · {confLabel(conversation.confidence)}
-            </span>
-          </div>
-          <div className="cp-stat">
-            <span className="cp-stat-label">Fase Order</span>
-            <span className="cp-stat-value">{statusLabel[conversation.orderStatus] ?? conversation.orderStatus}</span>
-          </div>
-        </div>
+        )}
 
         {/* Order terakhir */}
         {latestOrder && (
@@ -119,15 +133,17 @@ const ContactPanel = ({ account, conversation, latestOrder, onClose }: ContactPa
         )}
 
         {/* Analisis AI */}
-        <div className="cp-section">
-          <button className="cp-analyze-btn" onClick={handleAnalyze} disabled={loading}>
-            <MdAutoAwesome size={18} />
-            <span>{loading ? 'Menganalisis…' : 'Analisis AI (Rangkum Percakapan)'}</span>
-          </button>
-          <p className="cp-analyze-hint">Rangkum percakapan biar cepat paham konteks saat ambil alih.</p>
-          {error && <div className="cp-error">{error}</div>}
-          {summary && <div className="cp-summary">{summary}</div>}
-        </div>
+        {account.aiEnabled && (
+          <div className="cp-section">
+            <button className="cp-analyze-btn" onClick={handleAnalyze} disabled={loading}>
+              <MdAutoAwesome size={18} />
+              <span>{loading ? 'Menganalisis…' : 'Analisis AI (Rangkum Percakapan)'}</span>
+            </button>
+            <p className="cp-analyze-hint">Rangkum percakapan biar cepat paham konteks saat ambil alih.</p>
+            {error && <div className="cp-error">{error}</div>}
+            {summary && <div className="cp-summary">{summary}</div>}
+          </div>
+        )}
       </div>
     </div>
   );
