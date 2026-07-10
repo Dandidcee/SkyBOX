@@ -1731,7 +1731,7 @@ app.post('/api/webhook/meta', async (req, res) => {
 
           // 4. Meneruskan ke N8N JIKA handler adalah AI, BUKAN Media, dan ai_enabled adalah true
           // Jika isMedia = true, kita otomatis human dan TIDAK kirim webhook.
-          if (!isMedia && newHandler === 'ai' && account.ai_enabled) {
+          if (!isMedia && newHandler === 'ai' && account.ai_enabled !== false) {
             const n8nWebhookUrl = account.n8n_webhook_url;
             if (n8nWebhookUrl) {
               try {
