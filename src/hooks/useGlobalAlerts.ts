@@ -77,8 +77,6 @@ export function useGlobalAlerts(accounts: Account[], enabled: boolean) {
 
     socket.on('order_created', (orderRow) => {
       qc.invalidateQueries({ queryKey: ['orders'] });
-      notify(`Order baru berhasil dibuat (Status: ${orderRow.status})!`, 'success');
-      playEventSound('incoming'); // Anda bisa mengganti dengan suara khusus order jika nanti ditambah
     });
 
     return () => {

@@ -1197,10 +1197,21 @@ app.post('/api/n8n/orders', async (req, res) => {
     // Update order status di tabel conversations juga
     await pool.query('UPDATE conversations SET order_status = $1 WHERE id = $2', [status, conversation_id]);
     
-    // Emit ke socket jika butuh update UI
-    const convInfo = await pool.query('SELECT account_id FROM conversations WHERE id = $1', [conversation_id]);
+    // Emit ke socket jika butuh update UI & Catat di Notifikasi
+    const convInfo = await pool.query('SELECT account_id, customer_phone FROM conversations WHERE id = $1', [conversation_id]);
     if (convInfo.rows.length > 0) {
-      io.to(`account_${convInfo.rows[0].account_id}`).emit('order_created', result.rows[0]);
+      const conv = convInfo.rows[0];
+      
+      const notifMsg = `Order baru berhasil dibuat (Status: ${status})`;
+      const notifQuery = `
+        INSERT INTO notifications (account_id, level, message, conversation_id, customer_phone)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING *
+      `;
+      const notifRes = await pool.query(notifQuery, [conv.account_id, 'success', notifMsg, conversation_id, conv.customer_phone]);
+      io.to(`account_${conv.account_id}`).emit('new_notification', notifRes.rows[0]);
+      
+      io.to(`account_${conv.account_id}`).emit('order_created', result.rows[0]);
     }
 
     res.json({ success: true, order: result.rows[0] });
