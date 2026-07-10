@@ -1725,7 +1725,7 @@ app.post('/api/webhook/meta', async (req, res) => {
               VALUES ($1, $2, $3, $4, $5)
               RETURNING *
             `;
-            const notifRes = await pool.query(notifQuery, [account.id, 'warning', notifMsg, conversation.id, from]);
+            const notifRes = await pool.query(notifQuery, [account.id, 'warning', notifMsg, conversation.id, normPhone]);
             io.to(`account_${account.id}`).emit('new_notification', notifRes.rows[0]);
           }
 
@@ -1744,7 +1744,7 @@ app.post('/api/webhook/meta', async (req, res) => {
                     meta_payload: body,
                     conversation_id: conversation.id,
                     account_id: account.id,
-                    customer_phone: from
+                    customer_phone: normPhone
                   })
                 }).catch(e => console.error(`Failed to forward webhook to N8N: ${e.message}`));
                 
