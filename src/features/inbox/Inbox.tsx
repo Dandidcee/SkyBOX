@@ -64,7 +64,7 @@ const ProgressAvatar = ({ name, confidence, handler }: { name: string; confidenc
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (confidence / 100) * circumference;
   const initial = (name || '?').charAt(0).toUpperCase();
-  const avatarBg = handler === 'ai' ? '#EAB308' : 'var(--color-primary)';
+  const avatarBg = handler === 'ai' ? 'var(--color-primary)' : '#EAB308';
 
   return (
     <div style={{ position: 'relative', width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -1012,7 +1012,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             }}>
               <MdArrowBack size={24} />
             </button>
-            <div className="chat-avatar" style={{ backgroundColor: 'var(--color-primary)' }}>
+            <div className="chat-avatar" style={{ backgroundColor: activeConversation?.handler === 'ai' ? 'var(--color-primary)' : '#EAB308' }}>
               {(activeConversation?.customerName || activeConversation?.customerPhone || 'S').charAt(0)}
             </div>
             <div>
