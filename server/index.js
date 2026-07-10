@@ -1632,6 +1632,18 @@ app.post('/api/webhook/meta', async (req, res) => {
           io.to(`account_${account.id}`).emit('new_message', savedMsgResult.rows[0]);
           io.to(`account_${account.id}`).emit('conversation_updated', updatedConvResult.rows[0]);
 
+          // Jika ada pergantian dari AI ke Human karena Media, buat Notifikasi
+          if (isMedia && conversation.handler === 'ai') {
+            const notifMsg = `Pelanggan mengirimkan ${msgType}. Chat otomatis dialihkan ke Admin.`;
+            const notifQuery = `
+              INSERT INTO notifications (account_id, level, message, conversation_id, customer_phone)
+              VALUES ($1, $2, $3, $4, $5)
+              RETURNING *
+            `;
+            const notifRes = await pool.query(notifQuery, [account.id, 'warning', notifMsg, conversation.id, from]);
+            io.to(`account_${account.id}`).emit('new_notification', notifRes.rows[0]);
+          }
+
           // 4. Meneruskan ke N8N JIKA handler adalah AI, BUKAN Media, dan ai_enabled adalah true
           // Jika isMedia = true, kita otomatis human dan TIDAK kirim webhook.
           if (!isMedia && newHandler === 'ai' && account.ai_enabled) {
