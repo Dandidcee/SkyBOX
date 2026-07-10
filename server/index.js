@@ -58,6 +58,21 @@ io.on('connection', (socket) => {
   });
 });
 
+function isValidUUID(id) {
+  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return regex.test(id);
+}
+
+// Normalisasi nomor telepon ke format 628...
+function normalizePhone(phone) {
+  if (!phone) return '';
+  let cleaned = phone.replace(/\D/g, '');
+  if (cleaned.startsWith('0')) {
+    cleaned = '62' + cleaned.substring(1);
+  }
+  return cleaned;
+}
+
 // Auth Middleware
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -642,7 +657,7 @@ app.post('/api/resource/:table', authenticateToken, async (req, res) => {
     if (check.rows.length === 0) return res.sendStatus(403);
 
     const fields = ['account_id', ...Object.keys(data)];
-    const values = [account_id, ...Object.values(data)];
+    const values = [account_id, ...Object.values(data).map(v => (typeof v === 'object' && v !== null) ? JSON.stringify(v) : v)];
     const placeholders = fields.map((_, i) => `$${i + 1}`).join(', ');
 
     const query = `INSERT INTO ${table} (${fields.join(', ')}) VALUES (${placeholders}) RETURNING *`;
@@ -673,7 +688,7 @@ app.put('/api/resource/:table/:id', authenticateToken, async (req, res) => {
     if (fields.length === 0) return res.json({ success: true });
 
     const setClause = fields.map((f, i) => `${f} = $${i + 2}`).join(', ');
-    const values = [id, ...Object.values(req.body)];
+    const values = [id, ...Object.values(req.body).map(v => (typeof v === 'object' && v !== null) ? JSON.stringify(v) : v)];
 
     const query = `UPDATE ${table} SET ${setClause} WHERE id = $1 RETURNING *`;
     const result = await pool.query(query, values);
@@ -842,18 +857,37 @@ app.post('/api/conversations/start', authenticateToken, async (req, res) => {
     const check = await pool.query('SELECT id FROM accounts WHERE id = $1 AND owner_id = $2', [accountId, req.user.id]);
     if (check.rows.length === 0) return res.sendStatus(403);
 
-    // Cari atau buat percakapan
-    const findConv = await pool.query('SELECT * FROM conversations WHERE account_id = $1 AND customer_phone = $2 LIMIT 1', [accountId, phone]);
+    const normPhone = normalizePhone(phone);
+
+    // Cari atau buat Kontak
+    let contactRow;
+    const findContact = await pool.query('SELECT * FROM contacts WHERE account_id = $1 AND phone = $2 LIMIT 1', [accountId, normPhone]);
+    if (findContact.rows.length > 0) {
+      contactRow = findContact.rows[0];
+    } else {
+      const customerName = name || normPhone;
+      const insertContact = `INSERT INTO contacts (account_id, name, phone) VALUES ($1, $2, $3) RETURNING *`;
+      const newContact = await pool.query(insertContact, [accountId, customerName, normPhone]);
+      contactRow = newContact.rows[0];
+    }
+
+    // Cari atau buat percakapan berdasarkan contact_id
+    const findConv = await pool.query('SELECT * FROM conversations WHERE account_id = $1 AND contact_id = $2 LIMIT 1', [accountId, contactRow.id]);
     
     if (findConv.rows.length > 0) {
-      return res.json(findConv.rows[0]);
+      const conv = findConv.rows[0];
+      if (conv.customer_name !== contactRow.name) {
+        await pool.query('UPDATE conversations SET customer_name = $1 WHERE id = $2', [contactRow.name, conv.id]);
+        conv.customer_name = contactRow.name;
+      }
+      return res.json(conv);
     } else {
       const insertConv = `
-        INSERT INTO conversations (account_id, customer_phone, customer_name, unread, handler, last_preview, last_time)
-        VALUES ($1, $2, $3, 0, 'human', 'Percakapan dimulai via Kontak', NOW())
+        INSERT INTO conversations (account_id, contact_id, customer_phone, customer_name, unread, handler, last_preview, last_time)
+        VALUES ($1, $2, $3, $4, 0, 'human', 'Percakapan dimulai via Kontak', NOW())
         RETURNING *
       `;
-      const newConv = await pool.query(insertConv, [accountId, phone, name || phone]);
+      const newConv = await pool.query(insertConv, [accountId, contactRow.id, normPhone, contactRow.name]);
       
       // Emit via socket
       io.to(`account_${accountId}`).emit('conversation_updated', newConv.rows[0]);
@@ -1567,7 +1601,8 @@ app.post('/api/webhook/meta', async (req, res) => {
         const phone_number_id = body.entry[0].changes[0].value.metadata.phone_number_id;
         const msg = body.entry[0].changes[0].value.messages[0];
         const contact = body.entry[0].changes[0].value.contacts?.[0];
-        const from = msg.from; // Nomor customer
+        const rawFrom = msg.from; // Nomor customer
+        const normPhone = normalizePhone(rawFrom);
         const msgType = msg.type; // 'text', 'image', 'video', 'document', 'audio', dll
         const msgId = msg.id;
 
@@ -1579,23 +1614,39 @@ app.post('/api/webhook/meta', async (req, res) => {
         }
         const account = accResult.rows[0];
 
-        // 2. Cari atau buat Conversation
-        let convResult = await pool.query('SELECT * FROM conversations WHERE account_id = $1 AND customer_phone = $2 LIMIT 1', [account.id, from]);
+        // 2. Cari atau buat Kontak
+        let contactRow;
+        const findContact = await pool.query('SELECT * FROM contacts WHERE account_id = $1 AND phone = $2 LIMIT 1', [account.id, normPhone]);
+        if (findContact.rows.length > 0) {
+          contactRow = findContact.rows[0];
+        } else {
+          const customerName = contact?.profile?.name || normPhone;
+          const insertContact = `INSERT INTO contacts (account_id, name, phone) VALUES ($1, $2, $3) RETURNING *`;
+          const newContact = await pool.query(insertContact, [account.id, customerName, normPhone]);
+          contactRow = newContact.rows[0];
+        }
+
+        // 3. Cari atau buat Conversation
+        let convResult = await pool.query('SELECT * FROM conversations WHERE account_id = $1 AND contact_id = $2 LIMIT 1', [account.id, contactRow.id]);
         let conversation;
         let isNewConversation = false;
 
         if (convResult.rows.length === 0) {
-          const customerName = contact?.profile?.name || from;
           const insertConv = `
-            INSERT INTO conversations (account_id, customer_phone, customer_name, unread, handler)
-            VALUES ($1, $2, $3, 1, 'ai')
+            INSERT INTO conversations (account_id, contact_id, customer_phone, customer_name, unread, handler)
+            VALUES ($1, $2, $3, $4, 1, 'ai')
             RETURNING *
           `;
-          const newConv = await pool.query(insertConv, [account.id, from, customerName]);
+          const newConv = await pool.query(insertConv, [account.id, contactRow.id, normPhone, contactRow.name]);
           conversation = newConv.rows[0];
           isNewConversation = true;
         } else {
           conversation = convResult.rows[0];
+          // Pastikan customer_name di conversation tersinkronisasi jika tidak sama (opsional, tapi baik untuk UI)
+          if (conversation.customer_name !== contactRow.name) {
+            await pool.query('UPDATE conversations SET customer_name = $1 WHERE id = $2', [contactRow.name, conversation.id]);
+            conversation.customer_name = contactRow.name;
+          }
         }
 
         // Cek jika tipe pesan adalah media, otomatis ubah handler ke human

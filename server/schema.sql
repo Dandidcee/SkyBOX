@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS accounts (
 CREATE TABLE IF NOT EXISTS conversations (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   account_id uuid REFERENCES accounts(id) ON DELETE CASCADE,
+  contact_id uuid REFERENCES contacts(id) ON DELETE CASCADE,
   customer_phone text NOT NULL,
   customer_name text,
   chat_id text,
@@ -44,7 +45,8 @@ CREATE TABLE IF NOT EXISTS conversations (
   unread integer DEFAULT 0,
   tags text,
   summary text,
-  created_at timestamptz DEFAULT now()
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(account_id, contact_id)
 );
 
 -- 4. messages
