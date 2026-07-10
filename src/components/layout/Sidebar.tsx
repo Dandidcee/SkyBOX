@@ -25,19 +25,43 @@ import {
 import type { Account } from '../../App';
 import './Sidebar.css';
 
-const menuItems = [
-  { id: 'dashboard', icon: MdDashboard, label: 'Dashboard' },
-  { id: 'inbox', icon: MdChat, label: 'Inbox' },
-  { id: 'contacts', icon: MdContacts, label: 'Kontak' },
-  { id: 'notifications', icon: MdNotifications, label: 'Notifikasi' },
-  { id: 'orders', icon: MdReceiptLong, label: 'Tracking Order' },
-  { id: 'ongkir', icon: MdLocalShipping, label: 'Cek Ongkir' },
-  { id: 'quickreplies', icon: MdFlashOn, label: 'Balasan Cepat' },
-  { id: 'catalog', icon: MdInventory2, label: 'Produk & Pengetahuan' },
-  { id: 'templates', icon: MdAutoAwesome, label: 'Template Ads' },
-  { id: 'analytics', icon: MdInsertChart, label: 'Analytics' },
-  { id: 'integrations', icon: MdIntegrationInstructions, label: 'Integrations' },
-  { id: 'settings', icon: MdSettings, label: 'Settings' },
+const menuGroups = [
+  {
+    id: 'group_utama',
+    label: 'Utama',
+    items: [
+      { id: 'dashboard', icon: MdDashboard, label: 'Dashboard' },
+      { id: 'inbox', icon: MdChat, label: 'Inbox' },
+      { id: 'contacts', icon: MdContacts, label: 'Kontak' },
+      { id: 'notifications', icon: MdNotifications, label: 'Notifikasi' },
+    ]
+  },
+  {
+    id: 'group_sales',
+    label: 'Transaksi & Tools',
+    items: [
+      { id: 'orders', icon: MdReceiptLong, label: 'Tracking Order' },
+      { id: 'ongkir', icon: MdLocalShipping, label: 'Cek Ongkir' },
+      { id: 'quickreplies', icon: MdFlashOn, label: 'Balasan Cepat' },
+    ]
+  },
+  {
+    id: 'group_assets',
+    label: 'Data & Pengetahuan',
+    items: [
+      { id: 'catalog', icon: MdInventory2, label: 'Produk & Pengetahuan' },
+      { id: 'templates', icon: MdAutoAwesome, label: 'Template Ads' },
+    ]
+  },
+  {
+    id: 'group_admin',
+    label: 'Admin & Pengaturan',
+    items: [
+      { id: 'analytics', icon: MdInsertChart, label: 'Analytics' },
+      { id: 'integrations', icon: MdIntegrationInstructions, label: 'Integrations' },
+      { id: 'settings', icon: MdSettings, label: 'Settings' },
+    ]
+  }
 ];
 
 interface SidebarProps {
@@ -60,6 +84,14 @@ const Sidebar = ({ isVisible = true, toggleSidebar, accounts, activeAccountIds, 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(['group_utama', 'group_sales', 'group_assets', 'group_admin']);
+
+  const toggleGroup = (groupId: string) => {
+    setExpandedGroups(prev => 
+      prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]
+    );
+  };
+
   // Theme Toggle State
   const [theme, setTheme] = useState(document.documentElement.getAttribute('data-theme') || 'light');
 
@@ -178,28 +210,42 @@ const Sidebar = ({ isVisible = true, toggleSidebar, accounts, activeAccountIds, 
       </div>
       
       <nav className="sidebar-nav">
-        <ul>
-          {menuItems.map((item) => (
-            <li key={item.id}>
-              <a 
-                href="#" 
-                className={`nav-item ${activeView === item.id ? 'active' : ''}`}
-                onClick={(e) => { 
-                  e.preventDefault(); 
-                  setActiveView(item.id); 
-                  if (window.innerWidth <= 768 && toggleSidebar) {
-                    toggleSidebar();
-                  }
-                }}
+        {menuGroups.map(group => {
+          const isExpanded = expandedGroups.includes(group.id);
+          return (
+            <div key={group.id} className="menu-group">
+              <div 
+                className="menu-group-header" 
+                onClick={() => toggleGroup(group.id)}
               >
-                <item.icon size={22} className="nav-icon" />
-                <span className="nav-label">{item.label}</span>
-                {item.id === 'inbox' && unreadChats > 0 && <span className="sidebar-badge">{unreadChats > 99 ? '99+' : unreadChats}</span>}
-                {item.id === 'notifications' && unreadNotifs > 0 && <span className="sidebar-badge">{unreadNotifs > 99 ? '99+' : unreadNotifs}</span>}
-              </a>
-            </li>
-          ))}
-        </ul>
+                <span>{group.label}</span>
+                <MdKeyboardArrowDown className={`group-toggle-icon ${isExpanded ? 'expanded' : ''}`} />
+              </div>
+              <ul className={`menu-group-list ${isExpanded ? 'expanded' : 'collapsed'}`}>
+                {group.items.map((item) => (
+                  <li key={item.id}>
+                    <a 
+                      href="#" 
+                      className={`nav-item ${activeView === item.id ? 'active' : ''}`}
+                      onClick={(e) => { 
+                        e.preventDefault(); 
+                        setActiveView(item.id); 
+                        if (window.innerWidth <= 768 && toggleSidebar) {
+                          toggleSidebar();
+                        }
+                      }}
+                    >
+                      <item.icon size={22} className="nav-icon" />
+                      <span className="nav-label">{item.label}</span>
+                      {item.id === 'inbox' && unreadChats > 0 && <span className="sidebar-badge">{unreadChats > 99 ? '99+' : unreadChats}</span>}
+                      {item.id === 'notifications' && unreadNotifs > 0 && <span className="sidebar-badge">{unreadNotifs > 99 ? '99+' : unreadNotifs}</span>}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
       </nav>
       
       <div className="sidebar-footer">
