@@ -1403,7 +1403,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
       )}
 
       {addContactPhone && (
-        <div className="inbox-modal-overlay">
+        <div className="inbox-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setAddContactPhone(null); }}>
           <div className="inbox-modal" style={{ maxWidth: '400px' }}>
             <div className="inbox-modal-header">
               <h3>Simpan Kontak</h3>
@@ -1447,8 +1447,8 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
       {/* Modal Template Meta */}
       {showTemplateModal && (
-        <div className="inbox-modal-overlay" onClick={() => setShowTemplateModal(false)}>
-          <div className="inbox-modal" style={{ maxWidth: '420px' }} onClick={e => e.stopPropagation()}>
+        <div className="inbox-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowTemplateModal(false); }}>
+          <div className="inbox-modal" style={{ maxWidth: '420px' }}>
             <div className="inbox-modal-header">
               <h3>Kirim Pesan Template Meta</h3>
               <button className="inbox-modal-close-btn" onClick={() => setShowTemplateModal(false)}>
@@ -1505,7 +1505,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                   placeholder="Pisahkan dengan koma. Contoh: Sepatu, JP1234, J&T"
                   rows={2}
                   className="chat-input"
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--color-border)', resize: 'vertical' }}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--color-border)', resize: 'none' }}
                 />
               </div>
             </div>
