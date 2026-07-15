@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS accounts (
   wa_phone_number_id text,
   wa_access_token text,
   meta_verify_token text,
+  wa_business_account_id text,
   session_status text,
   webhook_url text,
   origin_city_id text,

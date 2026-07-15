@@ -1601,6 +1601,18 @@ app.post('/api/webhook/meta', async (req, res) => {
     require('fs').appendFileSync('webhook_debug.log', new Date().toISOString() + ' - WEBHOOK RECEIVED: ' + JSON.stringify(body) + '\n');
 
     if (body.object) {
+      // PROSES SIMPAN WABA ID (Untuk Sinkronisasi Template)
+      if (body.entry && body.entry[0]) {
+        const wabaId = body.entry[0].id;
+        let phoneNumberId = null;
+        if (body.entry[0].changes && body.entry[0].changes[0] && body.entry[0].changes[0].value.metadata) {
+          phoneNumberId = body.entry[0].changes[0].value.metadata.phone_number_id;
+        }
+        if (wabaId && phoneNumberId) {
+          await pool.query('UPDATE accounts SET wa_business_account_id = $1 WHERE wa_phone_number_id = $2 AND (wa_business_account_id IS NULL OR wa_business_account_id != $1)', [wabaId, phoneNumberId]);
+        }
+      }
+
       // PROSES STATUS PESAN (Read, Delivered, Failed)
       if (body.entry && body.entry[0].changes && body.entry[0].changes[0] && body.entry[0].changes[0].value.statuses && body.entry[0].changes[0].value.statuses[0]) {
         const statusObj = body.entry[0].changes[0].value.statuses[0];
@@ -1808,7 +1820,7 @@ app.get('/api/meta/templates/:accountId', authenticateToken, async (req, res) =>
     const { accountId } = req.params;
     
     // 1. Dapatkan akses token dan phone id
-    const accResult = await pool.query('SELECT wa_phone_number_id, wa_access_token, owner_id FROM accounts WHERE id = $1', [accountId]);
+    const accResult = await pool.query('SELECT wa_phone_number_id, wa_access_token, wa_business_account_id, owner_id FROM accounts WHERE id = $1', [accountId]);
     if (accResult.rows.length === 0) return res.status(404).json({ error: 'Account not found' });
     
     const account = accResult.rows[0];
@@ -1817,20 +1829,10 @@ app.get('/api/meta/templates/:accountId', authenticateToken, async (req, res) =>
       return res.status(400).json({ error: 'WhatsApp API belum dikonfigurasi dengan lengkap di Pengaturan.' });
     }
 
-    // 2. Dapatkan WABA ID dari Phone Number ID
-    const wabaRes = await fetch(`https://graph.facebook.com/v25.0/${account.wa_phone_number_id}?fields=whatsapp_business_api_data`, {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${account.wa_access_token}` }
-    });
-    
-    const wabaData = await wabaRes.json();
-    if (wabaData.error) throw new Error(wabaData.error.message);
-    
-    const wabaId = wabaData.whatsapp_business_api_data?.id || wabaData.whatsapp_business_api_data?.link;
+    let wabaId = account.wa_business_account_id;
     
     if (!wabaId) {
-      // Jika WABA ID tidak didapatkan, coba fetch pakai id
-      return res.status(400).json({ error: 'Gagal mendapatkan WABA ID dari Meta. Pastikan token dan ID telepon valid.' });
+      return res.status(400).json({ error: 'Sistem belum mengetahui WABA ID Anda. Silakan kirim pesan "PING" dari nomor pribadi Anda ke nomor bot WA ini agar sistem bisa mendeteksi WABA ID secara otomatis dari Webhook, lalu coba Sync lagi.' });
     }
 
     // 3. Fetch Templates
