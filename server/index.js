@@ -1076,7 +1076,7 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
           type: type || 'text',
         };
         
-        if (replyToMessageId) {
+        if (replyToMessageId && replyToMessageId.startsWith('wamid.')) {
           payload.context = { message_id: replyToMessageId };
         }
         
