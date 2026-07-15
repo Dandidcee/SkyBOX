@@ -5,7 +5,7 @@ import {
   MdArrowBack, MdSend, MdInsertEmoticon, MdFlashOn, MdReply,
   MdMic, MdDelete, MdDoneAll, MdErrorOutline,
   MdMoreVert, MdKeyboardArrowDown, MdPlayArrow, MdPause, MdChat,
-  MdChevronLeft, MdChevronRight, MdAutoAwesome
+  MdChevronLeft, MdChevronRight, MdAutoAwesome, MdLockClock, MdMessage
 } from 'react-icons/md';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -1258,7 +1258,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 return (
                   <React.Fragment key={m.id}>
                     {showDateSeparator && (
-                      <div style={{ display: 'flex', justifyContent: 'center', margin: '16px 0 8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'center', margin: '16px 0 8px', alignSelf: 'center' }}>
                         <span style={{ backgroundColor: 'var(--color-bg-tertiary)', padding: '4px 12px', borderRadius: '16px', fontSize: '11px', fontWeight: 500, color: 'var(--color-text-secondary)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
                           {fmtDateSeparator(m.createdAt)}
                         </span>
@@ -1371,23 +1371,37 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
         <div className="chat-input-area" style={{ position: 'relative' }}>
           {!is24HourWindowOpen && activeConversation ? (
             <div style={{
-              backgroundColor: 'var(--color-bg-primary)',
+              backgroundColor: 'var(--color-surface)',
+              borderTop: '1px solid var(--color-border)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '12px',
               textAlign: 'center',
-              padding: '16px 32px'
+              padding: '24px 32px'
             }}>
-              <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: '1.5' }}>
-                Sesi obrolan 24 jam telah berakhir. Anda hanya dapat membalas menggunakan Pesan Template sampai pelanggan membalas kembali.
+              <div style={{ 
+                display: 'flex', alignItems: 'center', gap: '8px', 
+                backgroundColor: 'rgba(234, 179, 8, 0.1)', 
+                color: '#ca8a04', 
+                padding: '8px 16px', 
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: 600
+              }}>
+                <MdLockClock size={18} />
+                Sesi 24 Jam Berakhir
+              </div>
+              <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: '1.5', maxWidth: '400px' }}>
+                Sesuai aturan Meta, Anda hanya dapat membalas menggunakan <b>Pesan Template</b> sampai pelanggan merespons.
               </span>
               <button
                 className="btn-primary"
                 onClick={() => setShowTemplateModal(true)}
-                style={{ fontSize: '13px', padding: '8px 16px', height: 'auto', display: 'inline-flex' }}
+                style={{ fontSize: '13px', padding: '8px 20px', height: 'auto', display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}
               >
+                <MdMessage size={16} />
                 Kirim Pesan Template Meta
               </button>
             </div>

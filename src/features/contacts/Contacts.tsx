@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MdAdd, MdEdit, MdDelete, MdClose, MdChat } from 'react-icons/md';
 import { useContacts, useContactMutations } from '../../hooks/useContacts';
 import type { Account, Contact } from '../../types/db';
@@ -16,6 +16,12 @@ const Contacts = ({ accounts, onOpenChat }: ContactsProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', phone: '' });
   const [startingChat, setStartingChat] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!activeAccountId && accounts.length > 0) {
+      setActiveAccountId(accounts[0].id);
+    }
+  }, [accounts, activeAccountId]);
 
   const { data: contacts = [], isLoading } = useContacts(activeAccountId);
   const { add, update, remove } = useContactMutations(activeAccountId);

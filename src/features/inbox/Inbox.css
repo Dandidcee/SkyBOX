@@ -1509,6 +1509,16 @@
 }
 
 /* Generic Modal (Sesuai Tema Terang/Gelap) */
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalScaleUp {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
 .inbox-modal-overlay {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -1518,6 +1528,7 @@
   justify-content: center;
   align-items: center;
   backdrop-filter: blur(2px);
+  animation: modalFadeIn 0.2s ease-out;
 }
 
 .inbox-modal {
@@ -1532,6 +1543,7 @@
   width: 420px;
   max-width: 90%;
   max-height: 85vh;
+  animation: modalScaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .inbox-modal-header {
