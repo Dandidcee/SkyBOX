@@ -27,9 +27,17 @@ export async function sendTemplateMessage(
   _account: Account,
   payload: { conversationId: string; phone: string; chatId: string; templateName: string; templateLang: string; templateComponents?: any[] }
 ): Promise<void> {
+  let varsStr = '';
+  if (payload.templateComponents && payload.templateComponents.length > 0) {
+    const bodyComp = payload.templateComponents.find(c => c.type === 'body');
+    if (bodyComp && bodyComp.parameters) {
+      varsStr = '|' + bodyComp.parameters.map((p: any) => p.text).join(',');
+    }
+  }
+
   await api.post('/messages', {
     conversationId: payload.conversationId,
-    body: `[Template: ${payload.templateName}]`,
+    body: `[Template: ${payload.templateName}${varsStr}]`,
     type: 'template',
     templateName: payload.templateName,
     templateLang: payload.templateLang,

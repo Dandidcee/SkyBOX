@@ -245,6 +245,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   const [templateName, setTemplateName] = useState('');
   const [templateLang, setTemplateLang] = useState('id');
   const [templateVariables, setTemplateVariables] = useState('');
+  const [templateVarsArray, setTemplateVarsArray] = useState<string[]>([]);
   const [savedMetaTemplates, setSavedMetaTemplates] = useState<{name: string, lang: string, components?: any[]}[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('savedMetaTemplates') || '[]');
@@ -304,20 +305,28 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
   const renderMessageBody = (body: string) => {
     if (!body) return null;
-    const match = body.match(/^\[Template:\s*(.*)\]$/i);
+    const match = body.match(/^\[Template:\s*([^|\]]+)(?:\|(.*))?\]$/i);
     if (match) {
       const tName = match[1].trim();
+      const rawVars = match[2];
+      const vars = rawVars ? rawVars.split(',') : [];
+      
       const template = savedMetaTemplates.find(t => t.name === tName);
       if (template) {
         if (template.components) {
           const bodyComp = template.components.find((c: any) => c.type === 'BODY' || c.type === 'body');
           if (bodyComp && bodyComp.text) {
+            let finalText = bodyComp.text;
+            vars.forEach((v: string, i: number) => {
+              finalText = finalText.replace(new RegExp(`\\{\\{${i + 1}\\}\\}`, 'g'), v);
+            });
+            
             return (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: 600, opacity: 0.7, marginBottom: '4px' }}>
                   [Template: {tName}]
                 </span>
-                <span>{renderWaText(bodyComp.text)}</span>
+                <span>{renderWaText(finalText)}</span>
               </div>
             );
           }
@@ -595,21 +604,47 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     
     const tempId = `tmp-${tempIdRef.current++}`;
     const convId = activeConversation.id;
-    setPending(prev => [...prev, { id: tempId, conversationId: convId, body: `[Template: ${tName}]`, status: 'sending', createdAt: new Date().toISOString(), type: 'template' as any }]);
-    setShowTemplateModal(false);
-    setTemplateName('');
-    
+    const selectedTemplateForVars = savedMetaTemplates.find(t => t.name === tName);
+    let numVariables = 0;
+    let hasComponents = false;
+    if (selectedTemplateForVars && selectedTemplateForVars.components) {
+      hasComponents = true;
+      const bodyComp = selectedTemplateForVars.components.find((c: any) => c.type === 'BODY' || c.type === 'body');
+      if (bodyComp && bodyComp.text) {
+        const matches = [...bodyComp.text.matchAll(/\{\{(\d+)\}\}/g)];
+        matches.forEach(m => {
+          const num = parseInt(m[1], 10);
+          if (num > numVariables) numVariables = num;
+        });
+      }
+    }
+
     let templateComponents: any[] | undefined = undefined;
-    if (templateVariables.trim()) {
-      const vars = templateVariables.split(',').map(v => ({ type: 'text', text: v.trim() }));
+    let varsBody = '';
+    
+    let finalVars: string[] = [];
+    if (hasComponents && numVariables > 0) {
+      finalVars = templateVarsArray.slice(0, numVariables).map(v => v || '');
+    } else if (templateVariables.trim()) {
+      finalVars = templateVariables.split(',').map(v => v.trim());
+    }
+
+    if (finalVars.length > 0) {
+      const vars = finalVars.map(v => ({ type: 'text', text: v }));
       templateComponents = [
         {
           type: 'body',
           parameters: vars
         }
       ];
+      varsBody = '|' + finalVars.join(',');
     }
     setTemplateVariables('');
+    setTemplateVarsArray([]);
+    
+    setPending(prev => [...prev, { id: tempId, conversationId: convId, body: `[Template: ${tName}${varsBody}]`, status: 'sending', createdAt: new Date().toISOString(), type: 'template' as any }]);
+    setShowTemplateModal(false);
+    setTemplateName('');
     
     try {
       await sendTemplateMessage(account, {
@@ -1620,17 +1655,77 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                   style={{ width: '100%', border: '1px solid var(--color-border)', borderRadius: '8px', height: '40px', padding: '0 12px' }}
                 />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 600 }}>Variabel (Opsional)</label>
-                <textarea
-                  value={templateVariables}
-                  onChange={(e) => setTemplateVariables(e.target.value)}
-                  placeholder="Pisahkan dengan koma. Contoh: Sepatu, JP1234, J&T"
-                  rows={2}
-                  className="chat-input"
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--color-border)', resize: 'none' }}
-                />
-              </div>
+
+              {(() => {
+                const selected = savedMetaTemplates.find(t => t.name === templateName);
+                let numVars = 0;
+                let hasComponents = false;
+                let bodyTextPreview = '';
+                if (selected && selected.components) {
+                  hasComponents = true;
+                  const bodyComp = selected.components.find((c: any) => c.type === 'BODY' || c.type === 'body');
+                  if (bodyComp && bodyComp.text) {
+                    bodyTextPreview = bodyComp.text;
+                    const matches = [...bodyComp.text.matchAll(/\{\{(\d+)\}\}/g)];
+                    matches.forEach(m => {
+                      const num = parseInt(m[1], 10);
+                      if (num > numVars) numVars = num;
+                    });
+                  }
+                }
+
+                if (hasComponents) {
+                  if (numVars > 0) {
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', padding: '8px', backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: '6px' }}>
+                          <strong>Preview:</strong> {bodyTextPreview}
+                        </div>
+                        {Array.from({ length: numVars }).map((_, idx) => (
+                          <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <label style={{ fontSize: '13px', fontWeight: 600 }}>Variabel {idx + 1}</label>
+                            <input
+                              type="text"
+                              value={templateVarsArray[idx] || ''}
+                              onChange={(e) => {
+                                const newVars = [...templateVarsArray];
+                                newVars[idx] = e.target.value;
+                                setTemplateVarsArray(newVars);
+                              }}
+                              placeholder={`Isi untuk variabel {{${idx + 1}}}`}
+                              className="chat-input"
+                              style={{ width: '100%', border: '1px solid var(--color-border)', borderRadius: '8px', height: '40px', padding: '0 12px' }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
+                        Template ini tidak memerlukan variabel.
+                      </div>
+                    );
+                  }
+                }
+
+                // Fallback textarea jika belum sync
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: 600 }}>Variabel (Opsional)</label>
+                    <textarea
+                      value={templateVariables}
+                      onChange={(e) => setTemplateVariables(e.target.value)}
+                      placeholder="Pisahkan dengan koma. Contoh: Sepatu, JP1234, J&T"
+                      rows={2}
+                      className="chat-input"
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--color-border)', resize: 'none' }}
+                    />
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Sync template untuk memunculkan kolom variabel secara otomatis.</div>
+                  </div>
+                );
+              })()}
+
             </div>
 
             <div style={{ padding: '16px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
