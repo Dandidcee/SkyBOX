@@ -245,7 +245,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   const [templateName, setTemplateName] = useState('');
   const [templateLang, setTemplateLang] = useState('id');
   const [templateVariables, setTemplateVariables] = useState('');
-  const [savedMetaTemplates, setSavedMetaTemplates] = useState<{name: string, lang: string}[]>(() => {
+  const [savedMetaTemplates, setSavedMetaTemplates] = useState<{name: string, lang: string, components?: any[]}[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('savedMetaTemplates') || '[]');
     } catch(e) {
@@ -277,7 +277,8 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
       if (res.data && Array.isArray(res.data)) {
         const templates = res.data.map((t: any) => ({
           name: t.name,
-          lang: t.language
+          lang: t.language,
+          components: t.components
         }));
         setSavedMetaTemplates(templates);
         localStorage.setItem('savedMetaTemplates', JSON.stringify(templates));
@@ -300,6 +301,29 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
   // State untuk Reply Pesan
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
+
+  const renderMessageBody = (body: string) => {
+    if (!body) return null;
+    const match = body.match(/^\[Template:\s*(.*)\]$/i);
+    if (match) {
+      const tName = match[1].trim();
+      const template = savedMetaTemplates.find(t => t.name === tName);
+      if (template && template.components) {
+        const bodyComp = template.components.find((c: any) => c.type === 'BODY' || c.type === 'body');
+        if (bodyComp && bodyComp.text) {
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, opacity: 0.7, marginBottom: '4px' }}>
+                [Template: {tName}]
+              </span>
+              <span>{renderWaText(bodyComp.text)}</span>
+            </div>
+          );
+        }
+      }
+    }
+    return renderWaText(body);
+  };
 
   const handleSelectRate = (rate: OngkirRate, origin: OngkirDestination, dest: OngkirDestination) => {
     const originName = origin.label.split(',')[0].trim();
@@ -1153,7 +1177,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                         <a href={toEmbeddableUrl(m.mediaUrl, activeConversation?.accountId)} target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary-dark)' }}>📄 Buka dokumen</a>
                       )}
                       {m.body && !/^\[(?:Received )?(?:image|video|audio|document|sticker)\]$/i.test(m.body.trim()) && (
-                        <span className="bubble-text">{renderWaText(m.body)}</span>
+                        <span className="bubble-text">{renderMessageBody(m.body)}</span>
                       )}
                       <span className="bubble-time">
                         {fmtTime(m.createdAt)}
@@ -1183,7 +1207,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                     title={p.status === 'failed' ? 'Klik untuk kirim ulang' : undefined}
                   >
                     {p.body && !/^\[(?:Received )?(?:image|video|audio|document|sticker)\]$/i.test(p.body.trim()) && (
-                      <span className="bubble-text">{renderWaText(p.body)}</span>
+                      <span className="bubble-text">{renderMessageBody(p.body)}</span>
                     )}
                     <span className="bubble-time">
                       {fmtTime(p.createdAt)}
