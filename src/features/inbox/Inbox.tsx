@@ -254,7 +254,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
   // State untuk context menu & sematkan chat
   const [pinnedChats, setPinnedChats] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem(`skybox_pinned_${account.id}`) || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(`skybox_pinned_${accountId || 'default'}`) || '[]'); } catch { return []; }
   });
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, conv: Conversation } | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -262,7 +262,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   const togglePin = (convId: string) => {
     setPinnedChats(prev => {
       const next = prev.includes(convId) ? prev.filter(id => id !== convId) : [...prev, convId];
-      localStorage.setItem(`skybox_pinned_${account.id}`, JSON.stringify(next));
+      localStorage.setItem(`skybox_pinned_${accountId || 'default'}`, JSON.stringify(next));
       return next;
     });
   };
@@ -919,7 +919,13 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
         phone: contact.phone,
         name: contact.name
       });
+      qc.invalidateQueries({ queryKey: [conversationsKey(accountId)] });
       setActiveConversationId(res.data.id);
+      setIsMobileChatOpen(true);
+      onMobileChatOpenChange?.(true);
+      if (window.innerWidth <= 768) {
+        window.history.pushState({ chatOpen: true }, '');
+      }
       setSearchText('');
     } catch (err) {
       console.error(err);
@@ -1114,18 +1120,18 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
           {filteredContacts.map(c => (
             <div 
               key={`contact-${c.id}`}
-              className="conversation-item"
+              className="chat-item"
               onClick={() => handleStartContactChat(c)}
             >
-              <div className="chat-avatar" style={{ backgroundColor: 'var(--color-primary)' }}>
+              <div className="chat-avatar" style={{ backgroundColor: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {(c.name || 'S').charAt(0).toUpperCase()}
               </div>
               <div className="chat-info">
-                <div className="chat-name-row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span className="chat-name" style={{ fontWeight: 600 }}>{c.name}</span>
+                <div className="chat-name-time">
+                  <span className="chat-name">{c.name}</span>
                 </div>
-                <div className="chat-preview-row">
-                  <span className="chat-preview" style={{ color: 'var(--color-primary)', fontSize: '13px' }}>Klik untuk mulai chat</span>
+                <div className="chat-preview">
+                  <span className="preview-text text-secondary">Klik untuk mulai chat</span>
                 </div>
               </div>
             </div>
@@ -2007,7 +2013,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 e.stopPropagation();
                 if (window.confirm(`Hapus percakapan dengan ${contextMenu.conv.customerName || contextMenu.conv.customerPhone}?`)) {
                   deleteConversations([contextMenu.conv.id]).then(() => {
-                    qc.invalidateQueries({ queryKey: conversationsKey(account.id) });
+                    qc.invalidateQueries({ queryKey: conversationsKey(accountId || '') });
                   });
                 }
                 setContextMenu(null);

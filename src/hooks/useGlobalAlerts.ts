@@ -42,6 +42,7 @@ export function useGlobalAlerts(accounts: Account[], enabled: boolean, onOpenCha
       if (msgRow.direction === 'in') {
         let customerName = 'Pelanggan';
         let accName = '';
+        let matchedAccountId = accounts.length > 0 ? accounts[0].id : '';
         
         for (const acc of accounts) {
           // Note: we use 'any' here just to safely check the cache structure since it might be Conversation or ConversationRow
@@ -51,6 +52,7 @@ export function useGlobalAlerts(accounts: Account[], enabled: boolean, onOpenCha
             if (conv) {
               customerName = conv.customerName || conv.customer_name || conv.customerPhone || conv.customer_phone || 'Pelanggan';
               accName = acc.name;
+              matchedAccountId = acc.id;
               break;
             }
           }
@@ -58,7 +60,7 @@ export function useGlobalAlerts(accounts: Account[], enabled: boolean, onOpenCha
         
         const prefix = accName ? `[${accName}] ` : '';
         notify(`${prefix}Pesan baru dari ${customerName}`, 'info', () => {
-          if (onOpenChat) onOpenChat(acc.id, msgRow.conversation_id);
+          if (onOpenChat && matchedAccountId) onOpenChat(matchedAccountId, msgRow.conversation_id);
         });
         playEventSound('incoming');
       }
