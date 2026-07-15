@@ -1188,12 +1188,11 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             </button>
             <button
               className="icon-btn text-secondary"
-              onClick={handleAnalyzeWithAI}
-              title="Rangkum Percakapan dengan AI"
-              disabled={isAnalyzing}
+              onClick={() => setShowTemplateModal(true)}
+              title="Kirim Pesan Template Meta"
               style={{ backgroundColor: 'var(--color-primary)', color: 'white', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              <MdAutoAwesome size={20} className={isAnalyzing ? 'pulsing-icon' : ''} />
+              <MdAutoAwesome size={20} />
             </button>
             {account?.aiEnabled && (
               <div
