@@ -246,6 +246,8 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   const [templateLang, setTemplateLang] = useState('id');
   const [templateVariables, setTemplateVariables] = useState('');
   const [templateVarsArray, setTemplateVarsArray] = useState<string[]>([]);
+  const [isTemplateDropdownOpen, setIsTemplateDropdownOpen] = useState(false);
+  const [templateSearchQuery, setTemplateSearchQuery] = useState('');
   const [savedMetaTemplates, setSavedMetaTemplates] = useState<{name: string, lang: string, components?: any[]}[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('savedMetaTemplates') || '[]');
@@ -1600,29 +1602,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 Gunakan ini untuk mengirim pesan pertama ke pelanggan atau mengirim pesan yang sudah di-approve oleh Meta.
               </p>
 
-              {savedMetaTemplates.length > 0 && (
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Template Tersimpan</label>
-                    <button 
-                      onClick={handleSyncTemplates} 
-                      disabled={isSyncingTemplates}
-                      style={{ fontSize: '12px', background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                    >
-                      {isSyncingTemplates ? 'Memuat...' : '⟳ Sync dari Meta'}
-                    </button>
-                  </div>
-                  <div className="saved-templates-list">
-                    {savedMetaTemplates.map(t => (
-                      <div key={t.name} className="saved-template-chip" onClick={() => { setTemplateName(t.name); setTemplateLang(t.lang); }}>
-                        <span>{t.name} ({t.lang})</span>
-                        <button className="delete-chip" onClick={(e) => { e.stopPropagation(); handleDeleteMetaTemplate(t.name); }} title="Hapus Template">✕</button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {savedMetaTemplates.length === 0 && (
+              {savedMetaTemplates.length === 0 ? (
                  <button 
                    onClick={handleSyncTemplates} 
                    disabled={isSyncingTemplates}
@@ -1631,30 +1611,89 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                  >
                    {isSyncingTemplates ? 'Mensinkronisasi...' : 'Tarik Template dari WhatsApp Meta'}
                  </button>
-              )}
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '13px', fontWeight: 600 }}>Cari & Pilih Template <span style={{color: 'var(--color-error)'}}>*</span></label>
+                    <button 
+                      onClick={handleSyncTemplates} 
+                      disabled={isSyncingTemplates}
+                      style={{ fontSize: '12px', background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      {isSyncingTemplates ? 'Memuat...' : '⟳ Sync Ulang'}
+                    </button>
+                  </div>
+                  
+                  <div 
+                    className="chat-input"
+                    style={{ 
+                      width: '100%', border: '1px solid var(--color-border)', borderRadius: '8px', minHeight: '40px', padding: '0 12px',
+                      display: 'flex', alignItems: 'center', cursor: 'pointer', justifyContent: 'space-between', backgroundColor: 'var(--color-bg-primary)'
+                    }}
+                    onClick={() => setIsTemplateDropdownOpen(!isTemplateDropdownOpen)}
+                  >
+                    <span style={{ color: templateName ? 'inherit' : 'var(--color-text-secondary)' }}>
+                      {templateName ? `${templateName} (${templateLang})` : 'Pilih template...'}
+                    </span>
+                    <MdKeyboardArrowDown size={20} className="text-secondary" />
+                  </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 600 }}>Nama Template <span style={{color: 'var(--color-error)'}}>*</span></label>
-                <input
-                  type="text"
-                  value={templateName}
-                  onChange={(e) => setTemplateName(e.target.value)}
-                  placeholder="Contoh: hello_world"
-                  className="chat-input"
-                  style={{ width: '100%', border: '1px solid var(--color-border)', borderRadius: '8px', height: '40px', padding: '0 12px' }}
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 600 }}>Kode Bahasa <span style={{color: 'var(--color-error)'}}>*</span></label>
-                <input
-                  type="text"
-                  value={templateLang}
-                  onChange={(e) => setTemplateLang(e.target.value)}
-                  placeholder="Contoh: id, en_US"
-                  className="chat-input"
-                  style={{ width: '100%', border: '1px solid var(--color-border)', borderRadius: '8px', height: '40px', padding: '0 12px' }}
-                />
-              </div>
+                  {isTemplateDropdownOpen && (
+                    <div style={{ 
+                      position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px',
+                      backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', 
+                      borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 100 
+                    }}>
+                      <div style={{ padding: '8px', borderBottom: '1px solid var(--color-border)' }}>
+                        <input 
+                          type="text" 
+                          value={templateSearchQuery}
+                          onChange={(e) => setTemplateSearchQuery(e.target.value)}
+                          placeholder="Ketik untuk mencari..."
+                          className="chat-input"
+                          style={{ width: '100%', height: '32px', borderRadius: '4px', border: '1px solid var(--color-border)', padding: '0 8px', fontSize: '13px' }}
+                          autoFocus
+                          onClick={e => e.stopPropagation()}
+                        />
+                      </div>
+                      <div style={{ maxHeight: '200px', overflowY: 'auto', padding: '4px 0' }}>
+                        {savedMetaTemplates.filter(t => t.name.toLowerCase().includes(templateSearchQuery.toLowerCase())).map(t => (
+                          <div 
+                            key={t.name}
+                            onClick={() => { 
+                              setTemplateName(t.name); 
+                              setTemplateLang(t.lang); 
+                              setIsTemplateDropdownOpen(false); 
+                              setTemplateSearchQuery('');
+                            }}
+                            style={{ 
+                              padding: '8px 12px', fontSize: '13px', cursor: 'pointer', 
+                              backgroundColor: templateName === t.name ? 'var(--color-surface-hover)' : 'transparent',
+                              display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = templateName === t.name ? 'var(--color-surface-hover)' : 'transparent'}
+                          >
+                            <span>{t.name} <span style={{ color: 'var(--color-text-secondary)', fontSize: '11px' }}>({t.lang})</span></span>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleDeleteMetaTemplate(t.name); }} 
+                              style={{ background: 'none', border: 'none', color: 'var(--color-text-secondary)', cursor: 'pointer', padding: '2px' }}
+                              title="Hapus dari cache"
+                            >
+                              <MdClose size={14} />
+                            </button>
+                          </div>
+                        ))}
+                        {savedMetaTemplates.filter(t => t.name.toLowerCase().includes(templateSearchQuery.toLowerCase())).length === 0 && (
+                          <div style={{ padding: '12px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                            Template tidak ditemukan
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {(() => {
                 const selected = savedMetaTemplates.find(t => t.name === templateName);
@@ -1675,13 +1714,24 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 }
 
                 if (hasComponents) {
-                  if (numVars > 0) {
-                    return (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', padding: '8px', backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: '6px' }}>
-                          <strong>Preview:</strong> {bodyTextPreview}
-                        </div>
-                        {Array.from({ length: numVars }).map((_, idx) => (
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ 
+                        fontSize: '13px', 
+                        color: 'var(--color-text-secondary)', 
+                        padding: '12px', 
+                        backgroundColor: 'rgba(0,0,0,0.05)', 
+                        borderRadius: '8px',
+                        border: '1px solid var(--color-border)',
+                        whiteSpace: 'pre-wrap',
+                        lineHeight: '1.5'
+                      }}>
+                        <div style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '6px', opacity: 0.7 }}>Preview Template:</div>
+                        {bodyTextPreview}
+                      </div>
+
+                      {numVars > 0 ? (
+                        Array.from({ length: numVars }).map((_, idx) => (
                           <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                             <label style={{ fontSize: '13px', fontWeight: 600 }}>Variabel {idx + 1}</label>
                             <input
@@ -1697,33 +1747,18 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                               style={{ width: '100%', border: '1px solid var(--color-border)', borderRadius: '8px', height: '40px', padding: '0 12px' }}
                             />
                           </div>
-                        ))}
-                      </div>
-                    );
-                  } else {
-                    return (
-                      <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
-                        Template ini tidak memerlukan variabel.
-                      </div>
-                    );
-                  }
+                        ))
+                      ) : (
+                        <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
+                          Template ini tidak memerlukan variabel.
+                        </div>
+                      )}
+                    </div>
+                  );
                 }
 
-                // Fallback textarea jika belum sync
-                return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '13px', fontWeight: 600 }}>Variabel (Opsional)</label>
-                    <textarea
-                      value={templateVariables}
-                      onChange={(e) => setTemplateVariables(e.target.value)}
-                      placeholder="Pisahkan dengan koma. Contoh: Sepatu, JP1234, J&T"
-                      rows={2}
-                      className="chat-input"
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--color-border)', resize: 'none' }}
-                    />
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Sync template untuk memunculkan kolom variabel secara otomatis.</div>
-                  </div>
-                );
+                // Jika belum di-sync atau tidak ada komponen, tidak usah tampilkan fallback textarea
+                return null;
               })()}
 
             </div>
