@@ -1640,9 +1640,9 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
                   {isTemplateDropdownOpen && (
                     <div style={{ 
-                      position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px',
+                      marginTop: '4px',
                       backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', 
-                      borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 100 
+                      borderRadius: '8px', overflow: 'hidden'
                     }}>
                       <div style={{ padding: '8px', borderBottom: '1px solid var(--color-border)' }}>
                         <input 
