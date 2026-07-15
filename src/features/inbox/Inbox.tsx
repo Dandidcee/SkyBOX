@@ -17,7 +17,7 @@ import api from '../../services/api';
 import { useOrders } from '../../hooks/useOrders';
 import { useQuickReplies } from '../../hooks/useQuickReplies';
 import { useContactMutations } from '../../hooks/useContacts';
-import { setConversationHandler, sendTextMessage, sendMedia, sendTemplateMessage, analyzeConversation } from '../../services/n8n';
+import { setConversationHandler, sendTextMessage, sendMedia, sendTemplateMessage } from '../../services/n8n';
 import { deleteConversations } from '../../services/conversations';
 import ContactPanel from './ContactPanel';
 import { OngkirCalculator } from '../ongkir/Ongkir';
@@ -251,8 +251,6 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   
   const [isChatSearchOpen, setIsChatSearchOpen] = useState(false);
   const [chatSearchQuery, setChatSearchQuery] = useState('');
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const [savedMetaTemplates, setSavedMetaTemplates] = useState<{name: string, lang: string, components?: any[]}[]>(() => {
     try {
@@ -911,25 +909,6 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     } catch (err) {
       console.error(err);
       alert('Gagal memulai chat dengan kontak ini.');
-    }
-  };
-
-  const handleAnalyzeWithAI = async () => {
-    if (!account || !activeConversation) return;
-    setIsAnalyzing(true);
-    setAiSummary(null);
-    try {
-      const summary = await analyzeConversation(account, {
-        conversationId: activeConversation.id,
-        phone: activeConversation.customerPhone,
-        chatId: activeConversation.chatId
-      });
-      setAiSummary(summary);
-    } catch (err) {
-      console.error(err);
-      showToast('Gagal merangkum percakapan. Pastikan Webhook N8N (/analyze-ai) aktif.');
-    } finally {
-      setIsAnalyzing(false);
     }
   };
 
@@ -1916,32 +1895,6 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
               >
                 Kirim
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal AI Summary */}
-      {(aiSummary || isAnalyzing) && (
-        <div className="inbox-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget && !isAnalyzing) setAiSummary(null); }}>
-          <div className="inbox-modal" style={{ maxWidth: '420px' }}>
-            <div className="inbox-modal-header">
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdAutoAwesome size={20} color="var(--color-primary)" /> Rangkuman AI</h3>
-              {!isAnalyzing && (
-                <button className="inbox-modal-close-btn" onClick={() => setAiSummary(null)}>
-                  <MdClose size={20} />
-                </button>
-              )}
-            </div>
-            <div className="inbox-modal-body" style={{ lineHeight: '1.6', fontSize: '14px', whiteSpace: 'pre-wrap' }}>
-              {isAnalyzing ? (
-                <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', padding: '20px' }}>
-                  <MdAutoAwesome size={32} className="pulsing-icon" style={{ color: 'var(--color-primary)', marginBottom: '12px' }} />
-                  <div>AI sedang menganalisis obrolan...</div>
-                </div>
-              ) : (
-                aiSummary
-              )}
             </div>
           </div>
         </div>
