@@ -308,15 +308,28 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     if (match) {
       const tName = match[1].trim();
       const template = savedMetaTemplates.find(t => t.name === tName);
-      if (template && template.components) {
-        const bodyComp = template.components.find((c: any) => c.type === 'BODY' || c.type === 'body');
-        if (bodyComp && bodyComp.text) {
+      if (template) {
+        if (template.components) {
+          const bodyComp = template.components.find((c: any) => c.type === 'BODY' || c.type === 'body');
+          if (bodyComp && bodyComp.text) {
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, opacity: 0.7, marginBottom: '4px' }}>
+                  [Template: {tName}]
+                </span>
+                <span>{renderWaText(bodyComp.text)}</span>
+              </div>
+            );
+          }
+        } else {
           return (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 600, opacity: 0.7, marginBottom: '4px' }}>
                 [Template: {tName}]
               </span>
-              <span>{renderWaText(bodyComp.text)}</span>
+              <span style={{ fontSize: '0.85rem', fontStyle: 'italic', color: 'var(--color-text-secondary)' }}>
+                (Isi template belum tersedia. Klik "Sync dari Meta" di menu template untuk memuat)
+              </span>
             </div>
           );
         }
