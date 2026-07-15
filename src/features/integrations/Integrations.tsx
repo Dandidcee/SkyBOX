@@ -137,9 +137,16 @@ const Integrations = ({ accounts, onAdd, onUpdate, onDelete }: IntegrationsProps
               </div>
               <div className="config-row">
                 <MdWebhook size={16} className="config-icon" />
-                <span className="config-label">Webhook N8N (AI & Template)</span>
+                <span className="config-label">Webhook N8N (Reply)</span>
                 <span className={`config-value ${acc.n8nWebhookUrl ? 'ok' : 'warn'}`}>
                   {acc.n8nWebhookUrl || 'belum diatur'}
+                </span>
+              </div>
+              <div className="config-row">
+                <MdWebhook size={16} className="config-icon" />
+                <span className="config-label">Webhook N8N (AI Analyze)</span>
+                <span className={`config-value ${acc.webhookUrl ? 'ok' : 'warn'}`}>
+                  {acc.webhookUrl || 'belum diatur'}
                 </span>
               </div>
               <div className="config-row">
@@ -258,12 +265,22 @@ const Integrations = ({ accounts, onAdd, onUpdate, onDelete }: IntegrationsProps
               </label>
 
               <label className="field">
-                <span className="field-label">Webhook N8N (AI & Template)</span>
+                <span className="field-label">Webhook N8N (Reply)</span>
                 <input
                   className="field-input"
                   value={form.n8nWebhookUrl || ''}
                   onChange={e => setField('n8nWebhookUrl', e.target.value)}
                   placeholder="https://dashboard.leyatiofficial.xyz/webhook/ai-handler"
+                />
+              </label>
+
+              <label className="field">
+                <span className="field-label">Webhook N8N (AI Analyze)</span>
+                <input
+                  className="field-input"
+                  value={form.webhookUrl || ''}
+                  onChange={e => setField('webhookUrl', e.target.value)}
+                  placeholder="https://dashboard.leyatiofficial.xyz/webhook/analyze-ai"
                 />
               </label>
 

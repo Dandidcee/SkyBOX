@@ -17,7 +17,7 @@ import api from '../../services/api';
 import { useOrders } from '../../hooks/useOrders';
 import { useQuickReplies } from '../../hooks/useQuickReplies';
 import { useContactMutations } from '../../hooks/useContacts';
-import { setConversationHandler, sendTextMessage, sendMedia, sendTemplateMessage } from '../../services/n8n';
+import { setConversationHandler, sendTextMessage, sendMedia, sendTemplateMessage, analyzeConversation } from '../../services/n8n';
 import { deleteConversations } from '../../services/conversations';
 import ContactPanel from './ContactPanel';
 import { OngkirCalculator } from '../ongkir/Ongkir';
@@ -251,6 +251,8 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   
   const [isChatSearchOpen, setIsChatSearchOpen] = useState(false);
   const [chatSearchQuery, setChatSearchQuery] = useState('');
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const [savedMetaTemplates, setSavedMetaTemplates] = useState<{name: string, lang: string, components?: any[]}[]>(() => {
     try {
@@ -908,7 +910,26 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
       setSearchText('');
     } catch (err) {
       console.error(err);
-      showToast('Gagal memulai chat dengan kontak.');
+      alert('Gagal memulai chat dengan kontak ini.');
+    }
+  };
+
+  const handleAnalyzeWithAI = async () => {
+    if (!account || !activeConversation) return;
+    setIsAnalyzing(true);
+    setAiSummary(null);
+    try {
+      const summary = await analyzeConversation(account, {
+        conversationId: activeConversation.id,
+        phone: activeConversation.customerPhone,
+        chatId: activeConversation.chatId
+      });
+      setAiSummary(summary);
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal merangkum percakapan. Pastikan Webhook N8N (/analyze-ai) aktif.');
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -1167,11 +1188,12 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             </button>
             <button
               className="icon-btn text-secondary"
-              onClick={() => setShowTemplateModal(true)}
-              title="Kirim Pesan Template Meta"
+              onClick={handleAnalyzeWithAI}
+              title="Rangkum Percakapan dengan AI"
+              disabled={isAnalyzing}
               style={{ backgroundColor: 'var(--color-primary)', color: 'white', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              <MdAutoAwesome size={20} />
+              <MdAutoAwesome size={20} className={isAnalyzing ? 'pulsing-icon' : ''} />
             </button>
             {account?.aiEnabled && (
               <div
@@ -1370,38 +1392,23 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
         <div className="chat-input-area" style={{ position: 'relative' }}>
           {!is24HourWindowOpen && activeConversation ? (
-            <div style={{
-              backgroundColor: 'var(--color-surface)',
-              borderTop: '1px solid var(--color-border)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '12px',
-              textAlign: 'center',
-              padding: '24px 32px'
-            }}>
-              <div style={{ 
-                display: 'flex', alignItems: 'center', gap: '8px', 
-                backgroundColor: 'rgba(234, 179, 8, 0.1)', 
-                color: '#ca8a04', 
-                padding: '8px 16px', 
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 600
-              }}>
-                <MdLockClock size={18} />
-                Sesi 24 Jam Berakhir
+            <div className="expired-session-banner">
+              <div className="expired-session-info">
+                <div className="expired-session-icon">
+                  <MdLockClock size={24} />
+                </div>
+                <div className="expired-session-text">
+                  <span className="expired-title">Sesi 24 Jam Berakhir</span>
+                  <span className="expired-desc">
+                    Sesuai aturan ketat Meta, Anda hanya dapat membalas menggunakan <b>Pesan Template</b> sampai pelanggan membalas pesan Anda kembali.
+                  </span>
+                </div>
               </div>
-              <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: '1.5', maxWidth: '400px' }}>
-                Sesuai aturan Meta, Anda hanya dapat membalas menggunakan <b>Pesan Template</b> sampai pelanggan merespons.
-              </span>
               <button
-                className="btn-primary"
+                className="btn-primary expired-session-btn"
                 onClick={() => setShowTemplateModal(true)}
-                style={{ fontSize: '13px', padding: '8px 20px', height: 'auto', display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}
               >
-                <MdMessage size={16} />
+                <MdMessage size={18} />
                 Kirim Pesan Template Meta
               </button>
             </div>
@@ -1910,6 +1917,32 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
               >
                 Kirim
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal AI Summary */}
+      {(aiSummary || isAnalyzing) && (
+        <div className="inbox-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget && !isAnalyzing) setAiSummary(null); }}>
+          <div className="inbox-modal" style={{ maxWidth: '420px' }}>
+            <div className="inbox-modal-header">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdAutoAwesome size={20} color="var(--color-primary)" /> Rangkuman AI</h3>
+              {!isAnalyzing && (
+                <button className="inbox-modal-close-btn" onClick={() => setAiSummary(null)}>
+                  <MdClose size={20} />
+                </button>
+              )}
+            </div>
+            <div className="inbox-modal-body" style={{ lineHeight: '1.6', fontSize: '14px', whiteSpace: 'pre-wrap' }}>
+              {isAnalyzing ? (
+                <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', padding: '20px' }}>
+                  <MdAutoAwesome size={32} className="pulsing-icon" style={{ color: 'var(--color-primary)', marginBottom: '12px' }} />
+                  <div>AI sedang menganalisis obrolan...</div>
+                </div>
+              ) : (
+                aiSummary
+              )}
             </div>
           </div>
         </div>

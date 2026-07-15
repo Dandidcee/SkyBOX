@@ -1862,12 +1862,13 @@ app.post('/api/conversations/:id/analyze', authenticateToken, async (req, res) =
     if (convRes.rows.length === 0) return res.status(404).json({ error: 'Conversation not found' });
     const conv = convRes.rows[0];
     
-    const accRes = await pool.query('SELECT n8n_webhook_url FROM accounts WHERE id = $1', [conv.account_id]);
+    const accRes = await pool.query('SELECT n8n_webhook_url, webhook_url FROM accounts WHERE id = $1', [conv.account_id]);
     const account = accRes.rows[0];
     const n8nWebhookUrl = account.n8n_webhook_url;
+    const analyzeWebhookUrl = account.webhook_url;
     
-    if (!n8nWebhookUrl) {
-      return res.status(400).json({ error: 'URL Webhook N8N belum diatur di akun ini.' });
+    if (!n8nWebhookUrl && !analyzeWebhookUrl) {
+      return res.status(400).json({ error: 'URL Webhook belum diatur di akun ini.' });
     }
     
     const msgRes = await pool.query('SELECT * FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC LIMIT 50', [id]);
@@ -1878,16 +1879,26 @@ app.post('/api/conversations/:id/analyze', authenticateToken, async (req, res) =
     }).join('\n');
     
     const payload = {
-      action: 'analyze_ai',
-      conversation_id: conv.id,
-      customer_phone: conv.customer_phone,
-      history: historyText
+      history: historyText,
+      customer_phone: conv.customer_phone
     };
+    
+    let targetUrl = analyzeWebhookUrl;
+    if (!targetUrl) {
+      try {
+        const urlObj = new URL(n8nWebhookUrl);
+        const isTest = urlObj.pathname.includes('/webhook-test/');
+        urlObj.pathname = isTest ? '/webhook-test/analyze-ai' : '/webhook/analyze-ai';
+        targetUrl = urlObj.toString();
+      } catch(e) {
+        targetUrl = n8nWebhookUrl;
+      }
+    }
     
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
     
-    const n8nResponse = await fetch(n8nWebhookUrl, {
+    const n8nResponse = await fetch(targetUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
