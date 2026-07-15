@@ -272,7 +272,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
   const [isSyncingTemplates, setIsSyncingTemplates] = useState(false);
 
-  const handleSyncTemplates = async () => {
+  const handleSyncTemplates = async (silent = false) => {
     if (!accountId) return;
     try {
       setIsSyncingTemplates(true);
@@ -285,17 +285,29 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
         }));
         setSavedMetaTemplates(templates);
         localStorage.setItem('savedMetaTemplates', JSON.stringify(templates));
-        const { useUiStore } = await import('../../lib/uiStore');
-        useUiStore.getState().notify('Berhasil sinkronisasi template', 'success');
+        if (silent !== true) {
+          const { useUiStore } = await import('../../lib/uiStore');
+          useUiStore.getState().notify('Berhasil sinkronisasi template', 'success');
+        }
       }
     } catch (err: any) {
       console.error(err);
-      const { useUiStore } = await import('../../lib/uiStore');
-      useUiStore.getState().notify(err.response?.data?.error || 'Gagal sinkronisasi template', 'error');
+      if (silent !== true) {
+        const { useUiStore } = await import('../../lib/uiStore');
+        useUiStore.getState().notify(err.response?.data?.error || 'Gagal sinkronisasi template', 'error');
+      }
     } finally {
       setIsSyncingTemplates(false);
     }
   };
+
+  useEffect(() => {
+    // Auto-sync secara background jika cache template kosong (misal login di HP/device baru)
+    if (accountId && savedMetaTemplates.length === 0) {
+      handleSyncTemplates(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -1604,7 +1616,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
               {savedMetaTemplates.length === 0 ? (
                  <button 
-                   onClick={handleSyncTemplates} 
+                   onClick={() => handleSyncTemplates()} 
                    disabled={isSyncingTemplates}
                    className="btn-secondary"
                    style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '8px' }}
@@ -1616,7 +1628,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <label style={{ fontSize: '13px', fontWeight: 600 }}>Cari & Pilih Template <span style={{color: 'var(--color-error)'}}>*</span></label>
                     <button 
-                      onClick={handleSyncTemplates} 
+                      onClick={() => handleSyncTemplates()} 
                       disabled={isSyncingTemplates}
                       style={{ fontSize: '12px', background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                     >
