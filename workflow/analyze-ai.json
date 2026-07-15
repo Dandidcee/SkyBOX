@@ -1,0 +1,96 @@
+{
+  "name": "Analyze AI Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "analyze-ai",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "e309ccaf-f050-48ef-82a1-12efbc34c3c3",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "webhookId": "analyze-ai-id"
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "model": "gpt-4o-mini",
+        "messages": {
+          "messageValues": [
+            {
+              "role": "system",
+              "content": "Anda adalah asisten AI cerdas untuk tim customer service. Tugas Anda adalah membaca riwayat percakapan antara Pelanggan dan CS, lalu memberikan rangkuman singkat (maksimal 3-4 kalimat) mengenai inti percakapan tersebut, apakah pelanggan sudah order/belum, serta saran tindakan untuk CS."
+            },
+            {
+              "role": "user",
+              "content": "=Tolong rangkum percakapan berikut:\n\n{{ $json.body.history }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.5
+        }
+      },
+      "id": "2",
+      "name": "OpenAI",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "8paz2ntyMzPbTs64",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "summary",
+              "value": "={{ $json.choices[0].message.content }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [700, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}

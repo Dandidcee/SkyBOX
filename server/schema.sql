@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS messages (
   content text NOT NULL,
   media_url text,
   status text,
+  error_message text,
   from_me boolean,
   created_at timestamptz DEFAULT now()
 );

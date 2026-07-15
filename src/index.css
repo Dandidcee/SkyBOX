@@ -1,48 +1,61 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
 :root {
-  /* Colors - Primary */
-  /* Premium WA Light Theme */
-  --color-primary: #25D366;
+  /* Material 3 WhatsApp Theme - Light */
+  --color-primary: #1da851;
+  --color-primary-container: #b4f1c9;
+  --color-on-primary-container: #00210e;
+  
   --color-primary-dark: #128C7E;
   --color-header-dark: #075E54;
-  --color-background: #F8FAFC;
-  --color-surface: #FFFFFF;
-  --color-border: #E5E7EB;
-  --color-text-primary: #1F2937;
-  --color-text-secondary: #6B7280;
-  --color-warning: #F59E0B;
-  --color-error: #EF4444;
-  --color-chat-bg: #EAE6DF;
-  --color-input-bg: #EAE6DF;
+  
+  --color-background: #FBFDF9;
+  --color-surface: #FBFDF9;
+  --color-surface-container-low: #F3F4F1;
+  --color-surface-container: #EDEFEA;
+  --color-surface-container-high: #E8E9E5;
+  
+  --color-border: #C4C8C2;
+  --color-text-primary: #191C1A;
+  --color-text-secondary: #404944;
+  --color-warning: #B3261E;
+  --color-error: #BA1A1A;
+  
+  --color-chat-bg: #EDEFEA;
+  --color-input-bg: #F3F4F1;
   --color-bubble-sent: #D9FDD3;
   --color-bubble-received: #FFFFFF;
   --color-sidebar-text: #FFFFFF;
   --color-sidebar-text-muted: rgba(255, 255, 255, 0.7);
 
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-size-xs: 11px;
+  --font-family: 'Inter', Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-size-xs: 12px;
   --font-size-base: 14px;
-  --font-size-sm: 13px;
+  --font-size-sm: 14px;
   --font-size-caption: 12px;
-  --font-size-h1: 24px;
-  --font-size-h2: 20px;
-  --font-size-h3: 18px;
+  --font-size-h1: 28px;
+  --font-size-h2: 24px;
+  --font-size-h3: 20px;
 
   /* Spacing */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
-  --spacing-md: 12px;
-  --spacing-lg: 16px;
-  --spacing-xl: 24px;
-  --spacing-2xl: 32px;
-  --spacing-3xl: 48px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
 
-  /* Border Radius */
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  /* Material 3 Border Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 28px;
+  --radius-pill: 9999px;
+  
+  /* Material 3 Elevation */
+  --elevation-1: 0px 1px 2px 0px rgba(0, 0, 0, 0.3), 0px 1px 3px 1px rgba(0, 0, 0, 0.15);
+  --elevation-2: 0px 1px 2px 0px rgba(0, 0, 0, 0.3), 0px 2px 6px 2px rgba(0, 0, 0, 0.15);
 }
 
 * {
@@ -76,21 +89,28 @@ h3 { font-size: var(--font-size-h3); font-weight: 600; line-height: 1.2; }
 .text-caption { font-size: var(--font-size-caption); }
 
 [data-theme='dark'] {
-  /* WhatsApp Official Dark Theme */
-  --color-primary: #00a884;
+  /* Material 3 WhatsApp Theme - Dark */
+  --color-primary: #8ED9A3;
+  --color-primary-container: #005227;
+  --color-on-primary-container: #b4f1c9;
+  
   --color-primary-dark: #008069;
-  --color-header-dark: #111b21; /* Sidebar bg in WA is usually 111b21 */
-  --color-background: #111b21;
-  --color-surface: #202c33; /* Header & Search bg */
-  --color-border: #222d34;
-  --color-text-primary: #e9edef;
-  --color-text-secondary: #8696a0;
-  --color-chat-bg: #0b141a;
-  --color-input-bg: #2a3942;
-  --color-bubble-sent: #005c4b;
-  --color-bubble-received: #202c33;
-  --color-sidebar-text: #e9edef;
-  --color-sidebar-text-muted: #8696a0;
+  --color-header-dark: #111b21;
+  --color-background: #191C1A;
+  --color-surface: #191C1A;
+  --color-surface-container-low: #1C201E;
+  --color-surface-container: #202422;
+  --color-surface-container-high: #2B2F2D;
+  
+  --color-border: #404944;
+  --color-text-primary: #E1E3DF;
+  --color-text-secondary: #BFC9C3;
+  --color-chat-bg: #1C201E;
+  --color-input-bg: #2B2F2D;
+  --color-bubble-sent: #005227;
+  --color-bubble-received: #202422;
+  --color-sidebar-text: #E1E3DF;
+  --color-sidebar-text-muted: #BFC9C3;
 }
 
 /* =========================================
@@ -125,22 +145,10 @@ button:active:not(:disabled) {
 .nav-item {
   position: relative;
   overflow: hidden;
+  border-radius: var(--radius-md); /* Agak kotak (rounded rectangle) */
 }
-.nav-item::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 100%;
-  width: 3px;
-  background-color: var(--color-primary);
-  transform: scaleY(0);
-  transition: transform 0.3s ease;
-  transform-origin: bottom;
-}
-.nav-item.active::before {
-  transform: scaleY(1);
-}
+/* Removed the before pseudo-element left-bar in favor of pill background */
+
 
 .chat-input::placeholder {
   color: var(--color-text-secondary);

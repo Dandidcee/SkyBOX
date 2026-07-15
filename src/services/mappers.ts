@@ -61,6 +61,8 @@ export const mapMessageRow = (r: MessageRow): Message => ({
   type: r.type,
   body: r.body,
   mediaUrl: r.media_url,
+  status: r.status,
+  errorMessage: r.error_message,
   createdAt: r.created_at,
 });
 

@@ -255,7 +255,8 @@
 .nav-item {
   display: flex;
   align-items: center;
-  padding: var(--spacing-sm) var(--spacing-xl);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  margin: 0 var(--spacing-sm) 4px var(--spacing-sm);
   color: var(--color-sidebar-text-muted);
   text-decoration: none;
   gap: var(--spacing-md);
@@ -268,8 +269,9 @@
 }
 
 .nav-item.active {
-  background-color: rgba(255, 255, 255, 0.15);
-  color: var(--color-sidebar-text);
+  background-color: var(--color-primary-container);
+  color: var(--color-on-primary-container);
+  font-weight: 600;
 }
 
 .nav-label {

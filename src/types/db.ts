@@ -66,6 +66,8 @@ export interface Message {
   type: MessageType;
   body: string;
   mediaUrl: string | null;
+  status?: string;
+  errorMessage?: string | null;
   createdAt: string;
 }
 
@@ -122,6 +124,8 @@ export interface MessageRow {
   type: MessageType;
   body: string;
   media_url: string | null;
+  status?: string;
+  error_message?: string | null;
   created_at: string;
 }
 

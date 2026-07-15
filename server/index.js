@@ -1125,7 +1125,10 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `;
-    const messageId = `out_${Date.now()}`;
+    let messageId = `out_${Date.now()}`;
+    if (metaData && metaData.messages && metaData.messages[0] && metaData.messages[0].id) {
+      messageId = metaData.messages[0].id;
+    }
     const result = await pool.query(insertMsg, [conversationId, messageId, 'out', type || 'text', body, req.body.mediaUrl || null, replyToMessageId || null]);
     const newMessage = result.rows[0];
 
@@ -1597,6 +1600,38 @@ app.post('/api/webhook/meta', async (req, res) => {
     require('fs').appendFileSync('webhook_debug.log', new Date().toISOString() + ' - WEBHOOK RECEIVED: ' + JSON.stringify(body) + '\n');
 
     if (body.object) {
+      // PROSES STATUS PESAN (Read, Delivered, Failed)
+      if (body.entry && body.entry[0].changes && body.entry[0].changes[0] && body.entry[0].changes[0].value.statuses && body.entry[0].changes[0].value.statuses[0]) {
+        const statusObj = body.entry[0].changes[0].value.statuses[0];
+        const statusId = statusObj.id;
+        const msgStatus = statusObj.status; // 'sent', 'delivered', 'read', 'failed'
+        let errorMessage = null;
+
+        if (msgStatus === 'failed' && statusObj.errors && statusObj.errors.length > 0) {
+          errorMessage = statusObj.errors[0].error_data?.details || statusObj.errors[0].message || statusObj.errors[0].title;
+        }
+
+        // Coba temukan pesan ini di DB berdasarkan external_message_id
+        const updateStatusQuery = `
+          UPDATE messages 
+          SET status = $1, error_message = $2
+          WHERE external_message_id = $3
+          RETURNING *
+        `;
+        const updatedMsgResult = await pool.query(updateStatusQuery, [msgStatus, errorMessage, statusId]);
+
+        if (updatedMsgResult.rows.length > 0) {
+          const updatedMsg = updatedMsgResult.rows[0];
+          // Emit socket update
+          const convInfo = await pool.query('SELECT account_id FROM conversations WHERE id = $1', [updatedMsg.conversation_id]);
+          if (convInfo.rows.length > 0) {
+            const accountId = convInfo.rows[0].account_id;
+            io.to(`account_${accountId}`).emit('message_status_update', updatedMsg);
+          }
+        }
+      }
+
+      // PROSES PESAN MASUK
       if (body.entry && body.entry[0].changes && body.entry[0].changes[0] && body.entry[0].changes[0].value.messages && body.entry[0].changes[0].value.messages[0]) {
         const phone_number_id = body.entry[0].changes[0].value.metadata.phone_number_id;
         const msg = body.entry[0].changes[0].value.messages[0];
@@ -1761,8 +1796,119 @@ app.post('/api/webhook/meta', async (req, res) => {
       res.sendStatus(404);
     }
   } catch (err) {
-    console.error("Meta Webhook Error:", err);
+    console.error('Webhook Error:', err);
     res.sendStatus(500);
+  }
+});
+
+// Endpoint untuk menarik template dari Meta
+app.get('/api/meta/templates/:accountId', authenticateToken, async (req, res) => {
+  try {
+    const { accountId } = req.params;
+    
+    // 1. Dapatkan akses token dan phone id
+    const accResult = await pool.query('SELECT wa_phone_number_id, wa_access_token, owner_id FROM accounts WHERE id = $1', [accountId]);
+    if (accResult.rows.length === 0) return res.status(404).json({ error: 'Account not found' });
+    
+    const account = accResult.rows[0];
+    if (account.owner_id !== req.user.id) return res.status(403).json({ error: 'Unauthorized' });
+    if (!account.wa_phone_number_id || !account.wa_access_token) {
+      return res.status(400).json({ error: 'WhatsApp API belum dikonfigurasi dengan lengkap di Pengaturan.' });
+    }
+
+    // 2. Dapatkan WABA ID dari Phone Number ID
+    const wabaRes = await fetch(`https://graph.facebook.com/v25.0/${account.wa_phone_number_id}?fields=whatsapp_business_api_data`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${account.wa_access_token}` }
+    });
+    
+    const wabaData = await wabaRes.json();
+    if (wabaData.error) throw new Error(wabaData.error.message);
+    
+    const wabaId = wabaData.whatsapp_business_api_data?.id || wabaData.whatsapp_business_api_data?.link;
+    
+    if (!wabaId) {
+      // Jika WABA ID tidak didapatkan, coba fetch pakai id
+      return res.status(400).json({ error: 'Gagal mendapatkan WABA ID dari Meta. Pastikan token dan ID telepon valid.' });
+    }
+
+    // 3. Fetch Templates
+    const templatesRes = await fetch(`https://graph.facebook.com/v25.0/${wabaId}/message_templates?limit=100`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${account.wa_access_token}` }
+    });
+
+    const templatesData = await templatesRes.json();
+    if (templatesData.error) throw new Error(templatesData.error.message);
+    
+    // Kembalikan hanya template yang disetujui
+    const approvedTemplates = templatesData.data.filter(t => t.status === 'APPROVED');
+    
+    res.json(approvedTemplates);
+  } catch (err) {
+    console.error('Fetch Meta Templates Error:', err);
+    res.status(500).json({ error: err.message || 'Gagal menarik template dari Meta.' });
+  }
+});
+// Route: Analyze AI (Meneruskan history ke n8n untuk dianalisa)
+app.post('/api/conversations/:id/analyze', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const convRes = await pool.query('SELECT * FROM conversations WHERE id = $1', [id]);
+    if (convRes.rows.length === 0) return res.status(404).json({ error: 'Conversation not found' });
+    const conv = convRes.rows[0];
+    
+    const accRes = await pool.query('SELECT n8n_webhook_url FROM accounts WHERE id = $1', [conv.account_id]);
+    const account = accRes.rows[0];
+    const n8nWebhookUrl = account.n8n_webhook_url;
+    
+    if (!n8nWebhookUrl) {
+      return res.status(400).json({ error: 'URL Webhook N8N belum diatur di akun ini.' });
+    }
+    
+    const msgRes = await pool.query('SELECT * FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC LIMIT 50', [id]);
+    
+    const historyText = msgRes.rows.map(m => {
+      const sender = m.direction === 'in' ? 'Pelanggan' : 'CS';
+      return `${sender}: ${m.content}`;
+    }).join('\n');
+    
+    const payload = {
+      action: 'analyze_ai',
+      conversation_id: conv.id,
+      customer_phone: conv.customer_phone,
+      history: historyText
+    };
+    
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    
+    const n8nResponse = await fetch(n8nWebhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    
+    if (!n8nResponse.ok) {
+      throw new Error(`N8N responsed with status ${n8nResponse.status}`);
+    }
+    
+    const resultText = await n8nResponse.text();
+    let summary = resultText;
+    try {
+      const parsed = JSON.parse(resultText);
+      if (parsed.summary) summary = parsed.summary;
+      else if (parsed.reply) summary = parsed.reply;
+    } catch(e) {}
+    
+    res.json({ summary });
+    
+  } catch (err) {
+    console.error("Analyze error:", err);
+    res.status(500).json({ error: 'Gagal menganalisis percakapan: ' + (err.message || 'Unknown error') });
   }
 });
 

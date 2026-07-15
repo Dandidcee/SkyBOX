@@ -267,6 +267,32 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     localStorage.setItem('savedMetaTemplates', JSON.stringify(updated));
   };
 
+  const [isSyncingTemplates, setIsSyncingTemplates] = useState(false);
+
+  const handleSyncTemplates = async () => {
+    if (!accountId) return;
+    try {
+      setIsSyncingTemplates(true);
+      const res = await api.get(`/meta/templates/${accountId}`);
+      if (res.data && Array.isArray(res.data)) {
+        const templates = res.data.map((t: any) => ({
+          name: t.name,
+          lang: t.language
+        }));
+        setSavedMetaTemplates(templates);
+        localStorage.setItem('savedMetaTemplates', JSON.stringify(templates));
+        const { useUiStore } = await import('../../lib/uiStore');
+        useUiStore.getState().notify('Berhasil sinkronisasi template', 'success');
+      }
+    } catch (err: any) {
+      console.error(err);
+      const { useUiStore } = await import('../../lib/uiStore');
+      useUiStore.getState().notify(err.response?.data?.error || 'Gagal sinkronisasi template', 'error');
+    } finally {
+      setIsSyncingTemplates(false);
+    }
+  };
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<number | null>(null);
@@ -1131,7 +1157,14 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                       )}
                       <span className="bubble-time">
                         {fmtTime(m.createdAt)}
-                        {m.direction === 'out' && <MdDoneAll size={14} className="msg-ack sent" />}
+                        {m.direction === 'out' && (
+                          <span style={{ marginLeft: '4px', display: 'inline-flex', alignItems: 'center' }}>
+                            {m.status === 'read' && <MdDoneAll size={14} className="msg-ack read" style={{ color: '#3B82F6' }} />}
+                            {m.status === 'delivered' && <MdDoneAll size={14} className="msg-ack delivered" />}
+                            {(!m.status || m.status === 'sent') && <MdCheck size={14} className="msg-ack sent" />}
+                            {m.status === 'failed' && <MdErrorOutline size={14} className="msg-ack failed" style={{ color: '#EF4444' }} title={m.errorMessage || 'Gagal terkirim'} />}
+                          </span>
+                        )}
                       </span>
                     </div>
                     {/* Tombol Reply */}
@@ -1497,7 +1530,16 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
               {savedMetaTemplates.length > 0 && (
                 <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Template Tersimpan</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Template Tersimpan</label>
+                    <button 
+                      onClick={handleSyncTemplates} 
+                      disabled={isSyncingTemplates}
+                      style={{ fontSize: '12px', background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      {isSyncingTemplates ? 'Memuat...' : '⟳ Sync dari Meta'}
+                    </button>
+                  </div>
                   <div className="saved-templates-list">
                     {savedMetaTemplates.map(t => (
                       <div key={t.name} className="saved-template-chip" onClick={() => { setTemplateName(t.name); setTemplateLang(t.lang); }}>
@@ -1507,6 +1549,16 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                     ))}
                   </div>
                 </div>
+              )}
+              {savedMetaTemplates.length === 0 && (
+                 <button 
+                   onClick={handleSyncTemplates} 
+                   disabled={isSyncingTemplates}
+                   className="btn-secondary"
+                   style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '8px' }}
+                 >
+                   {isSyncingTemplates ? 'Mensinkronisasi...' : 'Tarik Template dari WhatsApp Meta'}
+                 </button>
               )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>

@@ -50,7 +50,13 @@ export async function sendMedia(
   });
 }
 
-export async function analyzeConversation(_account: any, _data: any): Promise<string> {
-  // Fitur analyze dinonaktifkan karena sekarang berjalan native
-  return "Fitur ringkasan AI dinonaktifkan dalam mode Native.";
+export async function analyzeConversation(
+  _account: Account,
+  payload: { conversationId: string; phone: string; chatId: string }
+): Promise<string> {
+  const response = await api.post(`/conversations/${payload.conversationId}/analyze`, {
+    phone: payload.phone,
+    chatId: payload.chatId
+  });
+  return response.data.summary || response.data;
 }

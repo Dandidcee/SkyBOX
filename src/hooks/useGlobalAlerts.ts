@@ -79,12 +79,17 @@ export function useGlobalAlerts(accounts: Account[], enabled: boolean) {
       qc.invalidateQueries({ queryKey: ['orders'] });
     });
 
+    socket.on('message_status_update', (msgRow) => {
+      qc.invalidateQueries({ queryKey: ['messages', msgRow.conversation_id] });
+    });
+
     return () => {
       socket.off('connect');
       socket.off('disconnect');
       socket.off('connect_error');
       socket.off('conversation_updated');
       socket.off('new_message');
+      socket.off('message_status_update');
       socket.off('new_notification');
       socket.off('order_created');
       disconnectSocket();
