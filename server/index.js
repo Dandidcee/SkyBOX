@@ -1065,6 +1065,7 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
 
     const { customer_phone, account_id, wa_phone_number_id, wa_access_token } = convInfo.rows[0];
 
+    let metaData = null;
     // Lakukan HTTP POST ke Graph API Meta
     if (wa_phone_number_id && wa_access_token) {
       try {
@@ -1108,7 +1109,7 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
           body: JSON.stringify(payload)
         });
         
-        const metaData = await metaRes.json();
+        metaData = await metaRes.json();
         if (metaData.error) {
           console.error('Meta API Error:', metaData.error);
           return res.status(400).json({ error: `Gagal dikirim (Meta API): ${metaData.error.message || 'Format/Ukuran tidak didukung'}` });
