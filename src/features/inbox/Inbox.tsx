@@ -914,13 +914,21 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   const handleStartContactChat = async (contact: any) => {
     if (!accountId) return;
     try {
-      const res = await api.post<{id: string}>('/conversations/start', {
+      const res = await api.post<Conversation>('/conversations/start', {
         accountId: accountId,
         phone: contact.phone,
         name: contact.name
       });
+      
+      const newConv = res.data;
+      qc.setQueryData<Conversation[]>(conversationsKey(accountId), old => {
+        if (!old) return [newConv];
+        if (old.some(c => c.id === newConv.id)) return old;
+        return [newConv, ...old];
+      });
+      
       qc.invalidateQueries({ queryKey: [conversationsKey(accountId)] });
-      setActiveConversationId(res.data.id);
+      setActiveConversationId(newConv.id);
       setIsMobileChatOpen(true);
       onMobileChatOpenChange?.(true);
       if (window.innerWidth <= 768) {
@@ -1419,19 +1427,23 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
         <div className="chat-input-area" style={{ position: 'relative' }}>
           {!is24HourWindowOpen && activeConversation ? (
-            <div style={{ padding: '12px', backgroundColor: 'var(--color-surface)', borderTop: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ca8a04', fontSize: '13px', fontWeight: 600, backgroundColor: 'rgba(234, 179, 8, 0.1)', padding: '4px 12px', borderRadius: '12px' }}>
-                <MdLockClock size={16} /> Sesi 24 Jam Berakhir
+            <div className="expired-session-banner">
+              <div className="expired-session-info">
+                <div className="expired-session-icon">
+                  <MdLockClock size={24} />
+                </div>
+                <div className="expired-session-text">
+                  <span className="expired-title">Sesi 24 Jam Berakhir</span>
+                  <span className="expired-desc">
+                    Sesuai aturan Meta, gunakan <b>Pesan Template</b> sampai pelanggan membalas.
+                  </span>
+                </div>
               </div>
-              <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', lineHeight: '1.4' }}>
-                Sesuai aturan Meta, gunakan <b>Pesan Template</b> sampai pelanggan membalas.
-              </span>
               <button
-                className="btn-primary"
+                className="btn-primary expired-session-btn"
                 onClick={() => setShowTemplateModal(true)}
-                style={{ fontSize: '13px', padding: '6px 16px', height: '32px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}
               >
-                <MdMessage size={16} />
+                <MdMessage size={20} />
                 Kirim Template Meta
               </button>
             </div>
@@ -1962,38 +1974,42 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
       {/* Context Menu Modal untuk Chat Item */}
       {contextMenu && (
         <div 
-          className="inbox-modal-overlay" 
+          className="context-menu-overlay" 
           onClick={(e) => { e.stopPropagation(); setContextMenu(null); }}
           onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
-          style={{ zIndex: 9999, backgroundColor: 'transparent' }}
         >
           <div 
+            className="context-menu-box"
             style={{ 
-              position: 'fixed', 
-              top: Math.min(contextMenu.y, window.innerHeight - 150), 
-              left: Math.min(contextMenu.x, window.innerWidth - 180),
-              backgroundColor: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: '8px',
-              padding: '8px 0',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-              zIndex: 10000,
-              minWidth: '160px',
-              display: 'flex',
-              flexDirection: 'column'
+              top: window.innerWidth > 768 ? Math.min(contextMenu.y, window.innerHeight - 200) : undefined, 
+              left: window.innerWidth > 768 ? Math.min(contextMenu.x, window.innerWidth - 220) : undefined
             }}
           >
+            {/* Header khusus mobile */}
+            <div className="context-menu-header">
+              <ProgressAvatar name={contextMenu.conv.customerName || contextMenu.conv.customerPhone} confidence={contextMenu.conv.confidence} handler={contextMenu.conv.handler} />
+              <div className="context-menu-header-info">
+                <span className="context-menu-name">{contextMenu.conv.customerName || contextMenu.conv.customerPhone}</span>
+              </div>
+            </div>
+
             <button 
+              className="context-menu-btn"
               onClick={(e) => {
                 e.stopPropagation();
                 togglePin(contextMenu.conv.id);
                 setContextMenu(null);
               }}
-              style={{ padding: '12px 16px', textAlign: 'left', background: 'none', border: 'none', color: 'var(--color-text-primary)', cursor: 'pointer', fontSize: '14px' }}
             >
-              {pinnedChats.includes(contextMenu.conv.id) ? 'Batal Sematkan' : 'Sematkan Chat'}
+              {pinnedChats.includes(contextMenu.conv.id) ? (
+                <><MdPushPin size={22} style={{ transform: 'rotate(45deg)', color: 'var(--color-text-secondary)' }} /> Batal Sematkan</>
+              ) : (
+                <><MdPushPin size={22} color="var(--color-text-secondary)" /> Sematkan Chat</>
+              )}
             </button>
+
             <button 
+              className="context-menu-btn"
               onClick={(e) => {
                 e.stopPropagation();
                 setActiveConversationId(contextMenu.conv.id);
@@ -2004,11 +2020,12 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 }
                 setContextMenu(null);
               }}
-              style={{ padding: '12px 16px', textAlign: 'left', background: 'none', border: 'none', color: 'var(--color-text-primary)', cursor: 'pointer', fontSize: '14px' }}
             >
-              Buka Chat
+              <MdChat size={22} color="var(--color-text-secondary)" /> Buka Chat
             </button>
+
             <button 
+              className="context-menu-btn text-error"
               onClick={(e) => {
                 e.stopPropagation();
                 if (window.confirm(`Hapus percakapan dengan ${contextMenu.conv.customerName || contextMenu.conv.customerPhone}?`)) {
@@ -2018,9 +2035,8 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 }
                 setContextMenu(null);
               }}
-              style={{ padding: '12px 16px', textAlign: 'left', background: 'none', border: 'none', color: 'var(--color-error)', cursor: 'pointer', fontSize: '14px' }}
             >
-              Tandai Hapus
+              <MdDelete size={22} /> Tandai Hapus
             </button>
           </div>
         </div>
