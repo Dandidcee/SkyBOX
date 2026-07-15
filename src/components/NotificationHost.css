@@ -8,25 +8,38 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  max-width: 400px;
+  width: 100%;
+  padding: 0 16px;
+  pointer-events: none; /* Only the toast itself should be clickable */
 }
 
 .notif-toast {
-  background-color: rgba(15, 23, 42, 0.95);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: #f8fafc;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 12px 24px;
-  font-size: var(--font-size-sm);
+  pointer-events: auto;
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 16px;
+  width: 100%;
+  max-width: 480px;
+  font-size: 14px;
   font-weight: 500;
-  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.4);
-  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  cursor: default;
   animation: notif-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.notif-toast.clickable {
+  cursor: pointer;
+}
+
+.notif-toast.clickable:hover {
+  transform: translateY(2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .notif-toast.warn {

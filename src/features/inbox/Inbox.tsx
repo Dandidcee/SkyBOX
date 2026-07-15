@@ -5,7 +5,7 @@ import {
   MdArrowBack, MdSend, MdInsertEmoticon, MdFlashOn, MdReply,
   MdMic, MdDelete, MdDoneAll, MdErrorOutline,
   MdMoreVert, MdKeyboardArrowDown, MdPlayArrow, MdPause, MdChat,
-  MdChevronLeft, MdChevronRight, MdAutoAwesome, MdLockClock, MdMessage
+  MdChevronLeft, MdChevronRight, MdAutoAwesome, MdLockClock, MdMessage, MdPushPin
 } from 'react-icons/md';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -251,6 +251,21 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   
   const [isChatSearchOpen, setIsChatSearchOpen] = useState(false);
   const [chatSearchQuery, setChatSearchQuery] = useState('');
+
+  // State untuk context menu & sematkan chat
+  const [pinnedChats, setPinnedChats] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(`skybox_pinned_${account.id}`) || '[]'); } catch { return []; }
+  });
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, conv: Conversation } | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const togglePin = (convId: string) => {
+    setPinnedChats(prev => {
+      const next = prev.includes(convId) ? prev.filter(id => id !== convId) : [...prev, convId];
+      localStorage.setItem(`skybox_pinned_${account.id}`, JSON.stringify(next));
+      return next;
+    });
+  };
 
   const [savedMetaTemplates, setSavedMetaTemplates] = useState<{name: string, lang: string, components?: any[]}[]>(() => {
     try {
@@ -1011,57 +1026,85 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
           ) : filtered.length === 0 ? (
             <div style={{ padding: 16, color: 'var(--color-text-secondary)', fontSize: 13 }}>Belum ada percakapan.</div>
           ) : (
-            filtered.map(conv => {
-              const isSelected = selectedChats.includes(conv.id);
-              return (
-                <div
-                  key={conv.id}
-                  className={`chat-item ${activeConversation?.id === conv.id ? 'active' : ''} ${isSelected ? 'selected' : ''}`}
-                  onClick={(e) => {
-                    if (isSelectionMode) {
-                      handleToggleSelectChat(e, conv.id);
-                    } else {
-                      setActiveConversationId(conv.id);
-                      setIsMobileChatOpen(true);
-                      onMobileChatOpenChange?.(true);
-                      if (window.innerWidth <= 768) {
-                        window.history.pushState({ chatOpen: true }, '');
+            (() => {
+              const sortedFiltered = [...filtered].sort((a, b) => {
+                const aPinned = pinnedChats.includes(a.id);
+                const bPinned = pinnedChats.includes(b.id);
+                if (aPinned && !bPinned) return -1;
+                if (!aPinned && bPinned) return 1;
+                return 0; // maintain time sorting
+              });
+              return sortedFiltered.map(conv => {
+                const isSelected = selectedChats.includes(conv.id);
+                return (
+                  <div
+                    key={conv.id}
+                    className={`chat-item ${activeConversation?.id === conv.id ? 'active' : ''} ${isSelected ? 'selected' : ''}`}
+                    onClick={(e) => {
+                      if (isSelectionMode) {
+                        handleToggleSelectChat(e, conv.id);
+                      } else {
+                        setActiveConversationId(conv.id);
+                        setIsMobileChatOpen(true);
+                        onMobileChatOpenChange?.(true);
+                        if (window.innerWidth <= 768) {
+                          window.history.pushState({ chatOpen: true }, '');
+                        }
+                        
+                        // Reset unread optimistically and in DB
+                        if (conv.unread > 0) {
+                          qc.setQueryData<Conversation[]>(conversationsKey(accountId), old => 
+                            old?.map(c => c.id === conv.id ? { ...c, unread: 0 } : c) ?? old
+                          );
+                          api.put(`/resource/conversations/${conv.id}`, { unread: 0 }).catch(() => {});
+                        }
                       }
-                      
-                      // Reset unread optimistically and in DB
-                      if (conv.unread > 0) {
-                        qc.setQueryData<Conversation[]>(conversationsKey(accountId), old => 
-                          old?.map(c => c.id === conv.id ? { ...c, unread: 0 } : c) ?? old
-                        );
-                        api.put(`/resource/conversations/${conv.id}`, { unread: 0 }).catch(() => {});
+                    }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setContextMenu({ x: e.clientX, y: e.clientY, conv });
+                    }}
+                    onTouchStart={(e) => {
+                      if (e.touches.length === 1) {
+                        const touch = e.touches[0];
+                        const cx = touch.clientX;
+                        const cy = touch.clientY;
+                        longPressTimer.current = setTimeout(() => {
+                          setContextMenu({ x: cx, y: cy, conv });
+                        }, 500);
                       }
-                    }
-                  }}
-                >
-                  {isSelectionMode && (
-                    <div className="chat-checkbox">
-                      <input 
-                        type="checkbox" 
-                        checked={isSelected} 
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleToggleSelectChat(e, conv.id)} 
-                        onClick={e => e.stopPropagation()}
-                      />
-                    </div>
-                  )}
-                  <ProgressAvatar name={conv.customerName || conv.customerPhone} confidence={conv.confidence} handler={conv.handler} />
-                  <div className="chat-info">
-                    <div className="chat-name-time">
-                      <span className="chat-name">{conv.customerName || conv.customerPhone}</span>
-                      <span className="chat-time">{fmtTime(conv.lastTime)}</span>
-                    </div>
-                    <div className="chat-preview">
-                      <span className={`preview-text ${conv.unread === 0 ? 'text-secondary' : ''}`}>{conv.lastPreview}</span>
-                      {conv.unread > 0 && <div className="unread-badge">{conv.unread}</div>}
+                    }}
+                    onTouchEnd={() => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }}
+                    onTouchMove={() => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }}
+                  >
+                    {isSelectionMode && (
+                      <div className="chat-checkbox">
+                        <input 
+                          type="checkbox" 
+                          checked={isSelected} 
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleToggleSelectChat(e, conv.id)} 
+                          onClick={e => e.stopPropagation()}
+                        />
+                      </div>
+                    )}
+                    <ProgressAvatar name={conv.customerName || conv.customerPhone} confidence={conv.confidence} handler={conv.handler} />
+                    <div className="chat-info">
+                      <div className="chat-name-time">
+                        <span className="chat-name" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {conv.customerName || conv.customerPhone}
+                          {pinnedChats.includes(conv.id) && <MdPushPin size={14} color="var(--color-primary)" style={{ transform: 'rotate(45deg)' }} />}
+                        </span>
+                        <span className="chat-time">{fmtTime(conv.lastTime)}</span>
+                      </div>
+                      <div className="chat-preview">
+                        <span className={`preview-text ${conv.unread === 0 ? 'text-secondary' : ''}`}>{conv.lastPreview}</span>
+                        {conv.unread > 0 && <div className="unread-badge">{conv.unread}</div>}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })
+                );
+              })
+            })()
           )}
           {filteredContacts.length > 0 && (
             <div style={{ padding: '8px 16px', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-secondary)', background: 'var(--color-bg-primary)' }}>
@@ -1906,6 +1949,73 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 Kirim
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Context Menu Modal untuk Chat Item */}
+      {contextMenu && (
+        <div 
+          className="inbox-modal-overlay" 
+          onClick={(e) => { e.stopPropagation(); setContextMenu(null); }}
+          onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
+          style={{ zIndex: 9999, backgroundColor: 'transparent' }}
+        >
+          <div 
+            style={{ 
+              position: 'fixed', 
+              top: Math.min(contextMenu.y, window.innerHeight - 150), 
+              left: Math.min(contextMenu.x, window.innerWidth - 180),
+              backgroundColor: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: '8px',
+              padding: '8px 0',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+              zIndex: 10000,
+              minWidth: '160px',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePin(contextMenu.conv.id);
+                setContextMenu(null);
+              }}
+              style={{ padding: '12px 16px', textAlign: 'left', background: 'none', border: 'none', color: 'var(--color-text-primary)', cursor: 'pointer', fontSize: '14px' }}
+            >
+              {pinnedChats.includes(contextMenu.conv.id) ? 'Batal Sematkan' : 'Sematkan Chat'}
+            </button>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveConversationId(contextMenu.conv.id);
+                setIsMobileChatOpen(true);
+                onMobileChatOpenChange?.(true);
+                if (window.innerWidth <= 768) {
+                  window.history.pushState({ chatOpen: true }, '');
+                }
+                setContextMenu(null);
+              }}
+              style={{ padding: '12px 16px', textAlign: 'left', background: 'none', border: 'none', color: 'var(--color-text-primary)', cursor: 'pointer', fontSize: '14px' }}
+            >
+              Buka Chat
+            </button>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                if (window.confirm(`Hapus percakapan dengan ${contextMenu.conv.customerName || contextMenu.conv.customerPhone}?`)) {
+                  deleteConversations([contextMenu.conv.id]).then(() => {
+                    qc.invalidateQueries({ queryKey: conversationsKey(account.id) });
+                  });
+                }
+                setContextMenu(null);
+              }}
+              style={{ padding: '12px 16px', textAlign: 'left', background: 'none', border: 'none', color: 'var(--color-error)', cursor: 'pointer', fontSize: '14px' }}
+            >
+              Tandai Hapus
+            </button>
           </div>
         </div>
       )}

@@ -11,7 +11,14 @@ const NotificationHost = () => {
     <>
       <div className="notif-host">
         {notifications.map((n) => (
-          <div key={n.id} className={`notif-toast ${n.kind}`} onClick={() => dismiss(n.id)}>
+          <div 
+            key={n.id} 
+            className={`notif-toast ${n.kind} ${n.onClick ? 'clickable' : ''}`} 
+            onClick={() => {
+              if (n.onClick) n.onClick();
+              dismiss(n.id);
+            }}
+          >
             {n.text}
           </div>
         ))}

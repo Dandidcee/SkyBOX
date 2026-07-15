@@ -58,8 +58,6 @@ function App() {
   const { data: accounts = [], isLoading: accountsLoading, isError: accountsError, refetch } = useAccounts(!!session);
   const { add, update, remove } = useAccountMutations();
 
-  useSystemNotifications(accounts);
-  useGlobalAlerts(accounts, !!session);
 
   // Badge unread counts
   const { data: allConvs = [] } = useAllConversations(!!session);
@@ -151,6 +149,9 @@ function App() {
       setActiveView(v);
     }
   };
+
+  useSystemNotifications(accounts);
+  useGlobalAlerts(accounts, !!session, handleOpenChat);
 
   // Pilih akun aktif default saat daftar akun termuat / berubah.
   const maxCols = windowWidth >= 1440 ? 4 : windowWidth >= 1024 ? 3 : windowWidth >= 768 ? 2 : 1;

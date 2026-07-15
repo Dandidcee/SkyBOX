@@ -6,7 +6,7 @@ import { playEventSound } from '../lib/soundStore';
 // import { wasSelfHandlerChange } from '../lib/selfActions';
 import type { Account } from '../types/db';
 
-export function useGlobalAlerts(accounts: Account[], enabled: boolean) {
+export function useGlobalAlerts(accounts: Account[], enabled: boolean, onOpenChat?: (accountId: string, conversationId: string) => void) {
   const qc = useQueryClient();
 
   useEffect(() => {
@@ -57,7 +57,9 @@ export function useGlobalAlerts(accounts: Account[], enabled: boolean) {
         }
         
         const prefix = accName ? `[${accName}] ` : '';
-        notify(`${prefix}Pesan baru dari ${customerName}`, 'info');
+        notify(`${prefix}Pesan baru dari ${customerName}`, 'info', () => {
+          if (onOpenChat) onOpenChat(acc.id, msgRow.conversation_id);
+        });
         playEventSound('incoming');
       }
     });
