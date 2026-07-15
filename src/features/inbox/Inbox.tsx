@@ -248,6 +248,10 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   const [templateVarsArray, setTemplateVarsArray] = useState<string[]>([]);
   const [isTemplateDropdownOpen, setIsTemplateDropdownOpen] = useState(false);
   const [templateSearchQuery, setTemplateSearchQuery] = useState('');
+  
+  const [isChatSearchOpen, setIsChatSearchOpen] = useState(false);
+  const [chatSearchQuery, setChatSearchQuery] = useState('');
+
   const [savedMetaTemplates, setSavedMetaTemplates] = useState<{name: string, lang: string, components?: any[]}[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('savedMetaTemplates') || '[]');
@@ -401,6 +405,13 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   const { data: messages = [], isLoading: msgLoading } = useMessages(resolvedConversationId ?? undefined);
   const { data: orders = [] } = useOrders(resolvedConversationId ?? undefined);
   const latestOrder = orders[0] ?? null;
+
+  const is24HourWindowOpen = useMemo(() => {
+    const lastUserMsg = [...messages].reverse().find(m => m.direction === 'in');
+    if (!lastUserMsg) return false;
+    const diffHours = (Date.now() - new Date(lastUserMsg.createdAt).getTime()) / (1000 * 60 * 60);
+    return diffHours <= 24;
+  }, [messages]);
 
   // Pesan optimistik untuk conversation aktif; sembunyikan yang sudah tersimpan di DB (dedup by body).
   const outBodies = new Set(messages.filter(m => m.direction === 'out').map(m => m.body));
@@ -1145,6 +1156,17 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
           <div className="chat-header-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <button
               className="icon-btn text-secondary"
+              onClick={() => {
+                setIsChatSearchOpen(!isChatSearchOpen);
+                if (isChatSearchOpen) setChatSearchQuery('');
+              }}
+              title="Cari Pesan"
+              style={{ borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: isChatSearchOpen ? 'rgba(0,0,0,0.05)' : 'transparent' }}
+            >
+              <MdSearch size={20} />
+            </button>
+            <button
+              className="icon-btn text-secondary"
               onClick={() => setShowTemplateModal(true)}
               title="Kirim Pesan Template Meta"
               style={{ backgroundColor: 'var(--color-primary)', color: 'white', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -1166,6 +1188,25 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             )}
           </div>
         </div>
+
+        {isChatSearchOpen && (
+          <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-primary)', display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <MdSearch size={20} className="text-secondary" />
+            <input 
+              type="text"
+              value={chatSearchQuery}
+              onChange={(e) => setChatSearchQuery(e.target.value)}
+              placeholder="Cari pesan di percakapan ini..."
+              style={{ flex: 1, border: 'none', backgroundColor: 'transparent', outline: 'none', fontSize: '14px', color: 'var(--color-text-primary)' }}
+              autoFocus
+            />
+            {chatSearchQuery && (
+              <button className="icon-btn text-secondary" onClick={() => setChatSearchQuery('')} style={{ padding: 4 }}>
+                <MdClose size={16} />
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="chat-timeline" ref={timelineRef} onScroll={handleTimelineScroll}>
           {latestOrder && (
@@ -1192,12 +1233,39 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             <div style={{ margin: 'auto', color: 'var(--color-text-secondary)', fontSize: 13 }}>Belum ada pesan.</div>
           ) : (
             <>
-              {messages.map(m => {
+              {messages.filter(m => {
+                if (!chatSearchQuery.trim()) return true;
+                if (!m.body) return false;
+                return m.body.toLowerCase().includes(chatSearchQuery.toLowerCase());
+              }).map((m, index, arr) => {
                 const quotedMsg = m.replyToMessageId ? messages.find(orig => orig.externalId === m.replyToMessageId) : null;
                 const hasCaption = m.body && !/^\[(?:Received )?(?:image|video|audio|document|sticker)\]$/i.test(m.body.trim());
+                
+                const currentDate = new Date(m.createdAt).toDateString();
+                const prevDate = index > 0 ? new Date(arr[index - 1].createdAt).toDateString() : null;
+                const showDateSeparator = currentDate !== prevDate;
+                
+                const fmtDateSeparator = (isoString: string) => {
+                  const d = new Date(isoString);
+                  const today = new Date();
+                  const yesterday = new Date();
+                  yesterday.setDate(today.getDate() - 1);
+                  if (d.toDateString() === today.toDateString()) return 'Hari ini';
+                  if (d.toDateString() === yesterday.toDateString()) return 'Kemarin';
+                  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                };
+
                 return (
-                  <div key={m.id} id={`msg-${m.id}`} className={`bubble-wrapper ${m.direction === 'out' ? 'sent' : 'received'}`}>
-                    <div className={`bubble ${(m.type === 'image' || m.type === 'video') && m.mediaUrl ? 'has-media' : ''} ${!hasCaption ? 'no-caption' : ''}`}>
+                  <React.Fragment key={m.id}>
+                    {showDateSeparator && (
+                      <div style={{ display: 'flex', justifyContent: 'center', margin: '16px 0 8px' }}>
+                        <span style={{ backgroundColor: 'var(--color-bg-tertiary)', padding: '4px 12px', borderRadius: '16px', fontSize: '11px', fontWeight: 500, color: 'var(--color-text-secondary)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                          {fmtDateSeparator(m.createdAt)}
+                        </span>
+                      </div>
+                    )}
+                    <div id={`msg-${m.id}`} className={`bubble-wrapper ${m.direction === 'out' ? 'sent' : 'received'}`}>
+                      <div className={`bubble ${(m.type === 'image' || m.type === 'video') && m.mediaUrl ? 'has-media' : ''} ${!hasCaption ? 'no-caption' : ''}`}>
                       {quotedMsg && (
                         <div className="quoted-message" onClick={() => {
                           const el = document.getElementById(`msg-${quotedMsg.id}`);
@@ -1258,6 +1326,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                       <MdReply size={18} />
                     </button>
                   </div>
+                  </React.Fragment>
                 );
               })}
               {visiblePending.map(p => (
@@ -1300,6 +1369,30 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
         )}
 
         <div className="chat-input-area" style={{ position: 'relative' }}>
+          {!is24HourWindowOpen && activeConversation ? (
+            <div style={{
+              backgroundColor: 'var(--color-bg-primary)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '12px',
+              textAlign: 'center',
+              padding: '16px 32px'
+            }}>
+              <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: '1.5' }}>
+                Sesi obrolan 24 jam telah berakhir. Anda hanya dapat membalas menggunakan Pesan Template sampai pelanggan membalas kembali.
+              </span>
+              <button
+                className="btn-primary"
+                onClick={() => setShowTemplateModal(true)}
+                style={{ fontSize: '13px', padding: '8px 16px', height: 'auto', display: 'inline-flex' }}
+              >
+                Kirim Pesan Template Meta
+              </button>
+            </div>
+          ) : (
+            <>
           {isEmojiOpen && (
             <div className="emoji-picker-popup-container" ref={emojiPickerRef}>
               <EmojiPicker
@@ -1463,6 +1556,8 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             </button>
           ) : (
             <button className="btn-primary icon-only" onClick={handleSendText}><MdSend size={22} /></button>
+          )}
+            </>
           )}
         </div>
 
