@@ -1370,24 +1370,20 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
         <div className="chat-input-area" style={{ position: 'relative' }}>
           {!is24HourWindowOpen && activeConversation ? (
-            <div className="expired-session-banner">
-              <div className="expired-session-info">
-                <div className="expired-session-icon">
-                  <MdLockClock size={24} />
-                </div>
-                <div className="expired-session-text">
-                  <span className="expired-title">Sesi 24 Jam Berakhir</span>
-                  <span className="expired-desc">
-                    Sesuai aturan ketat Meta, Anda hanya dapat membalas menggunakan <b>Pesan Template</b> sampai pelanggan membalas pesan Anda kembali.
-                  </span>
-                </div>
+            <div style={{ padding: '12px', backgroundColor: 'var(--color-surface)', borderTop: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ca8a04', fontSize: '13px', fontWeight: 600, backgroundColor: 'rgba(234, 179, 8, 0.1)', padding: '4px 12px', borderRadius: '12px' }}>
+                <MdLockClock size={16} /> Sesi 24 Jam Berakhir
               </div>
+              <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', lineHeight: '1.4' }}>
+                Sesuai aturan Meta, gunakan <b>Pesan Template</b> sampai pelanggan membalas.
+              </span>
               <button
-                className="btn-primary expired-session-btn"
+                className="btn-primary"
                 onClick={() => setShowTemplateModal(true)}
+                style={{ fontSize: '13px', padding: '6px 16px', height: '32px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}
               >
-                <MdMessage size={18} />
-                Kirim Pesan Template Meta
+                <MdMessage size={16} />
+                Kirim Template Meta
               </button>
             </div>
           ) : (
@@ -1863,8 +1859,22 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                   );
                 }
 
-                // Jika belum di-sync atau tidak ada komponen, tidak usah tampilkan fallback textarea
-                return null;
+                // Jika belum di-sync atau tidak ada komponen, tampilkan fallback input teks
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: 600 }}>Variabel Template (Opsional)</label>
+                    <textarea
+                      value={templateVariables}
+                      onChange={(e) => setTemplateVariables(e.target.value)}
+                      placeholder="Pisahkan dengan koma. Contoh: Budi, 12345"
+                      className="chat-input"
+                      style={{ width: '100%', border: '1px solid var(--color-border)', borderRadius: '8px', minHeight: '60px', padding: '12px', fontSize: '13px', resize: 'vertical' }}
+                    />
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                      Gunakan ini jika isi template belum termuat, namun Anda yakin template ini butuh variabel.
+                    </div>
+                  </div>
+                );
               })()}
 
             </div>
