@@ -339,6 +339,59 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
   // removed handleSaveMetaTemplate and handleDeleteMetaTemplate as they were unused
 
+  // --- Mobile Back Button Interceptor for Overlays ---
+  const overlayStates = useRef({ addContactPhone, isNewChatPanelOpen, isMobileChatOpen });
+  overlayStates.current = { addContactPhone, isNewChatPanelOpen, isMobileChatOpen };
+  
+  const activeOverlayCount = (isNewChatPanelOpen ? 1 : 0) + (isMobileChatOpen ? 1 : 0) + (addContactPhone !== null ? 1 : 0);
+  const prevOverlayCount = useRef(activeOverlayCount);
+  const isPopping = useRef(false);
+  const isProgrammaticBack = useRef(false);
+
+  useEffect(() => {
+    const handlePop = (e: PopStateEvent) => {
+      if (window.innerWidth > 768) return;
+      if (isProgrammaticBack.current) return;
+
+      const st = overlayStates.current;
+      if (st.addContactPhone !== null || st.isNewChatPanelOpen || st.isMobileChatOpen) {
+        isPopping.current = true;
+        if (st.addContactPhone !== null) setAddContactPhone(null);
+        else if (st.isNewChatPanelOpen) setIsNewChatPanelOpen(false);
+        else if (st.isMobileChatOpen) {
+          setIsMobileChatOpen(false);
+          setActiveConversationId(null);
+        }
+      }
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
+
+  useEffect(() => {
+    if (window.innerWidth > 768) return;
+    const diff = activeOverlayCount - prevOverlayCount.current;
+    
+    if (diff > 0) {
+      for (let i = 0; i < diff; i++) {
+        window.history.pushState({ view: 'inbox', overlay: true }, '');
+      }
+    } else if (diff < 0) {
+      if (isPopping.current) {
+        isPopping.current = false;
+      } else {
+        const pops = -diff;
+        for (let i = 0; i < pops; i++) {
+          isProgrammaticBack.current = true;
+          window.history.back();
+        }
+        setTimeout(() => { isProgrammaticBack.current = false; }, 150);
+      }
+    }
+    prevOverlayCount.current = activeOverlayCount;
+  }, [activeOverlayCount]);
+  // ---------------------------------------------------
+
   const [isSyncingTemplates, setIsSyncingTemplates] = useState(false);
 
   const handleSyncTemplates = async (silent = false) => {
