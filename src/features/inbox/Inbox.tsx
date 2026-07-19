@@ -349,7 +349,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   const isProgrammaticBack = useRef(false);
 
   useEffect(() => {
-    const handlePop = (e: PopStateEvent) => {
+    const handlePop = () => {
       if (window.innerWidth > 768) return;
       if (isProgrammaticBack.current) return;
 
