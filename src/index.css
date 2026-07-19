@@ -252,14 +252,5 @@ textarea::placeholder {
 
   body.is-login-page [data-sonner-toaster] {
     margin-top: 16px !important;
-    right: 16px !important;
-    left: auto !important;
-    width: auto !important;
-    transform: none !important;
-  }
-
-  body.is-login-page [data-sonner-toast] {
-    width: auto !important;
-    margin-left: auto;
   }
 }
