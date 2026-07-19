@@ -665,7 +665,11 @@ app.post('/api/resource/:table', authenticateToken, async (req, res) => {
     if (check.rows.length === 0) return res.sendStatus(403);
 
     const fields = ['account_id', ...Object.keys(data)];
-    const values = [account_id, ...Object.values(data).map(v => (typeof v === 'object' && v !== null) ? JSON.stringify(v) : v)];
+    const values = [account_id, ...Object.keys(data).map(k => {
+      const v = data[k];
+      if (table === 'chat_folders' && k === 'chat_ids') return v; // pg handles array natively for text[]
+      return (typeof v === 'object' && v !== null) ? JSON.stringify(v) : v;
+    })];
     const placeholders = fields.map((_, i) => `$${i + 1}`).join(', ');
 
     const query = `INSERT INTO ${table} (${fields.join(', ')}) VALUES (${placeholders}) RETURNING *`;
@@ -696,7 +700,11 @@ app.put('/api/resource/:table/:id', authenticateToken, async (req, res) => {
     if (fields.length === 0) return res.json({ success: true });
 
     const setClause = fields.map((f, i) => `${f} = $${i + 2}`).join(', ');
-    const values = [id, ...Object.values(req.body).map(v => (typeof v === 'object' && v !== null) ? JSON.stringify(v) : v)];
+    const values = [id, ...fields.map(k => {
+      const v = req.body[k];
+      if (table === 'chat_folders' && k === 'chat_ids') return v;
+      return (typeof v === 'object' && v !== null) ? JSON.stringify(v) : v;
+    })];
 
     const query = `UPDATE ${table} SET ${setClause} WHERE id = $1 RETURNING *`;
     const result = await pool.query(query, values);
