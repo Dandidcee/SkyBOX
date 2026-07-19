@@ -7,7 +7,7 @@ import {
   useProducts, useProductMutations, useKnowledge, useKnowledgeMutations, usePromos, usePromoMutations,
 } from '../../hooks/useCatalog';
 import { toDirectImageUrl } from '../../lib/imageUrl';
-import '../dashboard/Dashboard.css';
+
 import './Catalog.css';
 
 interface CatalogProps {
@@ -178,7 +178,7 @@ const Catalog = ({ accounts }: CatalogProps) => {
       </div>
 
       <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, marginBottom: 16 }}>
-        Data ini dipakai AI (lewat N8N) untuk menjawab pelanggan di nomor <b>{account?.name}</b>. Tiap nomor WA punya katalog & pengetahuan sendiri.
+        Sumber data referensi AI untuk membalas pesan di nomor <b>{account?.name || 'terpilih'}</b>.
       </p>
 
       {/* Tab */}
@@ -197,7 +197,7 @@ const Catalog = ({ accounts }: CatalogProps) => {
       {tab === 'products' && (
         <div className="cat-section">
           <div className="cat-section-head">
-            <h3>Katalog Produk</h3>
+            <h3>Daftar Produk</h3>
             <button className="cat-add-btn" onClick={openAddProduct}><MdAdd size={18} /> Tambah Produk</button>
           </div>
           {prodLoading ? (
@@ -208,15 +208,15 @@ const Catalog = ({ accounts }: CatalogProps) => {
             <div className="cat-grid">
               {products.map(p => (
                 <div key={p.id} className="cat-card">
-                  {p.imageUrl && <img src={toDirectImageUrl(p.imageUrl.split('\n')[0])} alt={p.name} className="cat-card-img" referrerPolicy="no-referrer" />}
+                  <div style={{ position: 'relative' }}>
+                    {p.imageUrl && <img src={toDirectImageUrl(p.imageUrl.split('\n')[0])} alt={p.name} className="cat-card-img" referrerPolicy="no-referrer" />}
+                    {!p.isActive && <span className="cat-badge off" style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none' }}>nonaktif</span>}
+                  </div>
                   <div className="cat-card-body">
-                    <div className="cat-card-title">
-                      <span>{p.name}</span>
-                      {!p.isActive && <span className="cat-badge off">nonaktif</span>}
-                    </div>
+                    <div className="cat-card-title">{p.name}</div>
                     {p.category && <span className="cat-card-cat">{p.category}</span>}
                     <div className="cat-card-meta">
-                      {p.price != null && <span className="cat-price">Rp {p.price.toLocaleString('id-ID')}</span>}
+                      {p.price != null && <span className="cat-price">Rp {Number(p.price).toLocaleString('id-ID')}</span>}
                       {p.stock != null && <span className="cat-stock">stok: {p.stock}</span>}
                     </div>
                     {p.description && <p className="cat-card-desc">{p.description}</p>}
@@ -280,12 +280,12 @@ const Catalog = ({ accounts }: CatalogProps) => {
                   : products.filter(p => pr.productIds.includes(p.id)).map(p => p.name).join(', ') || '—';
                 return (
                   <div key={pr.id} className="cat-card">
-                    {pr.bannerUrl && <img src={toDirectImageUrl(pr.bannerUrl)} alt={pr.title} className="cat-card-img" referrerPolicy="no-referrer" />}
+                    <div style={{ position: 'relative' }}>
+                      {pr.bannerUrl && <img src={toDirectImageUrl(pr.bannerUrl)} alt={pr.title} className="cat-card-img" referrerPolicy="no-referrer" />}
+                      {!pr.isActive && <span className="cat-badge off" style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none' }}>nonaktif</span>}
+                    </div>
                     <div className="cat-card-body">
-                      <div className="cat-card-title">
-                        <span>{pr.title}</span>
-                        {!pr.isActive && <span className="cat-badge off">nonaktif</span>}
-                      </div>
+                      <div className="cat-card-title">{pr.title}</div>
                       <span className="cat-card-cat">{targetNames}</span>
                       {pr.description && <p className="cat-card-desc">{pr.description}</p>}
                     </div>

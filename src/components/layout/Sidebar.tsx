@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  MdDashboard,
   MdChat,
   MdInsertChart,
   MdNotifications,
@@ -19,8 +18,7 @@ import {
   MdChevronRight,
   MdLogout,
   MdFlashOn,
-  MdAutoAwesome,
-  MdContacts
+  MdAutoAwesome
 } from 'react-icons/md';
 import type { Account } from '../../App';
 import './Sidebar.css';
@@ -30,9 +28,7 @@ const menuGroups = [
     id: 'group_utama',
     label: 'Utama',
     items: [
-      { id: 'dashboard', icon: MdDashboard, label: 'Dashboard' },
       { id: 'inbox', icon: MdChat, label: 'Inbox' },
-      { id: 'contacts', icon: MdContacts, label: 'Kontak' },
       { id: 'notifications', icon: MdNotifications, label: 'Notifikasi' },
     ]
   },
@@ -58,7 +54,7 @@ const menuGroups = [
     label: 'Admin & Pengaturan',
     items: [
       { id: 'analytics', icon: MdInsertChart, label: 'Analytics' },
-      { id: 'integrations', icon: MdIntegrationInstructions, label: 'Integrations' },
+      { id: 'integrations', icon: MdIntegrationInstructions, label: 'Pusat Koneksi' },
       { id: 'settings', icon: MdSettings, label: 'Settings' },
     ]
   }
@@ -93,11 +89,28 @@ const Sidebar = ({ isVisible = true, toggleSidebar, accounts, activeAccountIds, 
   };
 
   // Theme Toggle State
-  const [theme, setTheme] = useState(document.documentElement.getAttribute('data-theme') || 'light');
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('skybox_theme') || document.documentElement.getAttribute('data-theme') || 'light';
+  });
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('skybox_theme', theme);
   }, [theme]);
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsAccountDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const primaryAccount = accounts.find(a => a.id === activeAccountIds[0]) || accounts[0];
 
@@ -125,7 +138,7 @@ const Sidebar = ({ isVisible = true, toggleSidebar, accounts, activeAccountIds, 
         {isVisible ? <MdChevronLeft size={20} /> : <MdChevronRight size={20} />}
       </button>
 
-      <div className="sidebar-header">
+      <div className="sidebar-header" ref={dropdownRef}>
         <div 
           className="account-switcher" 
           onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}

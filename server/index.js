@@ -25,7 +25,15 @@ pool.query(`
     key text PRIMARY KEY,
     value text
   );
-`).catch(err => console.error("Failed to create app_settings table:", err));
+  
+  CREATE TABLE IF NOT EXISTS chat_folders (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    account_id uuid REFERENCES accounts(id) ON DELETE CASCADE,
+    name text NOT NULL,
+    chat_ids text[] DEFAULT '{}',
+    created_at timestamp DEFAULT now()
+  );
+`).catch(err => console.error("Failed to create tables:", err));
 
 pool.on('error', (err) => {
   console.error('Unexpected error on idle client', err);
@@ -615,7 +623,7 @@ app.delete('/api/accounts/:id', authenticateToken, async (req, res) => {
 // DYNAMIC CRUD UNTUK TABEL DENGAN account_id
 // (products, knowledge, promos, orders, templates, quick_replies, dll)
 // ==========================================
-const ALLOWED_TABLES = ['products', 'knowledge', 'promos', 'orders', 'templates', 'quick_replies', 'notifications', 'contacts', 'conversations'];
+const ALLOWED_TABLES = ['products', 'knowledge', 'promos', 'orders', 'templates', 'quick_replies', 'notifications', 'contacts', 'conversations', 'chat_folders'];
 
 // GET list per accountId
 app.get('/api/resource/:table/:accountId', authenticateToken, async (req, res) => {
@@ -1242,7 +1250,7 @@ app.post('/api/n8n/orders', async (req, res) => {
     if (convInfo.rows.length > 0) {
       const conv = convInfo.rows[0];
       
-      const notifMsg = `Order baru berhasil dibuat (Status: ${status})`;
+      const notifMsg = `Order baru berhasil dibuat - Status: ${status}`;
       const notifQuery = `
         INSERT INTO notifications (account_id, level, message, conversation_id, customer_phone)
         VALUES ($1, $2, $3, $4, $5)
@@ -1276,7 +1284,7 @@ app.put('/api/n8n/conversations/:id/handler', async (req, res) => {
     const conv = result.rows[0];
 
     if (handler === 'human') {
-      const notifMsg = `Mode AI dinonaktifkan (Chat butuh penanganan Admin).`;
+      const notifMsg = `Mode AI dinonaktifkan - Chat butuh penanganan Admin.`;
       const notifQuery = `
         INSERT INTO notifications (account_id, level, message, conversation_id, customer_phone)
         VALUES ($1, $2, $3, $4, $5)
@@ -1379,11 +1387,18 @@ app.post('/api/n8n/save-message', async (req, res) => {
     const result = await pool.query(insertMsg, [conversationId, messageId, direction, type || 'text', body, mediaUrl || null]);
     
     // Update conversation preview
+    let previewText = body;
+    if (type && type !== 'text' && type !== 'interactive' && type !== 'button' && type !== 'template') {
+      if (!previewText.toLowerCase().startsWith(`[${type}]`) && !previewText.toLowerCase().startsWith(`[received ${type}]`)) {
+        previewText = `[${type}] ${previewText}`;
+      }
+    }
+
     await pool.query(`
       UPDATE conversations 
       SET last_preview = $1, last_time = NOW()
       WHERE id = $2
-    `, [body.substring(0, 50), conversationId]);
+    `, [previewText.substring(0, 50), conversationId]);
 
     // Emit event socket.io ke client (jika terhubung)
     // Untuk mendapatkan account_id, kita query dari conversation
@@ -1636,9 +1651,26 @@ app.post('/api/webhook/meta', async (req, res) => {
         if (updatedMsgResult.rows.length > 0) {
           const updatedMsg = updatedMsgResult.rows[0];
           // Emit socket update
-          const convInfo = await pool.query('SELECT account_id FROM conversations WHERE id = $1', [updatedMsg.conversation_id]);
+          const convInfo = await pool.query('SELECT account_id, last_preview FROM conversations WHERE id = $1', [updatedMsg.conversation_id]);
           if (convInfo.rows.length > 0) {
             const accountId = convInfo.rows[0].account_id;
+            let currentPreview = convInfo.rows[0].last_preview || '';
+            
+            // Cek apakah ini pesan terakhir di percakapan
+            const latestMsgCheck = await pool.query('SELECT id FROM messages WHERE conversation_id = $1 ORDER BY created_at DESC LIMIT 1', [updatedMsg.conversation_id]);
+            if (latestMsgCheck.rows.length > 0 && latestMsgCheck.rows[0].id === updatedMsg.id) {
+               currentPreview = currentPreview.replace(/^(✓✓ \(read\) |✓✓ \(delivered\) |✓ \(sent\) |✗ \(failed\) |✓✓ |✓ |✗ )/, '');
+               let statusPrefix = '';
+               if (msgStatus === 'read') statusPrefix = '✓✓ (read) ';
+               else if (msgStatus === 'delivered') statusPrefix = '✓✓ (delivered) ';
+               else if (msgStatus === 'sent') statusPrefix = '✓ (sent) ';
+               else if (msgStatus === 'failed') statusPrefix = '✗ (failed) ';
+               
+               const newPreview = statusPrefix + currentPreview;
+               const updatedConv = await pool.query('UPDATE conversations SET last_preview = $1 WHERE id = $2 RETURNING *', [newPreview, updatedMsg.conversation_id]);
+               io.to(`account_${accountId}`).emit('conversation_updated', updatedConv.rows[0]);
+            }
+
             io.to(`account_${accountId}`).emit('message_status_update', updatedMsg);
           }
         }
@@ -1754,12 +1786,19 @@ app.post('/api/webhook/meta', async (req, res) => {
 
         if (savedMsgResult.rows.length > 0) {
           // Update Conversation last_preview, last_time, unread, dan handler
+          let previewText = msgBody;
+          if (isMedia) {
+            if (!previewText.toLowerCase().startsWith(`[${msgType}]`) && !previewText.toLowerCase().startsWith(`[received ${msgType}]`)) {
+              previewText = `[${msgType}] ${previewText}`;
+            }
+          }
+
           const updatedConvResult = await pool.query(`
             UPDATE conversations 
             SET last_preview = $1, last_time = NOW(), unread = unread + 1, handler = $2
             WHERE id = $3
             RETURNING *
-          `, [msgBody.substring(0, 50), newHandler, conversation.id]);
+          `, [previewText.substring(0, 50), newHandler, conversation.id]);
 
           // Emit realtime via Socket.io
           io.to(`account_${account.id}`).emit('new_message', savedMsgResult.rows[0]);

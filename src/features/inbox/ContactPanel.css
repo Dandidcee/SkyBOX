@@ -148,10 +148,20 @@
 
 /* Di layar kecil / multi-view, panel jadi overlay penuh */
 @media (max-width: 768px) {
+  @keyframes slideInRight {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
   .contact-panel {
     position: absolute;
     top: 0; right: 0; bottom: 0;
     width: 100%;
     z-index: 20;
+    animation: slideInRight 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
   }
 }

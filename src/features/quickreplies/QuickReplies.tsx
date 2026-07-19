@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { MdAdd, MdEdit, MdDelete, MdFlashOn, MdClose } from 'react-icons/md';
 import { useQuickReplies, useAddQuickReply, useUpdateQuickReply, useDeleteQuickReply } from './../../hooks/useQuickReplies';
 import type { QuickReply } from './../../types/db';
-import '../dashboard/Dashboard.css';
+
 import '../catalog/Catalog.css';
 
 export default function QuickReplies() {
@@ -13,6 +13,15 @@ export default function QuickReplies() {
 
   const [form, setForm] = useState<Partial<QuickReply> | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isClosing, setIsClosing] = useState(false);
+
+  const closeModal = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setForm(null);
+      setIsClosing(false);
+    }, 200);
+  };
 
   const openAdd = () => {
     setEditingId(null);
@@ -37,7 +46,7 @@ export default function QuickReplies() {
     } else {
       addMutation.mutate(payload);
     }
-    setForm(null);
+    closeModal();
     setEditingId(null);
   };
 
@@ -55,29 +64,31 @@ export default function QuickReplies() {
         </h2>
       </div>
 
-      <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, marginBottom: 16 }}>
-        Kelola template teks untuk membalas chat lebih cepat. Ketik <code>/</code> di inbox untuk memanggil.
-      </p>
-
       <div className="cat-section">
-        <div className="cat-section-head">
-          <h3>Daftar Shortcut</h3>
-          <button className="cat-add-btn" onClick={openAdd}>
-            <MdAdd size={18} /> Tambah Balasan
-          </button>
-        </div>
-
         {isLoading ? (
           <div className="cat-empty">Memuat balasan cepat...</div>
         ) : isError ? (
           <div className="cat-empty">Gagal memuat data.</div>
         ) : quickReplies.length === 0 ? (
-          <div className="cat-empty">
-            Belum ada balasan cepat. Tambahkan shortcut agar membalas chat lebih praktis dan hemat waktu.
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 16px', textAlign: 'center' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+              <MdFlashOn size={32} color="var(--color-primary)" />
+            </div>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-base)', marginBottom: 24 }}>Belum ada balasan cepat.</p>
+            <button className="cat-add-btn" onClick={openAdd} style={{ padding: '0 24px', height: '40px' }}>
+              <MdAdd size={20} /> Buat Balasan Pertama
+            </button>
           </div>
         ) : (
-          <div className="cat-list">
-            {quickReplies.map((qr) => (
+          <>
+            <div className="cat-section-head">
+              <h3>Daftar Shortcut</h3>
+              <button className="cat-add-btn" onClick={openAdd}>
+                <MdAdd size={18} /> Tambah Balasan
+              </button>
+            </div>
+            <div className="cat-list">
+              {quickReplies.map((qr) => (
               <div key={qr.id} className="cat-know-row">
                 <div className="cat-know-body">
                   <div className="cat-know-title" style={{ fontFamily: 'monospace', color: 'var(--color-primary)' }}>/{qr.shortcut}</div>
@@ -89,18 +100,19 @@ export default function QuickReplies() {
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+          </>
         )}
       </div>
 
       {form && (
-        <div className="cat-modal-overlay" onMouseDown={(e) => {
-          if (e.target === e.currentTarget) setForm(null);
+        <div className={`cat-modal-overlay ${isClosing ? 'closing' : ''}`} onMouseDown={(e) => {
+          if (e.target === e.currentTarget) closeModal();
         }}>
-          <div className="cat-modal">
+          <div className={`cat-modal ${isClosing ? 'closing' : ''}`}>
             <div className="cat-modal-head">
               <h3>{editingId ? 'Edit Balasan Cepat' : 'Tambah Balasan Cepat'}</h3>
-              <button onClick={() => setForm(null)}><MdClose size={20} /></button>
+              <button onClick={closeModal}><MdClose size={20} /></button>
             </div>
             <div className="cat-form">
               <label>
@@ -121,7 +133,7 @@ export default function QuickReplies() {
                     style={{ borderRadius: '0 8px 8px 0', marginTop: 0 }}
                     value={form.shortcut} 
                     onChange={e => setForm({ ...form, shortcut: e.target.value.replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase() })} 
-                    placeholder="mis. halo, ongkir, resi" 
+                    placeholder="halo, ongkir, resi" 
                   />
                 </div>
                 <small style={{ color: 'var(--color-text-secondary)', fontSize: 11, marginTop: 4, display: 'block' }}>Hanya huruf, angka, strip, dan underscore. Tanpa spasi.</small>
@@ -138,7 +150,7 @@ export default function QuickReplies() {
               </label>
             </div>
             <div className="cat-modal-foot">
-              <button className="cat-btn-ghost" onClick={() => setForm(null)}>Batal</button>
+              <button className="cat-btn-ghost" onClick={closeModal}>Batal</button>
               <button 
                 className="cat-btn-primary" 
                 onClick={handleSave} 

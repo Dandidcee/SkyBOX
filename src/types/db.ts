@@ -83,6 +83,14 @@ export interface Order {
   verified: boolean;
 }
 
+export interface ChatFolder {
+  id: string;
+  accountId: string;
+  name: string;
+  chatIds: string[];
+  createdAt?: string;
+}
+
 // ---------- Tipe baris DB (snake_case, sesuai Supabase) ----------
 export interface AccountRow {
   id: string;
@@ -99,6 +107,14 @@ export interface AccountRow {
   wa_access_token?: string;
   meta_verify_token?: string;
   ai_enabled?: boolean;
+}
+
+export interface ChatFolderRow {
+  id: string;
+  account_id: string;
+  name: string;
+  chat_ids: string[];
+  created_at?: string;
 }
 
 export interface ConversationRow {

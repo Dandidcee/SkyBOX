@@ -1,5 +1,5 @@
 {
-  "name": "Dashboard WA AI & Template (Unified)",
+  "name": "Dashboard WA AI Core (v2)",
   "nodes": [
     {
       "parameters": {
@@ -12,203 +12,19 @@
       "typeVersion": 1,
       "position": [
         0,
-        200
+        0
       ],
       "webhookId": "dashboard-ai-webhook"
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://dashboard.leyatiofficial.xyz/api/n8n/match-template",
+        "url": "=https://localhost/api/n8n/context/account/{{ $json.body.account_id }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
-              "name": "Authorization",
-              "value": "Bearer <TOKEN_RAHASIA>"
-            }
-          ]
-        },
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "conversation_id",
-              "value": "={{ $('Webhook Masuk').item.json.body.conversation_id }}"
-            },
-            {
-              "name": "message",
-              "value": "={{ $('Webhook Masuk').item.json.body.meta_payload.entry[0].changes[0].value.messages[0].text.body || '' }}"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "name": "Cek Template (Dashboard API)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        200,
-        200
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "tpl-match",
-              "leftValue": "={{ $json.matched }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "true"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "name": "Apakah Template Cocok?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        450,
-        200
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://dashboard.leyatiofficial.xyz/api/n8n/send-message",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer <TOKEN_RAHASIA>"
-            }
-          ]
-        },
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "conversationId",
-              "value": "={{ $('Webhook Masuk').item.json.body.conversation_id }}"
-            },
-            {
-              "name": "body",
-              "value": "={{ $json.template.reply_text }}"
-            },
-            {
-              "name": "type",
-              "value": "text"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "name": "Kirim Pesan Template",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        700,
-        -50
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "tpl-img",
-              "leftValue": "={{ $('Cek Template (Dashboard API)').item.json.template.image_url }}",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "notEmpty"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "name": "Ada Gambar Template?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        950,
-        -50
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://dashboard.leyatiofficial.xyz/api/n8n/send-message",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer <TOKEN_RAHASIA>"
-            }
-          ]
-        },
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "conversationId",
-              "value": "={{ $('Webhook Masuk').item.json.body.conversation_id }}"
-            },
-            {
-              "name": "type",
-              "value": "image"
-            },
-            {
-              "name": "mediaUrl",
-              "value": "={{ $json.url }}"
-            },
-            {
-              "name": "body",
-              "value": ""
-            }
-          ]
-        },
-        "options": {}
-      },
-      "name": "Kirim Gambar Template",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        1450,
-        -50
-      ]
-    },
-    {
-      "parameters": {
-        "url": "=https://dashboard.leyatiofficial.xyz/api/n8n/context/account/{{ $('Webhook Masuk').item.json.body.account_id }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer <TOKEN_RAHASIA>"
+              "name": "x-n8n-api-key",
+              "value": "GANTI_DENGAN_API_KEY_ANDA"
             }
           ]
         },
@@ -218,19 +34,19 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        700,
-        300
+        200,
+        0
       ]
     },
     {
       "parameters": {
-        "url": "=https://dashboard.leyatiofficial.xyz/api/n8n/chat-history/{{ $('Webhook Masuk').item.json.body.conversation_id }}?limit=15",
+        "url": "=https://localhost/api/n8n/chat-history/{{ $('Webhook Masuk').item.json.body.conversation_id }}?limit=15",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
-              "name": "Authorization",
-              "value": "Bearer <TOKEN_RAHASIA>"
+              "name": "x-n8n-api-key",
+              "value": "GANTI_DENGAN_API_KEY_ANDA"
             }
           ]
         },
@@ -240,8 +56,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        950,
-        300
+        400,
+        0
       ]
     },
     {
@@ -252,23 +68,23 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1200,
-        300
+        600,
+        0
       ]
     },
     {
       "parameters": {
         "text": "={{ $('Webhook Masuk').item.json.body.meta_payload.entry[0].changes[0].value.messages[0].text.body || 'Ada pesan masuk' }}",
         "options": {
-          "systemMessage": "=Kamu adalah customer service toko via WhatsApp. Jawab dalam Bahasa Indonesia yang luwes, natural, dan to-the-point — seperti CS manusia.\n\n⚠️ WAJIB: Balasan HARUS berformat JSON valid dengan TEPAT 9 field. Jika \"confidence\" hilang, SISTEM CRASH. Selalu isi confidence dengan angka 0-100.\n\nIDENTITAS & GAYA BAHASA:\n- Kamu adalah CS manusia. JANGAN PERNAH mengaku sebagai AI/bot.\n- DILARANG mengulang sapaan seperti \"Halo kak!\" terus-menerus.\n\nWAKTU SAAT INI: {{ $json.waktuSekarang }}\n\nATURAN PROMO (KAMU YANG HITUNG, BUKAN PELANGGAN!):\n- JANGAN PERNAH menyuruh pelanggan yang menghitung, memikirkan, atau mengisi promo di dalam form!\n- KAMU (AI) yang wajib mengecek DATA PROMO. Jika memenuhi syarat, KAMU yang menuliskannya di form order (contoh: \"Promo : Beli 10 Gratis 1\").\n- JIKA TIDAK ADA PROMO, hilangkan baris \"Promo :\" dari form order. JANGAN mengirim teks instruksi dalam kurung [ ] ke pelanggan!\n\n🚨 ATURAN ESKALASI (TRUST, TESTIMONI, NEGO, COD CEK DULU, LUAR JAWA):\nJIKA PELANGGAN MENGALAMI SALAH SATU KONDISI INI:\n1. Tidak percaya, ragu, takut penipuan, atau minta testimoni.\n2. Meminta negosiasi harga / diskon tambahan.\n3. Meminta fitur \"COD Cek Dulu\".\n4. Marah-marah atau meremehkan toko.\n5. Alamat pengiriman berada di Luar Pulau Jawa atau Luar Negeri.\n\nMAKA KAMU WAJIB MELAKUKAN INI:\n- Set \"confidence\": 60\n- Isi \"reply\": \"Sebentar ya kak, untuk hal ini saya bantu sambungkan dengan Admin kami.\"\n- DILARANG KERAS memberikan penjelasan panjang lebar, janji, alasan, atau menyuruh pelanggan cek review! Cukup gunakan 1 kalimat patokan di atas saja!\n- Catatan: Jika pelanggan memilih COD biasa di Pulau Jawa tanpa drama, proses order form seperti biasa.\n\n🚨 ATURAN VALIDASI ALAMAT & VARIAN (SANGAT KETAT - WAJIB PATUHI!):\nKETIKA PELANGGAN MENGISI FORM ORDER, JANGAN LANGSUNG CLOSING! Lakukan pengecekan layaknya agen ekspedisi yang cerewet:\n1. CEK DETAIL LOKASI (RT/RW/DUSUN): Tanyakan RT/RW spesifiknya. NAMUN, jika pelanggan menyatakan bahwa daerahnya TIDAK MEMILIKI RT/RW (misalnya hanya ada nama Dusun, Blok, Banjar, atau Jalan & Nomor Rumah saja), MAKA TERIMALAH keterangan tersebut. JANGAN memaksa mereka memberikan angka RT/RW jika memang tidak ada. Cukup catat detail apa pun yang mereka berikan sebagai pelengkap alamat.\n2. CROSS-CHECK GEOGRAFIS: Gunakan pengetahuan bawaanmu (General Knowledge) tentang wilayah Indonesia. Cross-check apakah Desa/Kelurahan yang diisi pelanggan BENAR-BENAR ADA di dalam Kecamatan tersebut. Periksa juga apakah Kecamatan itu cocok dengan Kabupatennya. Jika datanya salah, janggal, atau nama desanya tidak cocok dengan kecamatan, KAMU WAJIB menegur dan menyuruh pelanggan mengecek kembali alamatnya!\n3. CEK TYPO DAERAH: Jika ada singkatan atau salah ketik nama kota/kecamatan (contoh: \"tskmalaya\", \"jkt\", \"bdg\"), KAMU WAJIB mengonfirmasi ejaan yang benarnya.\n4. CEK VARIAN PRODUK: Jika produk punya varian dan pelanggan belum menyebutkannya, KAMU WAJIB menanyakan varian apa yang dipilih.\n5. JANGAN CLOSING JIKA CACAT: Selama geografi desa/kecamatan tidak valid, typo belum dikonfirmasi, ukuran/varian belum jelas, atau detail alamat masih ambigu tanpa ada konfirmasi dari pelanggan, JANGAN UBAH intent ke `closing`. Tetap tanyakan kekurangannya sampai sempurna 100%!\n\nATURAN GAMBAR (WAJIB):\n- \"images\" = array objek {url, caption}.\n- Ambil url HANYA dari DATA PRODUK. Kirim HANYA saat pelanggan minta/pertama kali tertarik.\n- Jika pelanggan sudah merespons, images: [] (jangan kirim lagi).\n\nALUR PELAYANAN (WAJIB IKUTI URUTAN INI):\n1. TANYA KEBUTUHAN & VARIAN: Jelaskan produk dan WAJIB pastikan pelanggan memilih VARIAN SPESIFIK.\n2. KASIH FORM: Jika varian jelas dan mau order, kirim form order (susun form sesuai syarat).\n3. VALIDASI FORM (WAJIB!): TERAPKAN ATURAN VALIDASI ALAMAT. Jika ada yang cacat/typo/kurang, TEGUR RAMAH dan minta lengkapi.\n4. KONFIRMASI PEMBAYARAN TF: Jika transfer, bilang cek mutasi ke admin (set intent waiting_payment & confidence 60).\n5. CLOSING CHAT & TERIMA KASIH (WAJIB!): JIKA DAN HANYA JIKA alamat sudah SEMPURNA (Detail spesifik lokasi jelas atau dikonfirmasi tidak ada RT/RW, tidak typo, P. Jawa) dan varian tercatat, ubah intent ke `closing`. Kamu WAJIB menutup chat dengan kalimat: \"Terimakasih sudah berbelanja di toko kami...\"\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nFORMAT FORM ORDER\n⚠️ KAMU YANG WAJIB MENYUSUN FORM INI:\n━━━━━━━━━━━━━━━━━━━━━━━━\nMohon di bantu untuk mengisi format order nya kak, untuk di input ke tim packing\n\nNama Penerima :\nRT RW / Dusun / Blok :\nDesa / kelurahan :\nKecamatan :\nKabupaten :\nMetode pembayaran :\n[HANYA TULIS BARIS INI JIKA ADA PROMO] Promo : [Tulis nama promo yang kamu hitung sendiri]\nPosisi Rumah kira kira dekat dengan apa :\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nCONTOH BALASAN (PENTING! IKUTI FORMAT INI)\n━━━━━━━━━━━━━━━━━━━━━━━━\nContoh 1 — Pelanggan ragu, minta testimoni, takut penipuan, nawar harga, atau marah/komplain:\n{\n  \"reply\": \"Sebentar ya kak, untuk hal ini saya bantu sambungkan dengan Admin kami.\",\n  \"intent\": \"complaint\",\n  \"confidence\": 60,\n  \"items\": null,\n  \"address\": null,\n  \"note\": null,\n  \"paymentMethod\": null,\n  \"images\": []\n}\n\nContoh 2 — Pelanggan isi form tapi cacat (Desa dan Kecamatan tidak nyambung, RT/RW belum jelas, typo):\n{\n  \"reply\": \"Kak, untuk RT dan RW-nya di Kp Cirput nomor berapa ya? (Atau memang tidak ada RT/RW kak?). Terus saya cek Desa Mandalagiri kok tidak ada di Kecamatan Leuwisari ya kak, boleh dicek lagi? Dan untuk kabupatennya maksudnya Tasikmalaya kah? Oh ya, sekalian mau pesan ukuran/varian apa kak?\",\n  \"intent\": \"lead\",\n  \"confidence\": 95,\n  \"items\": \"[Nama Produk] (varian belum disebut)\",\n  \"address\": \"dandi cahyaman, kp cirput, mandalagiri, leuwisari, tskmalaya\",\n  \"note\": null,\n  \"paymentMethod\": \"cod\",\n  \"images\": []\n}\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nINTENT (fase percakapan):\n━━━━━━━━━━━━━━━━━━━━━━━━\n- none            : tanya-tanya biasa\n- lead            : tertarik / butuh melengkapi data & form\n- waiting_payment : sudah sepakat transfer (butuh cek admin)\n- closing         : SEMUA DATA ALAMAT (JAWA) & VARIAN LENGKAP + SEMPURNA\n- complaint       : marah, barang rusak, retur, komplain\n\nCONFIDENCE (0-100):\n- 85-100 : sangat yakin\n- < 70   : ragu / butuh manusia\n- 60     : pelanggan eskalasi (ragu, marah, minta testi, luar pulau jawa, dll) atau cek mutasi\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nFORMAT BALASAN WAJIB (JSON valid, TEPAT 9 field):\n━━━━━━━━━━━━━━━━━━━━━━━━\n{\n  \"reply\": \"isi balasan, gunakan \\\\n\\\\n untuk jarak antar paragraf, \\\\n untuk antar field form.\",\n  \"intent\": \"none|lead|waiting_payment|closing|complaint\",\n  \"confidence\": 90,\n  \"items\": \"nama produk + VARIAN LENGKAP (null jika belum)\",\n  \"amount\": null,\n  \"address\": \"alamat SUPER LENGKAP BEBAS TYPO (null jika belum)\",\n  \"note\": \"catatan pengiriman (null jika tidak ada)\",\n  \"paymentMethod\": \"cod|tf|null\",\n  \"images\": [ { \"url\": \"url dari DATA PRODUK\", \"caption\": \"deskripsi singkat foto\" } ]\n}\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nKONTEKS:\n━━━━━━━━━━━━━━━━━━━━━━━━\nDATA PRODUK  : {{ $json.dataBarang }}\nINFO TOKO    : {{ $json.dataToko }}\nINFO PROMO   : {{ $json.dataPromo }}\nRIWAYAT CHAT : {{ $json.riwayat }}\nFASE CUSTOMER: {{ $json.fase }}\nORDER STATUS : {{ $json.orderStatus }}"
+          "systemMessage": "=Kamu adalah customer service toko via WhatsApp. Jawab dalam Bahasa Indonesia yang luwes, natural, dan to-the-point — seperti CS manusia.\n\n⚠️ WAJIB: Balasan HARUS berformat JSON valid dengan TEPAT 9 field. Jika \"confidence\" hilang, SISTEM CRASH. Selalu isi confidence dengan angka 0-100.\n\nIDENTITAS & GAYA BAHASA:\n- Kamu adalah CS manusia. JANGAN PERNAH mengaku sebagai AI/bot.\n- DILARANG mengulang sapaan seperti \"Halo kak!\" terus-menerus.\n\nWAKTU SAAT INI: {{ $json.waktuSekarang }}\n\nATURAN PROMO (KAMU YANG HITUNG, BUKAN PELANGGAN!):\n- JANGAN PERNAH menyuruh pelanggan yang menghitung, memikirkan, atau mengisi promo di dalam form!\n- KAMU (AI) yang wajib mengecek DATA PROMO. Jika memenuhi syarat, KAMU yang menuliskannya di form order (contoh: \"Promo : Beli 10 Gratis 1\").\n- JIKA TIDAK ADA PROMO, hilangkan baris \"Promo :\" dari form order. JANGAN mengirim teks instruksi dalam kurung [ ] ke pelanggan!\n\n🚨 ATURAN ESKALASI (TRUST, TESTIMONI, NEGO, COD CEK DULU, LUAR JAWA):\nJIKA PELANGGAN MENGALAMI SALAH SATU KONDISI INI:\n1. Tidak percaya, ragu, takut penipuan, atau minta testimoni.\n2. Meminta negosiasi harga / diskon tambahan.\n3. Meminta fitur \"COD Cek Dulu\".\n4. Marah-marah atau meremehkan toko.\n5. Alamat pengiriman berada di Luar Pulau Jawa atau Luar Negeri.\n\nMAKA KAMU WAJIB MELAKUKAN INI:\n- Set \"confidence\": 60\n- Isi \"reply\": \"Sebentar ya kak, untuk hal ini saya bantu sambungkan dengan Admin kami.\"\n- DILARANG KERAS memberikan penjelasan panjang lebar, janji, alasan, atau menyuruh pelanggan cek review! Cukup gunakan 1 kalimat patokan di atas saja!\n- Catatan: Jika pelanggan memilih COD biasa di Pulau Jawa tanpa drama, proses order form seperti biasa.\n\n🚨 ATURAN VALIDASI ALAMAT & VARIAN (SANGAT KETAT - WAJIB PATUHI!):\nKETIKA PELANGGAN MENGISI FORM ORDER, JANGAN LANGSUNG CLOSING! Lakukan pengecekan layaknya agen ekspedisi yang cerewet:\n1. CEK DETAIL LOKASI (RT/RW/DUSUN): Tanyakan RT/RW spesifiknya. NAMUN, jika pelanggan menyatakan bahwa daerahnya TIDAK MEMILIKI RT/RW (misalnya hanya ada nama Dusun, Blok, Banjar, atau Jalan & Nomor Rumah saja), MAKA TERIMALAH keterangan tersebut. JANGAN memaksa mereka memberikan angka RT/RW jika memang tidak ada. Cukup catat detail apa pun yang mereka berikan sebagai pelengkap alamat.\n2. CROSS-CHECK GEOGRAFIS: Gunakan pengetahuan bawaanmu (General Knowledge) tentang wilayah Indonesia. Cross-check apakah Desa/Kelurahan yang diisi pelanggan BENAR-BENAR ADA di dalam Kecamatan tersebut. Periksa juga apakah Kecamatan itu cocok dengan Kabupatennya. Jika datanya salah, janggal, atau nama desanya tidak cocok dengan kecamatan, KAMU WAJIB menegur dan menyuruh pelanggan mengecek kembali alamatnya!\n3. CEK TYPO DAERAH: Jika ada singkatan atau salah ketik nama kota/kecamatan (contoh: \"tskmalaya\", \"jkt\", \"bdg\"), KAMU WAJIB mengonfirmasi ejaan yang benarnya.\n4. CEK VARIAN PRODUK: Jika produk punya varian dan pelanggan belum menyebutkannya, KAMU WAJIB menanyakan varian apa yang dipilih.\n5. JANGAN CLOSING JIKA CACAT: Selama geografi desa/kecamatan tidak valid, typo belum dikonfirmasi, ukuran/varian belum jelas, atau detail alamat masih ambigu tanpa ada konfirmasi dari pelanggan, JANGAN UBAH intent ke `closing`. Tetap tanyakan kekurangannya sampai sempurna 100%!\n\nATURAN GAMBAR (WAJIB):\n- \"images\" = array objek {url, caption}.\n- Ambil url HANYA dari DATA PRODUK. Kirim HANYA saat pelanggan minta/pertama kali tertarik.\n- Jika pelanggan sudah merespons, images: [] (jangan kirim lagi).\n\nALUR PELAYANAN (WAJIB IKUTI URUTAN INI):\n1. TANYA KEBUTUHAN & VARIAN: Jelaskan produk dan WAJIB pastikan pelanggan memilih VARIAN SPESIFIK.\n2. KASIH FORM: Jika varian jelas dan mau order, kirim form order (susun form sesuai syarat).\n3. VALIDASI FORM (WAJIB!): TERAPKAN ATURAN VALIDASI ALAMAT. Jika ada yang cacat/typo/kurang, TEGUR RAMAH dan minta lengkapi.\n4. KONFIRMASI PEMBAYARAN TF: Jika transfer, bilang cek mutasi ke admin (set intent waiting_payment & confidence 60).\n5. CLOSING CHAT & TERIMA KASIH (WAJIB!): JIKA DAN HANYA JIKA alamat sudah SEMPURNA (Detail spesifik lokasi jelas atau dikonfirmasi tidak ada RT/RW, tidak typo, P. Jawa) dan varian tercatat, ubah intent ke `closing`. Kamu WAJIB menutup chat dengan kalimat: \"Terimakasih sudah berbelanja di toko kami...\"\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nFORMAT FORM ORDER\n⚠️ KAMU YANG WAJIB MENYUSUN FORM INI:\n━━━━━━━━━━━━━━━━━━━━━━━━\nMohon di bantu untuk mengisi format order nya kak, untuk di input ke tim packing\n\nNama Penerima :\nRT RW / Dusun / Blok :\nDesa / kelurahan :\nKecamatan :\nKabupaten :\nMetode pembayaran :\n[HANYA TULIS BARIS INI JIKA ADA PROMO] Promo : [Tulis nama promo yang kamu hitung sendiri]\nPosisi Rumah kira kira dekat dengan apa :\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nCONTOH BALASAN (PENTING! IKUTI FORMAT INI)\n━━━━━━━━━━━━━━━━━━━━━━━━\nContoh 1 — Pelanggan ragu, minta testimoni, takut penipuan, atau nawar harga:\n{\n  \"reply\": \"Sebentar ya kak, untuk hal ini saya bantu sambungkan dengan Admin kami.\",\n  \"intent\": \"none\",\n  \"confidence\": 60,\n  \"items\": null,\n  \"address\": null,\n  \"note\": null,\n  \"paymentMethod\": null,\n  \"images\": []\n}\n\nContoh 2 — Pelanggan isi form tapi cacat (Desa dan Kecamatan tidak nyambung, RT/RW belum jelas, typo):\n{\n  \"reply\": \"Kak, untuk RT dan RW-nya di Kp Cirput nomor berapa ya? (Atau memang tidak ada RT/RW kak?). Terus saya cek Desa Mandalagiri kok tidak ada di Kecamatan Leuwisari ya kak, boleh dicek lagi? Dan untuk kabupatennya maksudnya Tasikmalaya kah? Oh ya, sekalian mau pesan ukuran/varian apa kak?\",\n  \"intent\": \"lead\",\n  \"confidence\": 95,\n  \"items\": \"[Nama Produk] (varian belum disebut)\",\n  \"address\": \"dandi cahyaman, kp cirput, mandalagiri, leuwisari, tskmalaya\",\n  \"note\": null,\n  \"paymentMethod\": \"cod\",\n  \"images\": []\n}\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nINTENT (fase percakapan):\n━━━━━━━━━━━━━━━━━━━━━━━━\n- none            : tanya-tanya biasa\n- lead            : tertarik / butuh melengkapi data & form\n- waiting_payment : sudah sepakat transfer (butuh cek admin)\n- closing         : SEMUA DATA ALAMAT (JAWA) & VARIAN LENGKAP + SEMPURNA\n- complaint       : marah, barang rusak, retur, komplain\n\nCONFIDENCE (0-100):\n- 85-100 : sangat yakin\n- < 70   : ragu / butuh manusia\n- 60     : pelanggan eskalasi (ragu, marah, minta testi, luar pulau jawa, dll) atau cek mutasi\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nFORMAT BALASAN WAJIB (JSON valid, TEPAT 9 field):\n━━━━━━━━━━━━━━━━━━━━━━━━\n{\n  \"reply\": \"isi balasan, gunakan \\\\n\\\\n untuk jarak antar paragraf, \\\\n untuk antar field form.\",\n  \"intent\": \"none|lead|waiting_payment|closing|complaint\",\n  \"confidence\": 90,\n  \"items\": \"nama produk + VARIAN LENGKAP (null jika belum)\",\n  \"amount\": null,\n  \"address\": \"alamat SUPER LENGKAP BEBAS TYPO (null jika belum)\",\n  \"note\": \"catatan pengiriman (null jika tidak ada)\",\n  \"paymentMethod\": \"cod|tf|null\",\n  \"images\": [ { \"url\": \"url dari DATA PRODUK\", \"caption\": \"deskripsi singkat foto\" } ]\n}\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nKONTEKS:\n━━━━━━━━━━━━━━━━━━━━━━━━\nDATA PRODUK  : {{ $json.dataBarang }}\nINFO TOKO    : {{ $json.dataToko }}\nINFO PROMO   : {{ $json.dataPromo }}\nRIWAYAT CHAT : {{ $json.riwayat }}\nFASE CUSTOMER: {{ $json.fase }}\nORDER STATUS : {{ $json.orderStatus }}"
         }
       },
       "name": "AI Agent (Otak Chatbot)",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.2,
       "position": [
-        1450,
-        300
+        800,
+        0
       ]
     },
     {
@@ -280,8 +96,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1,
       "position": [
-        1400,
-        550
+        800,
+        200
       ]
     },
     {
@@ -293,8 +109,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.1,
       "position": [
-        1550,
-        500
+        950,
+        200
       ]
     },
     {
@@ -306,8 +122,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.1,
       "position": [
-        1700,
-        550
+        1100,
+        200
       ]
     },
     {
@@ -319,8 +135,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.1,
       "position": [
-        1850,
-        600
+        1250,
+        200
       ]
     },
     {
@@ -332,20 +148,20 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.1,
       "position": [
-        2000,
-        650
+        1400,
+        200
       ]
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\n\nlet raw = item.output ?? item.text ?? item;\nlet parsed;\n\ntry {\n  if (typeof raw === 'string') {\n    let clean = raw.replace(/```json\\s*/gi, '').replace(/```/g, '').trim();\n    \n    // Cari dan ambil hanya bagian JSON (dari '{' pertama sampai '}' terakhir)\n    // Ini mengabaikan teks basa-basi dari AI sebelum/sesudah JSON\n    const jsonMatch = clean.match(/\\{[\\s\\S]*\\}/);\n    if (jsonMatch) {\n      clean = jsonMatch[0];\n    }\n    \n    parsed = JSON.parse(clean);\n  } else if (typeof raw === 'object' && raw !== null) {\n    parsed = raw;\n  } else {\n    throw new Error('Output AI bukan string atau objek');\n  }\n} catch (e) {\n  return [{\n    json: {\n      reply: (typeof raw === 'string' ? raw : '') || 'Maaf, ada kendala. Tim kami akan segera membantu.',\n      intent: 'complaint',\n      confidence: 30,\n      items: null,\n      amount: null,\n      address: null,\n      note: null,\n      paymentMethod: null,\n      images: [],\n    }\n  }];\n}\n\n// Paksa confidence jadi angka 0-100\nlet conf = Number(parsed.confidence);\nif (!Number.isFinite(conf) || conf < 0 || conf > 100) conf = 50;\n\n// Validasi intent\nconst validIntents = ['none', 'lead', 'waiting_payment', 'closing', 'complaint'];\nconst finalIntent = validIntents.includes(parsed.intent) ? parsed.intent : 'none';\n\n// Bersihkan link & data:URI dari reply\nlet safeReply = String(parsed.reply || '').trim();\nsafeReply = safeReply\n  .replace(/https?:\\/\\/\\S+/g, '')   // hapus http/https\n  .replace(/data:image\\/\\S+/g, '')  // hapus data URI\n  .replace(/\\\\n/g, '\\n')            // parse literal \\n → newline asli\n  .replace(/[^\\S\\n]{2,}/g, ' ')     // rapikan spasi dobel, jangan sentuh \\n\n  .trim();\n\n// Validasi images: array {url, caption}. Terima array objek, array string, atau imageUrl tunggal (kompat).\nlet images = [];\nif (Array.isArray(parsed.images)) {\n  images = parsed.images.map(it => {\n    if (typeof it === 'string') return { url: it.trim(), caption: '' };\n    return { url: String(it?.url || '').trim(), caption: String(it?.caption || '').trim() };\n  });\n} else if (parsed.imageUrl) {\n  images = [{ url: String(parsed.imageUrl).trim(), caption: '' }];\n}\n// Sisakan hanya url valid http/https\nimages = images.filter(it => /^https?:\\/\\//i.test(it.url));\n\n// Validasi paymentMethod\nconst validPay = ['cod', 'tf'];\nconst paymentMethod = validPay.includes(String(parsed.paymentMethod || '').toLowerCase())\n  ? String(parsed.paymentMethod).toLowerCase()\n  : null;\n\n// Validasi amount\nconst amount = parsed.amount != null && Number.isFinite(Number(parsed.amount))\n  ? Number(parsed.amount)\n  : null;\n\nreturn [{\n  json: {\n    reply: safeReply || 'Maaf, ada kendala. Tim kami akan segera membantu.',\n    intent: finalIntent,\n    confidence: conf,\n    items: parsed.items || null,\n    amount,\n    address: parsed.address || null,\n    note: parsed.note || null,\n    paymentMethod,\n    images,\n  }\n}];\n"
+        "jsCode": "const raw = $input.first().json.output;\nlet parsed = {};\ntry {\n  const clean = raw.replace(/```json\\s*/gi, '').replace(/```/g, '').trim();\n  parsed = JSON.parse(clean);\n} catch (e) {\n  parsed = { reply: 'Mohon maaf, sistem sedang sibuk.', confidence: 60, images: [] };\n}\nreturn [{ json: parsed }];"
       },
       "name": "Baca Output AI (JS)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1750,
-        300
+        1100,
+        0
       ]
     },
     {
@@ -356,20 +172,20 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2000,
-        300
+        1300,
+        0
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://dashboard.leyatiofficial.xyz/api/n8n/send-message",
+        "url": "=https://localhost/api/n8n/send-message",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
-              "name": "Authorization",
-              "value": "Bearer <TOKEN_RAHASIA>"
+              "name": "x-n8n-api-key",
+              "value": "GANTI_DENGAN_API_KEY_ANDA"
             }
           ]
         },
@@ -387,21 +203,17 @@
             {
               "name": "type",
               "value": "text"
-            },
-            {
-              "name": "intent",
-              "value": "={{ $json.intent }}"
             }
           ]
         },
         "options": {}
       },
-      "name": "Kirim Pesan Teks AI",
+      "name": "Kirim Pesan Teks",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        2250,
-        300
+        1500,
+        0
       ]
     },
     {
@@ -432,8 +244,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        2500,
-        300
+        1700,
+        -100
       ]
     },
     {
@@ -448,7 +260,7 @@
           "conditions": [
             {
               "id": "intent-check-1",
-              "leftValue": "={{ $('Kirim Pesan Teks AI').item.json.intent || $('Validasi Gambar Halu (JS)').item.json.intent }}",
+              "leftValue": "={{ $('Kirim Pesan Teks').item.json.intent || $('Validasi Gambar Halu (JS)').item.json.intent }}",
               "rightValue": "closing",
               "operator": {
                 "type": "string",
@@ -464,20 +276,20 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        2750,
-        450
+        1900,
+        100
       ]
     },
     {
       "parameters": {
         "method": "PUT",
-        "url": "=https://dashboard.leyatiofficial.xyz/api/n8n/conversations/{{ $('Webhook Masuk').item.json.body.conversation_id }}/handler",
+        "url": "=https://localhost/api/n8n/conversations/{{ $('Webhook Masuk').item.json.body.conversation_id }}/handler",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
-              "name": "Authorization",
-              "value": "Bearer <TOKEN_RAHASIA>"
+              "name": "x-n8n-api-key",
+              "value": "GANTI_DENGAN_API_KEY_ANDA"
             }
           ]
         },
@@ -496,20 +308,20 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        2750,
-        150
+        1900,
+        -250
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://dashboard.leyatiofficial.xyz/api/n8n/orders",
+        "url": "=https://localhost/api/n8n/orders",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
-              "name": "Authorization",
-              "value": "Bearer <TOKEN_RAHASIA>"
+              "name": "x-n8n-api-key",
+              "value": "GANTI_DENGAN_API_KEY_ANDA"
             }
           ]
         },
@@ -522,11 +334,11 @@
             },
             {
               "name": "type",
-              "value": "={{ $('Baca Output AI (JS)').item.json.paymentMethod || 'tf' }}"
+              "value": "sale"
             },
             {
               "name": "status",
-              "value": "closing"
+              "value": "pending"
             },
             {
               "name": "address",
@@ -552,20 +364,33 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        3000,
-        450
+        2100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Loop Gambar",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [
+        2300,
+        200
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://dashboard.leyatiofficial.xyz/api/n8n/send-message",
+        "url": "=https://localhost/api/n8n/send-message",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
-              "name": "Authorization",
-              "value": "Bearer <TOKEN_RAHASIA>"
+              "name": "x-n8n-api-key",
+              "value": "GANTI_DENGAN_API_KEY_ANDA"
             }
           ]
         },
@@ -592,36 +417,12 @@
         },
         "options": {}
       },
-      "name": "Kirim Gambar AI",
+      "name": "Kirim Gambar",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        3500,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const tmpl = $('Cek Template (Dashboard API)').item.json.template || {};\nconst urlStr = tmpl.image_url || '';\nconst urls = urlStr.split(/[\\r\\n,]+/).map(u => u.trim()).filter(Boolean);\n\nif (urls.length === 0) {\n  return [];\n}\n\nreturn urls.map(u => ({ json: { url: u } }));"
-      },
-      "name": "Ekstrak Gambar Template",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1200,
-        -50
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const aiData = $('Validasi Gambar Halu (JS)').item.json || {};\nconst imgs = aiData.images || [];\n\nif (imgs.length === 0) {\n  return [];\n}\n\nreturn imgs.map(img => ({ json: img }));"
-      },
-      "name": "Ekstrak Gambar AI",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3250,
-        300
+        2500,
+        200
       ]
     }
   ],
@@ -630,63 +431,11 @@
       "main": [
         [
           {
-            "node": "Cek Template (Dashboard API)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Cek Template (Dashboard API)": {
-      "main": [
-        [
-          {
-            "node": "Apakah Template Cocok?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Apakah Template Cocok?": {
-      "main": [
-        [
-          {
-            "node": "Kirim Pesan Template",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
             "node": "Tarik Data Konteks AI",
             "type": "main",
             "index": 0
           }
         ]
-      ]
-    },
-    "Kirim Pesan Template": {
-      "main": [
-        [
-          {
-            "node": "Ada Gambar Template?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ada Gambar Template?": {
-      "main": [
-        [
-          {
-            "node": "Ekstrak Gambar Template",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
       ]
     },
     "Tarik Data Konteks AI": {
@@ -803,14 +552,14 @@
       "main": [
         [
           {
-            "node": "Kirim Pesan Teks AI",
+            "node": "Kirim Pesan Teks",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Kirim Pesan Teks AI": {
+    "Kirim Pesan Teks": {
       "main": [
         [
           {
@@ -843,7 +592,7 @@
       "main": [
         [
           {
-            "node": "Ekstrak Gambar AI",
+            "node": "Loop Gambar",
             "type": "main",
             "index": 0
           }
@@ -861,7 +610,7 @@
         ],
         [
           {
-            "node": "Ekstrak Gambar AI",
+            "node": "Loop Gambar",
             "type": "main",
             "index": 0
           }
@@ -872,40 +621,29 @@
       "main": [
         [
           {
-            "node": "Ekstrak Gambar AI",
+            "node": "Loop Gambar",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Loop Gambar AI": {
+    "Loop Gambar": {
       "main": [
         [
           {
-            "node": "Kirim Gambar AI",
+            "node": "Kirim Gambar",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Ekstrak Gambar Template": {
+    "Kirim Gambar": {
       "main": [
         [
           {
-            "node": "Kirim Gambar Template",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ekstrak Gambar AI": {
-      "main": [
-        [
-          {
-            "node": "Kirim Gambar AI",
+            "node": "Loop Gambar",
             "type": "main",
             "index": 0
           }

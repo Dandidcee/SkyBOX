@@ -3,26 +3,11 @@ import { useUiStore } from '../lib/uiStore';
 import './NotificationHost.css';
 
 const NotificationHost = () => {
-  const notifications = useUiStore((s) => s.notifications);
-  const dismiss = useUiStore((s) => s.dismiss);
   const realtime = useUiStore((s) => s.realtime);
 
   return (
     <>
-      <div className="notif-host">
-        {notifications.map((n) => (
-          <div 
-            key={n.id} 
-            className={`notif-toast ${n.kind} ${n.onClick ? 'clickable' : ''}`} 
-            onClick={() => {
-              if (n.onClick) n.onClick();
-              dismiss(n.id);
-            }}
-          >
-            {n.text}
-          </div>
-        ))}
-      </div>
+
 
       {realtime === 'disconnected' && (
         <div className="realtime-pill disconnected">

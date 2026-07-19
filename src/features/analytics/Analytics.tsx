@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import type { Account } from '../../App';
 import { useAllConversations } from '../../hooks/useAllConversations';
-import '../dashboard/Dashboard.css';
 import './Analytics.css';
 
 interface AnalyticsProps {

@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { MdChat, MdKeyboardArrowDown, MdAutoAwesome, MdAdd, MdEdit, MdDelete } from 'react-icons/md';
+import { MdChat, MdKeyboardArrowDown, MdAutoAwesome, MdAdd, MdEdit, MdDelete, MdClose } from 'react-icons/md';
 import { useTemplates, useTemplateMutations } from '../../hooks/useTemplates';
 import { toDirectImageUrl } from '../../lib/imageUrl';
 import type { Account, Template } from '../../types/db';
-import '../dashboard/Dashboard.css';
+
 import '../catalog/Catalog.css';
 
 interface TemplatesProps {
@@ -76,6 +76,17 @@ interface TemplateFormProps {
 
 function TemplateForm({ initialData, accountId, onCancel, onSaved }: TemplateFormProps) {
   const { save } = useTemplateMutations(accountId);
+  const [isClosing, setIsClosing] = useState(false);
+
+  const closeModal = () => {
+    setIsClosing(true);
+    setTimeout(() => onCancel(), 200);
+  };
+
+  const closeAndSave = () => {
+    setIsClosing(true);
+    setTimeout(() => onSaved(), 200);
+  };
   
   // Initialize state directly from initialData (no useEffect sync needed since key changes on parent)
   const initialParsed = parseCaptions(initialData?.variants || '');
@@ -99,46 +110,41 @@ function TemplateForm({ initialData, accountId, onCancel, onSaved }: TemplateFor
       id: initialData?.id,
       data: {
         accountId,
-        triggerText: (triggerText || '').trim() || 'global', // Set fallback to global if empty
+        triggerText: (triggerText || '').trim(),
         replyText: (replyText || '').trim(),
         imageUrl: '',
         variants: serializeCaptions(normalizedCaptions, finalMessage || ''),
       }
     }, {
-      onSuccess: () => onSaved()
+      onSuccess: () => closeAndSave()
     });
   };
 
   return (
-    <div className="cat-section">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h3 style={{ margin: 0 }}>{initialData ? 'Edit Template Ads' : 'Tambah Template Ads Baru'}</h3>
-        <button className="cat-btn-ghost" onClick={onCancel}>Batal</button>
-      </div>
+    <div className={`cat-modal-overlay ${isClosing ? 'closing' : ''}`} onMouseDown={(e) => {
+      if (e.target === e.currentTarget) closeModal();
+    }}>
+      <div className={`cat-modal ${isClosing ? 'closing' : ''}`}>
+        <div className="cat-modal-head">
+          <h3>{initialData ? 'Edit Template' : 'Tambah Template'}</h3>
+          <button onClick={closeModal}><MdClose size={20} /></button>
+        </div>
 
-      <div className="cat-form" style={{ padding: 0, backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
-        <div style={{ padding: 'var(--spacing-lg)' }}>
-          <label style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            Kata Kunci / Pesan Template (Trigger Text)
+        <div className="cat-form">
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            Kata Kunci Iklan *
             <input 
               value={triggerText} 
               onChange={e => setTriggerText(e.target.value)} 
-              placeholder="Contoh: Halo! Bisakah saya mendapatkan info selengkapnya?" 
-              style={{ width: '100%', padding: 12, border: '1px solid var(--color-border)', borderRadius: 8 }}
             />
-            <small style={{ color: 'var(--color-text-secondary)', fontSize: 11 }}>
-              Kosongkan untuk menjadikannya template Global (default) untuk semua chat masuk pertama kali yang tidak memiliki kata kunci spesifik.
-            </small>
           </label>
 
-          <label style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            Prompt AI (Konteks Bisnis / Iklan) *
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            Instruksi AI *
             <textarea 
               rows={6} 
               value={replyText} 
               onChange={e => setReplyText(e.target.value)} 
-              placeholder="Tuliskan instruksi untuk AI di sini. Contoh: Kamu adalah CS toko kacamata. Jelaskan promo Buy 1 Get 1..." 
-              style={{ width: '100%', padding: 12, border: '1px solid var(--color-border)', borderRadius: 8, resize: 'vertical', minHeight: '120px' }}
             />
           </label>
 
@@ -153,11 +159,11 @@ function TemplateForm({ initialData, accountId, onCancel, onSaved }: TemplateFor
                 <div className="cat-variant-fields" style={{ gridTemplateColumns: '1fr' }}>
                   <div className="cat-variant-field">
                     <label>Link Gambar *</label>
-                    <input value={v.image} onChange={e => { const arr = [...captionEntries]; arr[i] = { ...v, image: e.target.value }; setCaptionEntries(arr); }} placeholder="Masukkan link gambar (https://...)" style={{ width: '100%', padding: 12, border: '1px solid var(--color-border)', borderRadius: 8 }} />
+                    <input value={v.image} onChange={e => { const arr = [...captionEntries]; arr[i] = { ...v, image: e.target.value }; setCaptionEntries(arr); }} />
                   </div>
                   <div className="cat-variant-field">
                     <label>Isi Caption *</label>
-                    <textarea rows={4} value={v.caption} onChange={e => { const arr = [...captionEntries]; arr[i] = { ...v, caption: e.target.value }; setCaptionEntries(arr); }} placeholder="Ketik isi caption di sini..." style={{ width: '100%', padding: 12, border: '1px solid var(--color-border)', borderRadius: 8, resize: 'vertical' }} />
+                    <textarea rows={4} value={v.caption} onChange={e => { const arr = [...captionEntries]; arr[i] = { ...v, caption: e.target.value }; setCaptionEntries(arr); }} />
                   </div>
                 </div>
               </div>
@@ -165,23 +171,23 @@ function TemplateForm({ initialData, accountId, onCancel, onSaved }: TemplateFor
             <button type="button" className="cat-btn-ghost" onClick={() => setCaptionEntries([...captionEntries, { caption: '', image: '' }])}>+ Tambah Caption</button>
           </div>
 
-          <label style={{ marginTop: 24, marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 8, fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
-            Pesan Terakhir (Opsional)
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            Pesan Penutup (Opsional)
             <textarea 
               rows={3} 
               value={finalMessage} 
               onChange={e => setFinalMessage(e.target.value)} 
-              placeholder="Ketik pesan terakhir atau penutup di sini..." 
-              style={{ width: '100%', padding: 12, border: '1px solid var(--color-border)', borderRadius: 8, resize: 'vertical', fontWeight: 'normal' }}
             />
           </label>
         </div>
 
-        <div className="cat-modal-foot" style={{ backgroundColor: 'var(--color-background)' }}>
+        <div className="cat-modal-foot">
+          <button className="cat-btn-ghost" onClick={closeModal}>Batal</button>
           <button 
             className="cat-btn-primary" 
             onClick={handleSave} 
             disabled={
+              !triggerText.trim() ||
               !replyText.trim() || 
               save.isPending || 
               captionEntries.some(e => !e.image.trim() || !e.caption.trim())
@@ -225,9 +231,10 @@ export default function Templates({ accounts }: TemplatesProps) {
 
   return (
     <div className="dashboard-container">
-      <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <MdAutoAwesome color="var(--color-primary)" /> Prompt AI & Template Ads
+      <div className="dashboard-header cat-header-wrap">
+        <h2>
+          <MdAutoAwesome color="var(--color-primary)" style={{ verticalAlign: 'text-bottom', marginRight: 8 }} /> 
+          Prompt AI & Template Ads
         </h2>
 
         {/* Pemilih akun WA */}
@@ -262,7 +269,7 @@ export default function Templates({ accounts }: TemplatesProps) {
       </div>
 
       <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, marginBottom: 16 }}>
-        Kelola instruksi AI (Prompt) dan caption otomatis untuk berbagai iklan yang berbeda berdasarkan kata kuncinya (Trigger Text).
+        Kelola instruksi AI dan caption otomatis untuk berbagai iklan yang berbeda berdasarkan kata kuncinya.
       </p>
 
       {editingTemplate ? (
@@ -277,7 +284,7 @@ export default function Templates({ accounts }: TemplatesProps) {
         <div className="cat-section">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 style={{ margin: 0 }}>Daftar Template</h3>
-            <button className="cat-btn-primary" onClick={() => setEditingTemplate('new')} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button className="cat-add-btn" onClick={() => setEditingTemplate('new')}>
               <MdAdd size={18} /> Tambah Template
             </button>
           </div>
@@ -293,9 +300,9 @@ export default function Templates({ accounts }: TemplatesProps) {
           ) : (
             <div className="cat-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
               {templates.map(tpl => (
-                <div key={tpl.id} className="cat-card" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 16 }}>
+                <div key={tpl.id} className="cat-card" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 16, borderRadius: 'var(--radius-md)' }}>
                   <div>
-                    <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>Kata Kunci (Trigger):</div>
+                    <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>Kata Kunci:</div>
                     <div style={{ fontWeight: 600, color: tpl.triggerText === 'global' ? 'var(--color-primary)' : 'inherit' }}>
                       {tpl.triggerText === 'global' ? '🌐 Global (Default)' : `"${tpl.triggerText}"`}
                     </div>

@@ -58,11 +58,18 @@ export function useGlobalAlerts(accounts: Account[], enabled: boolean, onOpenCha
           }
         }
         
-        const prefix = accName ? `[${accName}] ` : '';
-        notify(`${prefix}Pesan baru dari ${customerName}`, 'info', () => {
+        const description = accName ? `Akun: ${accName}` : undefined;
+        notify(`Pesan baru dari ${customerName}`, 'info', () => {
           if (onOpenChat && matchedAccountId) onOpenChat(matchedAccountId, msgRow.conversation_id);
-        });
+        }, description);
         playEventSound('incoming');
+
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification(`Pesan dari ${customerName}`, {
+            body: accName ? `Via: ${accName}` : 'Pesan masuk baru',
+            icon: '/logo.png'
+          });
+        }
       }
     });
     socket.on('new_notification', (notifRow) => {
@@ -77,6 +84,13 @@ export function useGlobalAlerts(accounts: Account[], enabled: boolean, onOpenCha
         playEventSound('incoming');
       }
       notify(notifRow.message, level === 'warning' ? 'warn' : level);
+
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(level === 'warning' ? 'Peringatan CRM' : level === 'error' ? 'Error CRM' : 'Notifikasi CRM', {
+          body: notifRow.message,
+          icon: '/logo.png'
+        });
+      }
     });
 
     socket.on('order_created', () => {

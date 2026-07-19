@@ -1,11 +1,12 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { MdReceiptLong, MdSearch, MdVerified, MdCheck, MdChatBubbleOutline, MdPictureAsPdf, MdGridOn } from 'react-icons/md';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Account } from '../../types/db';
 import { useAllOrders } from '../../hooks/useAllOrders';
 import { setOrderVerified, deleteOrder } from '../../services/orders';
 import { exportOrdersCSV, printOrdersPDF, type ExportOrderRow } from '../../lib/exportOrders';
-import '../dashboard/Dashboard.css';
+
 import './Orders.css';
 
 interface OrdersProps {
@@ -55,7 +56,7 @@ const Orders = ({ accounts, onOpenChat }: OrdersProps) => {
       await deleteOrder(id);
       qc.invalidateQueries({ queryKey: ['orders', 'list'] });
     } catch {
-      alert('Gagal menghapus order.');
+      toast.error('Gagal menghapus order.');
     } finally {
       setVerifyingId(null);
     }

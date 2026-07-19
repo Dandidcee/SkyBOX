@@ -5,23 +5,27 @@
   --color-primary: #1da851;
   --color-primary-container: #b4f1c9;
   --color-on-primary-container: #00210e;
-  
+
   --color-primary-dark: #128C7E;
   --color-header-dark: #075E54;
-  
+
   --color-background: #FBFDF9;
   --color-surface: #FBFDF9;
   --color-surface-container-low: #F3F4F1;
   --color-surface-container: #EDEFEA;
   --color-surface-container-high: #E8E9E5;
-  
+
   --color-border: #C4C8C2;
   --color-text-primary: #191C1A;
   --color-text-secondary: #404944;
   --color-warning: #B3261E;
   --color-error: #BA1A1A;
-  
-  --color-chat-bg: #EDEFEA;
+
+  --color-chat-bg: #EFEAE2;
+  /* Original WA light background */
+  --chat-bg-pattern-opacity: 0.4;
+  --chat-bg-pattern-filter: none;
+  --chat-bg-pattern-blend: darken;
   --color-input-bg: #F3F4F1;
   --color-bubble-sent: #D9FDD3;
   --color-bubble-received: #FFFFFF;
@@ -52,7 +56,7 @@
   --radius-lg: 16px;
   --radius-xl: 28px;
   --radius-pill: 9999px;
-  
+
   /* Material 3 Elevation */
   --elevation-1: 0px 1px 2px 0px rgba(0, 0, 0, 0.3), 0px 1px 3px 1px rgba(0, 0, 0, 0.15);
   --elevation-2: 0px 1px 2px 0px rgba(0, 0, 0, 0.3), 0px 2px 6px 2px rgba(0, 0, 0, 0.15);
@@ -74,9 +78,25 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-h1 { font-size: var(--font-size-h1); font-weight: 600; line-height: 1.2; letter-spacing: -0.02em; }
-h2 { font-size: var(--font-size-h2); font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; }
-h3 { font-size: var(--font-size-h3); font-weight: 600; line-height: 1.2; }
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+  line-height: 1.2;
+}
 
 /* Global Layout Utilities */
 #root {
@@ -85,32 +105,69 @@ h3 { font-size: var(--font-size-h3); font-weight: 600; line-height: 1.2; }
   overflow: hidden;
 }
 
-.text-secondary { color: var(--color-text-secondary); }
-.text-caption { font-size: var(--font-size-caption); }
+.text-secondary {
+  color: var(--color-text-secondary);
+}
+
+.text-caption {
+  font-size: var(--font-size-caption);
+}
 
 [data-theme='dark'] {
   /* Material 3 WhatsApp Theme - Dark */
-  --color-primary: #8ED9A3;
-  --color-primary-container: #005227;
+  --color-primary: #25D366;
+  --color-primary-container: #144D37;
   --color-on-primary-container: #b4f1c9;
-  
-  --color-primary-dark: #008069;
-  --color-header-dark: #111b21;
-  --color-background: #191C1A;
-  --color-surface: #191C1A;
-  --color-surface-container-low: #1C201E;
-  --color-surface-container: #202422;
-  --color-surface-container-high: #2B2F2D;
-  
-  --color-border: #404944;
-  --color-text-primary: #E1E3DF;
-  --color-text-secondary: #BFC9C3;
-  --color-chat-bg: #1C201E;
-  --color-input-bg: #2B2F2D;
-  --color-bubble-sent: #005227;
-  --color-bubble-received: #202422;
-  --color-sidebar-text: #E1E3DF;
-  --color-sidebar-text-muted: #BFC9C3;
+
+  --color-primary-dark: #00a884;
+  --color-header-dark: #161717;
+  --color-background: #161717;
+  --color-surface: #161717;
+  --color-surface-container-low: #1C1D1D;
+  --color-surface-container: #242626;
+  --color-surface-container-high: #2E2F2F;
+
+  --color-border: #2E2F2F;
+  --color-text-primary: #FAFAFA;
+  --color-text-secondary: #A2A2A2;
+  --color-chat-bg: #0b141a;
+  --chat-bg-pattern-opacity: 0.35;
+  --chat-bg-pattern-filter: invert(1);
+  --chat-bg-pattern-blend: screen;
+  --color-input-bg: #242626;
+  --color-bubble-sent: #144D37;
+  --color-bubble-received: #242626;
+  --color-sidebar-text: #FAFAFA;
+  --color-sidebar-text-muted: #A2A2A2;
+}
+
+/* =========================================
+   CUSTOM SCROLLBAR (WhatsApp Web Style)
+   ========================================= */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(11, 20, 26, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(11, 20, 26, 0.3);
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.16);
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.24);
 }
 
 /* =========================================
@@ -118,7 +175,10 @@ h3 { font-size: var(--font-size-h3); font-weight: 600; line-height: 1.2; }
    ========================================= */
 
 /* Base Transitions */
-button, .nav-item, .cat-account-btn, .tab-btn {
+button,
+.nav-item,
+.cat-account-btn,
+.tab-btn {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -127,17 +187,24 @@ button:active:not(:disabled) {
 }
 
 /* Cards Hover Effects */
-.stat-card, .chart-card, .cat-card, .notif-item, .cat-know-row {
+.stat-card,
+.chart-card,
+.cat-card,
+.notif-item,
+.cat-know-row {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.stat-card:hover, .cat-card:hover, .cat-know-row:hover {
+.stat-card:hover,
+.cat-card:hover,
+.cat-know-row:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
   border-color: var(--color-primary);
 }
 
-[data-theme='dark'] .stat-card:hover, [data-theme='dark'] .cat-card:hover {
+[data-theme='dark'] .stat-card:hover,
+[data-theme='dark'] .cat-card:hover {
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
 }
 
@@ -145,8 +212,10 @@ button:active:not(:disabled) {
 .nav-item {
   position: relative;
   overflow: hidden;
-  border-radius: var(--radius-md); /* Agak kotak (rounded rectangle) */
+  border-radius: var(--radius-md);
+  /* Agak kotak (rounded rectangle) */
 }
+
 /* Removed the before pseudo-element left-bar in favor of pill background */
 
 
@@ -154,7 +223,43 @@ button:active:not(:disabled) {
   color: var(--color-text-secondary);
   opacity: 0.5;
 }
-input::placeholder, textarea::placeholder {
+
+input::placeholder,
+textarea::placeholder {
   color: var(--color-text-secondary);
   opacity: 0.5;
+}
+
+/* =========================================
+   RESPONSIVE DESIGN (MOBILE)
+   ========================================= */
+@media (max-width: 768px) {
+  :root {
+    --font-size-h1: 22px;
+    --font-size-h2: 18px;
+    --font-size-h3: 16px;
+    --font-size-base: 13px;
+    --font-size-sm: 12px;
+    --font-size-caption: 11px;
+    
+    --spacing-md: 12px;
+    --spacing-lg: 16px;
+  }
+
+  [data-sonner-toaster] {
+    margin-top: 60px !important; /* Menurunkan toast di mobile agar tidak menutup header (global) */
+  }
+
+  body.is-login-page [data-sonner-toaster] {
+    margin-top: 16px !important;
+    right: 16px !important;
+    left: auto !important;
+    width: auto !important;
+    transform: none !important;
+  }
+
+  body.is-login-page [data-sonner-toast] {
+    width: auto !important;
+    margin-left: auto;
+  }
 }

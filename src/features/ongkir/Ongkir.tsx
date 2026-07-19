@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { MdLocalShipping, MdSearch, MdInventory2, MdClose } from 'react-icons/md';
+import { MdLocalShipping, MdSearch, MdClose } from 'react-icons/md';
+import { FaWeightHanging } from 'react-icons/fa6';
 import {
   searchDestination, checkCost, isOngkirConfigured,
   type OngkirDestination, type OngkirRate,
 } from '../../services/ongkir';
-import '../dashboard/Dashboard.css';
+
 import './Ongkir.css';
 
 const COURIERS = ['jne', 'sicepat', 'jnt', 'anteraja', 'pos', 'tiki', 'wahana', 'ninja'];
@@ -113,42 +114,27 @@ export const OngkirCalculator = ({
   };
 
   return (
-    <div className="ongkir-card" style={{ marginBottom: 0, border: 'none' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <DestPicker label="Kota Asal" value={origin} onPick={(d) => setOrigin(d.id ? d : null)} />
       <DestPicker label="Kota Tujuan" value={dest} onPick={(d) => setDest(d.id ? d : null)} />
 
       <div className="ongkir-field">
         <span className="ongkir-label">Berat (gram)</span>
         <div className="ongkir-weight">
-          <MdInventory2 size={16} />
+          <FaWeightHanging size={14} color="var(--color-text-secondary)" />
           <input type="number" min={1} value={weight} onChange={(e) => setWeight(Number(e.target.value))} />
         </div>
       </div>
 
       <div className="ongkir-field">
-        <span className="ongkir-label" style={{ fontWeight: 600, color: '#1e293b', marginBottom: '8px', display: 'block' }}>Kurir</span>
+        <span className="ongkir-label" style={{ fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '8px', display: 'block' }}>Kurir</span>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
           {COURIERS.map((c) => {
             const isSelected = couriers.includes(c);
             return (
               <label 
                 key={c} 
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 16px',
-                  borderRadius: '24px',
-                  border: isSelected ? '1px solid #10b981' : '1px solid #e2e8f0',
-                  backgroundColor: isSelected ? '#ecfdf5' : '#f8fafc',
-                  color: isSelected ? '#047857' : '#64748b',
-                  fontSize: '14px',
-                  fontWeight: isSelected ? 600 : 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  userSelect: 'none',
-                  boxShadow: isSelected ? '0 2px 4px rgba(16, 185, 129, 0.1)' : 'none'
-                }}
+                className={`ongkir-courier-btn ${isSelected ? 'selected' : ''}`}
               >
                 <input 
                   type="checkbox" 

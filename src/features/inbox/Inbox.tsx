@@ -1,16 +1,20 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { toast } from 'sonner';
+import { FaMeta } from 'react-icons/fa6';
 import './Inbox.css';
 import { 
   MdSearch, MdCheck, MdClose, MdAttachFile,
   MdArrowBack, MdSend, MdInsertEmoticon, MdFlashOn, MdReply,
   MdMic, MdDelete, MdDoneAll, MdErrorOutline,
   MdMoreVert, MdKeyboardArrowDown, MdPlayArrow, MdPause, MdChat,
-  MdChevronLeft, MdChevronRight, MdAutoAwesome, MdLockClock, MdMessage, MdPushPin
+  MdChevronLeft, MdChevronRight, MdLockClock, MdMessage, MdPushPin, MdPerson, MdMenu,
+  MdImage, MdVideocam, MdInsertDriveFile, MdHeadphones
 } from 'react-icons/md';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Account, Conversation, Message } from '../../types/db';
 import { useConversations, conversationsKey } from '../../hooks/useConversations';
+import { useChatFolders, useCreateChatFolder, useUpdateChatFolder } from '../../hooks/useChatFolders';
 import { useMessages } from '../../hooks/useMessages';
 import { useContacts } from '../../hooks/useContacts';
 import api from '../../services/api';
@@ -20,6 +24,8 @@ import { useContactMutations } from '../../hooks/useContacts';
 import { setConversationHandler, sendTextMessage, sendMedia, sendTemplateMessage } from '../../services/n8n';
 import { deleteConversations } from '../../services/conversations';
 import ContactPanel from './ContactPanel';
+import NewChatSidebar from './NewChatSidebar';
+import waPatternBg from '../../assets/wa-pattern.png';
 import { OngkirCalculator } from '../ongkir/Ongkir';
 import type { OngkirRate, OngkirDestination } from '../../services/ongkir';
 import '../ongkir/Ongkir.css';
@@ -37,6 +43,32 @@ const fmtTime = (iso: string) => {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
   return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+};
+
+const fmtPreviewTime = (iso: string) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const sixDaysAgo = new Date(today);
+  sixDaysAgo.setDate(sixDaysAgo.getDate() - 6);
+
+  const targetDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+  if (targetDate.getTime() === today.getTime()) {
+    return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  } else if (targetDate.getTime() === yesterday.getTime()) {
+    return 'Kemarin';
+  } else if (targetDate.getTime() >= sixDaysAgo.getTime()) {
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    return days[d.getDay()];
+  } else {
+    return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+  }
 };
 
 // Ubah link Google Drive jadi URL lh3.googleusercontent (Google CDN) yang bisa di-embed
@@ -58,27 +90,46 @@ const toEmbeddableUrl = (url: string | null, accountId?: string | null) => {
 
 // No longer used since we use FormData for uploads
 
-const ProgressAvatar = ({ name, confidence, handler }: { name: string; confidence: number; handler?: string }) => {
+const ProgressAvatar = ({ confidence, handler, isSelected, aiEnabled = true }: { name: string; confidence: number; handler?: string; isSelected?: boolean; aiEnabled?: boolean }) => {
   const ringColor = getConfidenceColor(confidence);
   const radius = 21;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (confidence / 100) * circumference;
-  const initial = (name || '?').charAt(0).toUpperCase();
   const avatarBg = handler === 'ai' ? 'var(--color-primary)' : '#EAB308';
-
   return (
     <div style={{ position: 'relative', width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-      <svg width="48" height="48" style={{ position: 'absolute', top: 0, left: 0, transform: 'rotate(-90deg)' }}>
-        <circle cx="24" cy="24" r={radius} stroke="rgba(255,255,255,0.1)" strokeWidth="3" fill="none" />
-        <circle
-          cx="24" cy="24" r={radius}
-          stroke={ringColor} strokeWidth="3" fill="none"
-          strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round"
-        />
-      </svg>
-      <div className="chat-avatar" style={{ backgroundColor: avatarBg, width: 36, height: 36, fontSize: '16px', zIndex: 1, margin: 0 }}>
-        {initial}
+      {aiEnabled && (
+        <svg width="48" height="48" style={{ position: 'absolute', top: 0, left: 0, transform: 'rotate(-90deg)' }}>
+          <circle cx="24" cy="24" r={radius} stroke="rgba(255,255,255,0.1)" strokeWidth="3" fill="none" />
+          <circle
+            cx="24" cy="24" r={radius}
+            stroke={ringColor} strokeWidth="3" fill="none"
+            strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round"
+          />
+        </svg>
+      )}
+      <div className="chat-avatar" style={{ backgroundColor: avatarBg, width: 36, height: 36, fontSize: '16px', zIndex: 1, margin: 0, color: 'white' }}>
+        <MdPerson size={22} />
       </div>
+      {isSelected && (
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          right: 0,
+          width: 20,
+          height: 20,
+          backgroundColor: 'var(--color-primary)',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: '2px solid var(--color-surface)',
+          zIndex: 2,
+          color: 'white'
+        }}>
+          <MdCheck size={14} />
+        </div>
+      )}
     </div>
   );
 };
@@ -170,9 +221,10 @@ interface InboxProps {
   onMobileChatOpenChange?: (open: boolean) => void;
   initialConversationId?: string;
   onNavigate?: (view: string) => void;
+  onMenuClick?: () => void;
 }
 
-type TabKey = 'all' | 'ai' | 'human' | 'lead' | 'waiting_payment' | 'closing' | 'complaint';
+type TabKey = 'all' | 'ai' | 'human' | 'lead' | 'waiting_payment' | 'closing' | 'complaint' | string;
 type FilterKey = 'all' | 'confidence_high' | 'confidence_med' | 'confidence_low';
 
 /** Pesan optimistik (sedang dikirim dari dashboard) sebelum tersimpan di DB. */
@@ -186,9 +238,10 @@ type PendingMsg = {
   mediaUrl?: string;
 };
 
-const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange, initialConversationId, onNavigate }: InboxProps) => {
+const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange, initialConversationId, onMenuClick }: InboxProps) => {
   const qc = useQueryClient();
   const accountId = account?.id;
+  const aiEnabled = account?.aiEnabled;
 
   const { data: conversations = [], isLoading: convLoading, isError: convError, refetch: refetchConv } =
     useConversations(accountId);
@@ -197,7 +250,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
   const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(!!initialConversationId);
-  const [listWidth, setListWidth] = useState(isMultiView ? 240 : 320);
+  const [listWidth, setListWidth] = useState(isMultiView ? 320 : 420);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(initialConversationId ?? null);
   const [addContactPhone, setAddContactPhone] = useState<string | null>(null);
   
@@ -207,8 +260,9 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   const [searchText, setSearchText] = useState('');
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [toastMessage, setToastMessage] = useState<React.ReactNode | null>(null);
+
   const [isContactOpen, setIsContactOpen] = useState(false);
+  const [isNewChatPanelOpen, setIsNewChatPanelOpen] = useState(false);
   const [pending, setPending] = useState<PendingMsg[]>([]);
 
   // State untuk Quick Replies Autocomplete
@@ -228,6 +282,14 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   // State untuk Image Preview
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // Custom Chat Folders
+  const { data: chatFolders = [] } = useChatFolders(accountId);
+  const createFolder = useCreateChatFolder();
+  const updateFolder = useUpdateChatFolder();
+  const [showNewFolderModal, setShowNewFolderModal] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [showAssignFolderModal, setShowAssignFolderModal] = useState(false);
   const [fileCaption, setFileCaption] = useState('');
 
   // State untuk Modal Ongkir
@@ -275,19 +337,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     }
   });
 
-  const handleSaveMetaTemplate = () => {
-    if (!templateName.trim()) return;
-    const newTemplate = { name: templateName.trim(), lang: templateLang.trim() || 'id' };
-    const updated = [...savedMetaTemplates.filter(t => t.name !== newTemplate.name), newTemplate];
-    setSavedMetaTemplates(updated);
-    localStorage.setItem('savedMetaTemplates', JSON.stringify(updated));
-  };
-
-  const handleDeleteMetaTemplate = (name: string) => {
-    const updated = savedMetaTemplates.filter(t => t.name !== name);
-    setSavedMetaTemplates(updated);
-    localStorage.setItem('savedMetaTemplates', JSON.stringify(updated));
-  };
+  // removed handleSaveMetaTemplate and handleDeleteMetaTemplate as they were unused
 
   const [isSyncingTemplates, setIsSyncingTemplates] = useState(false);
 
@@ -335,9 +385,24 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
   // State untuk Reply Pesan
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
+  
 
   const renderMessageBody = (body: string) => {
     if (!body) return null;
+
+    if (body.trim() === '[unsupported]') {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-secondary)', fontStyle: 'italic', fontSize: '13.5px' }}>
+          <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '4px', borderRadius: '4px', display: 'flex' }}>
+            <MdErrorOutline size={16} />
+          </div>
+          <div style={{ lineHeight: 1.4 }}>
+            Unsupported message
+          </div>
+        </div>
+      );
+    }
+
     const match = body.match(/^\[Template:\s*([^|\]]+)(?:\|(.*))?\]$/i);
     if (match) {
       const tName = match[1].trim();
@@ -356,8 +421,8 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             
             return (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, opacity: 0.7, marginBottom: '4px' }}>
-                  [Template: {tName}]
+                <span style={{ fontSize: '0.75rem', fontStyle: 'italic', fontWeight: 600, opacity: 0.7, marginBottom: '4px' }}>
+                  Template: {tName}
                 </span>
                 <span>{renderWaText(finalText)}</span>
               </div>
@@ -366,8 +431,8 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
         } else {
           return (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, opacity: 0.7, marginBottom: '4px' }}>
-                [Template: {tName}]
+              <span style={{ fontSize: '0.75rem', fontStyle: 'italic', fontWeight: 600, opacity: 0.7, marginBottom: '4px' }}>
+                Template: {tName}
               </span>
               <span style={{ fontSize: '0.85rem', fontStyle: 'italic', color: 'var(--color-text-secondary)' }}>
                 (Isi template belum tersedia. Klik "Sync dari Meta" di menu template untuk memuat)
@@ -416,6 +481,11 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     : null;
     
   const isSavedContact = activeConversation ? contacts.some(c => c.phone === activeConversation.customerPhone) : true;
+
+  // Reset reply state saat pindah chat
+  useEffect(() => {
+    setReplyToMessage(null);
+  }, [resolvedConversationId]);
 
   const { data: messages = [], isLoading: msgLoading } = useMessages(resolvedConversationId ?? undefined);
   const { data: orders = [] } = useOrders(resolvedConversationId ?? undefined);
@@ -466,16 +536,36 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     return () => window.removeEventListener('popstate', handlePopState);
   }, [isMobileChatOpen, onMobileChatOpenChange]);
 
+  // State for Floating Sticky Date
+  const [floatingDate, setFloatingDate] = useState<string | null>(null);
+  const [isScrollingDate, setIsScrollingDate] = useState(false);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleTimelineScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
     // Tampilkan tombol jika user scroll ke atas lebih dari 100px dari dasar
     const isScrolledUp = el.scrollHeight - el.scrollTop - el.clientHeight > 100;
     setShowScrollButton(isScrolledUp);
+
+    setIsScrollingDate(true);
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    scrollTimeoutRef.current = setTimeout(() => setIsScrollingDate(false), 1500);
+
+    const separators = el.getElementsByClassName('inline-date-separator');
+    let current = separators.length > 0 ? (separators[0] as HTMLElement).innerText : null;
+    for (let i = 0; i < separators.length; i++) {
+      const sep = separators[i] as HTMLElement;
+      if (sep.offsetTop <= el.scrollTop + 60) {
+        current = sep.innerText;
+      } else {
+        break;
+      }
+    }
+    if (current && current !== floatingDate) setFloatingDate(current);
   };
 
   const showToast = (msg: React.ReactNode) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
+    toast.info(msg);
   };
 
   // Klik di luar emoji picker untuk menutup.
@@ -903,6 +993,13 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
     if (activeTab === 'waiting_payment') return c.orderStatus === 'waiting_payment';
     if (activeTab === 'closing') return c.orderStatus === 'closing';
     if (activeTab === 'complaint') return c.orderStatus === 'complaint';
+
+    // Check custom folders
+    const customFolder = chatFolders.find(f => f.id === activeTab);
+    if (customFolder) {
+      return customFolder.chatIds.includes(c.id);
+    }
+
     return true;
   });
 
@@ -937,7 +1034,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
       setSearchText('');
     } catch (err) {
       console.error(err);
-      alert('Gagal memulai chat dengan kontak ini.');
+        toast.error('Gagal memulai chat dengan kontak ini.');
     }
   };
 
@@ -948,24 +1045,62 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
   return (
     <div className={`inbox-container ${isMultiView ? 'compact-mode' : ''} ${isMultiView && isMobileChatOpen ? 'is-active-chat' : ''}`} style={containerStyle}>
       {/* Column 1: Conversation List */}
-      <div ref={listRef} className={`conversation-list ${isMobileChatOpen ? 'mobile-hidden' : ''}`}>
-        <div className="list-header" style={{ paddingBottom: '8px', position: 'relative' }}>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
+      <div ref={listRef} className={`conversation-list ${isMobileChatOpen ? 'mobile-hidden' : ''}`} style={{ position: 'relative', overflow: 'hidden' }}>
+          <NewChatSidebar 
+            isOpen={isNewChatPanelOpen}
+            contacts={contacts} 
+            onClose={() => setIsNewChatPanelOpen(false)} 
+            onSelectContact={(c) => {
+              setIsNewChatPanelOpen(false);
+              handleStartContactChat(c);
+            }}
+            onSaveNewContact={(c) => {
+              addContact.mutate(c);
+            }}
+          />
+        <div className="list-header" style={{ 
+          height: '64px',
+          backgroundColor: 'var(--color-surface)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '0 16px',
+          position: 'relative',
+          boxSizing: 'border-box'
+        }}>
+          {/* Kiri: Nama Akun */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button className="icon-btn mobile-only-btn" onClick={onMenuClick} title="Menu Utama" style={{ padding: 0 }}>
+              <MdMenu size={24} />
+            </button>
             <h2 style={{ fontSize: '1.2rem', margin: 0, fontWeight: 600 }}>
               {account ? account.name : 'SkyBox'}
             </h2>
           </div>
-          <button
-            className={`icon-btn ${(isSelectionMode || filterCriteria !== 'all') ? 'active-filter' : 'text-secondary'}`}
-            onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
-          >
-            <MdMoreVert size={24} />
-          </button>
+          
+          {/* Kanan: Icons */}
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+            <button className="icon-btn text-secondary" title="Chat Baru" onClick={() => setIsNewChatPanelOpen(true)}>
+              <MdChat size={24} />
+            </button>
+            <button
+              className={`icon-btn ${(isSelectionMode || filterCriteria !== 'all') ? 'active-filter' : 'text-secondary'}`}
+              onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
+            >
+              <MdMoreVert size={24} />
+            </button>
+          </div>
           
           {isHeaderMenuOpen && (
-            <div className="header-dropdown" style={{
+            <>
+              {/* Invisible backdrop to close dropdown on outside click */}
+              <div 
+                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} 
+                onClick={() => setIsHeaderMenuOpen(false)}
+              />
+              <div className="header-dropdown" style={{
               position: 'absolute',
-              top: '100%',
+              top: '56px',
               right: '16px',
               backgroundColor: 'var(--color-surface)',
               border: '1px solid var(--color-border)',
@@ -1002,13 +1137,14 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 Butuh Bantuan
               </div>
             </div>
+            </>
           )}
         </div>
 
         <div className="search-bar" style={{ position: 'relative' }}>
           <div className="search-input-container">
             <MdSearch size={20} className="search-icon" />
-            <input type="text" placeholder="Search chats or contacts..." className="search-input" value={searchText} onChange={(e) => setSearchText(e.target.value)} />
+            <input type="text" placeholder="Cari atau mulai obrolan baru" className="search-input" value={searchText} onChange={(e) => setSearchText(e.target.value)} />
           </div>
         </div>
 
@@ -1019,13 +1155,33 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             ref={tabsRef}
             onWheel={(e) => { if (tabsRef.current) tabsRef.current.scrollLeft += e.deltaY; }}
           >
-            <button className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>All</button>
-            <button className={`tab-btn ${activeTab === 'ai' ? 'active' : ''}`} onClick={() => setActiveTab('ai')}>AI Handled</button>
-            <button className={`tab-btn ${activeTab === 'human' ? 'active' : ''}`} onClick={() => setActiveTab('human')}>Human</button>
-            <button className={`tab-btn ${activeTab === 'lead' ? 'active' : ''}`} onClick={() => setActiveTab('lead')}>Leads</button>
-            <button className={`tab-btn ${activeTab === 'waiting_payment' ? 'active' : ''}`} onClick={() => setActiveTab('waiting_payment')}>Waiting Payment</button>
-            <button className={`tab-btn ${activeTab === 'closing' ? 'active' : ''}`} onClick={() => setActiveTab('closing')}>Closing</button>
-            <button className={`tab-btn ${activeTab === 'complaint' ? 'active' : ''}`} onClick={() => setActiveTab('complaint')}>Complaint</button>
+            <button className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>Semua</button>
+            <button className={`tab-btn ${activeTab === 'ai' ? 'active' : ''}`} onClick={() => setActiveTab('ai')}>Belum dibaca</button>
+            <button className={`tab-btn ${activeTab === 'human' ? 'active' : ''}`} onClick={() => setActiveTab('human')}>Manusia</button>
+            <button className={`tab-btn ${activeTab === 'lead' ? 'active' : ''}`} onClick={() => setActiveTab('lead')}>Grup</button>
+            <button className={`tab-btn ${activeTab === 'waiting_payment' ? 'active' : ''}`} onClick={() => setActiveTab('waiting_payment')}>Belum Bayar</button>
+            <button className={`tab-btn ${activeTab === 'closing' ? 'active' : ''}`} onClick={() => setActiveTab('closing')}>Selesai</button>
+            <button className={`tab-btn ${activeTab === 'complaint' ? 'active' : ''}`} onClick={() => setActiveTab('complaint')}>Komplain</button>
+            
+            {/* Custom Folders */}
+            {chatFolders.map(folder => (
+              <button 
+                key={folder.id} 
+                className={`tab-btn ${activeTab === folder.id ? 'active' : ''}`} 
+                onClick={() => setActiveTab(folder.id)}
+              >
+                {folder.name}
+              </button>
+            ))}
+            
+            <button 
+              className="tab-btn" 
+              onClick={() => setShowNewFolderModal(true)}
+              style={{ padding: '0 8px', color: 'var(--color-primary)' }}
+              title="Buat Folder Baru"
+            >
+              +
+            </button>
           </div>
           <button className="tab-scroll" onClick={() => scrollTabs(1)} title="Geser kanan"><MdChevronRight size={18} /></button>
         </div>
@@ -1091,27 +1247,85 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                     onTouchEnd={() => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }}
                     onTouchMove={() => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }}
                   >
-                    {isSelectionMode && (
-                      <div className="chat-checkbox">
-                        <input 
-                          type="checkbox" 
-                          checked={isSelected} 
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleToggleSelectChat(e, conv.id)} 
-                          onClick={e => e.stopPropagation()}
-                        />
-                      </div>
-                    )}
-                    <ProgressAvatar name={conv.customerName || conv.customerPhone} confidence={conv.confidence} handler={conv.handler} />
-                    <div className="chat-info">
-                      <div className="chat-name-time">
-                        <span className="chat-name" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          {conv.customerName || conv.customerPhone}
-                          {pinnedChats.includes(conv.id) && <MdPushPin size={14} color="var(--color-primary)" style={{ transform: 'rotate(45deg)' }} />}
+                    <ProgressAvatar name={conv.customerName || conv.customerPhone} confidence={conv.confidence} handler={conv.handler} isSelected={isSelectionMode && isSelected} aiEnabled={aiEnabled} />
+                    <div className="chat-info" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gridTemplateRows: 'auto auto', gap: '4px 8px', alignItems: 'center', minWidth: 0, flex: 1 }}>
+                      <span className="chat-name" style={{ display: 'flex', alignItems: 'center', gap: '4px', gridColumn: 1, gridRow: 1 }}>
+                        {conv.customerName || conv.customerPhone}
+                      </span>
+                      <span className="chat-time" style={{ gridColumn: 2, gridRow: 1, textAlign: 'right' }}>{fmtPreviewTime(conv.lastTime)}</span>
+                      
+                      <span className="preview-text" style={{ gridColumn: 1, gridRow: 2 }}>
+                          {(() => {
+                            let lp = conv.lastPreview || '';
+                            let statusIcon = null;
+
+                            if (lp.startsWith('✓✓ (read) ')) {
+                              statusIcon = <MdDoneAll size={16} color="#53bdeb" style={{ flexShrink: 0 }} />;
+                              lp = lp.replace('✓✓ (read) ', '');
+                            } else if (lp.startsWith('✓✓ (delivered) ')) {
+                              statusIcon = <MdDoneAll size={16} color="#8696a0" style={{ flexShrink: 0 }} />;
+                              lp = lp.replace('✓✓ (delivered) ', '');
+                            } else if (lp.startsWith('✓ (sent) ')) {
+                              statusIcon = <MdCheck size={16} color="#8696a0" style={{ flexShrink: 0 }} />;
+                              lp = lp.replace('✓ (sent) ', '');
+                            } else if (lp.startsWith('✗ (failed) ')) {
+                              statusIcon = <MdErrorOutline size={16} color="#EF4444" style={{ flexShrink: 0 }} />;
+                              lp = lp.replace('✗ (failed) ', '');
+                            } else if (lp.startsWith('✓✓ ')) {
+                              statusIcon = <MdDoneAll size={16} color="#53bdeb" style={{ flexShrink: 0 }} />;
+                              lp = lp.replace(/^✓✓\s*/, '');
+                            } else if (lp.startsWith('✓ ')) {
+                              statusIcon = <MdCheck size={16} color="#8696a0" style={{ flexShrink: 0 }} />;
+                              lp = lp.replace(/^✓\s*/, '');
+                            } else if (lp.startsWith('✗ ')) {
+                              statusIcon = <MdErrorOutline size={16} color="#EF4444" style={{ flexShrink: 0 }} />;
+                              lp = lp.replace(/^✗\s*/, '');
+                            }
+
+                            let innerContent = lp;
+                            if (lp.trim() === '[unsupported]') {
+                              innerContent = (
+                                <span style={{ fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <MdErrorOutline size={14} /> Unsupported message
+                                </span>
+                              ) as any;
+                            } else {
+                              const mediaMatch = lp.match(/^\[(?:Received )?(image|video|document|audio|voice|sticker)\]\s*(.*)$/i);
+                              if (mediaMatch) {
+                                const mediaType = mediaMatch[1].toLowerCase();
+                                const caption = mediaMatch[2];
+                                
+                                let Icon = MdInsertDriveFile;
+                                let typeText = 'Document';
+                                
+                                if (mediaType === 'image') { Icon = MdImage; typeText = 'Photo'; }
+                                else if (mediaType === 'video') { Icon = MdVideocam; typeText = 'Video'; }
+                                else if (mediaType === 'audio' || mediaType === 'voice') { Icon = mediaType === 'voice' ? MdMic : MdHeadphones; typeText = mediaType === 'voice' ? 'Voice message' : 'Audio'; }
+                                else if (mediaType === 'sticker') { Icon = MdInsertDriveFile; typeText = 'Sticker'; }
+
+                                innerContent = (
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <Icon size={15} /> {caption || typeText}
+                                  </span>
+                                ) as any;
+                              } else {
+                                const templateMatch = lp.match(/^\[Template:\s*([^|\]]+).*?\]$/i);
+                                if (templateMatch) {
+                                  innerContent = (<span style={{ fontStyle: 'italic' }}>Template: {templateMatch[1].trim()}</span>) as any;
+                                }
+                              }
+                            }
+
+                            return (
+                              <>
+                                {statusIcon}
+                                {innerContent}
+                              </>
+                            );
+                          })()}
                         </span>
-                        <span className="chat-time">{fmtTime(conv.lastTime)}</span>
-                      </div>
-                      <div className="chat-preview">
-                        <span className={`preview-text ${conv.unread === 0 ? 'text-secondary' : ''}`}>{conv.lastPreview}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', gridColumn: 2, gridRow: 2, justifyContent: 'flex-end', minHeight: '20px' }}>
+                        {pinnedChats.includes(conv.id) && <MdPushPin size={16} color="#8696a0" style={{ transform: 'rotate(45deg)' }} />}
                         {conv.unread > 0 && <div className="unread-badge">{conv.unread}</div>}
                       </div>
                     </div>
@@ -1131,8 +1345,8 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
               className="chat-item"
               onClick={() => handleStartContactChat(c)}
             >
-              <div className="chat-avatar" style={{ backgroundColor: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {(c.name || 'S').charAt(0).toUpperCase()}
+              <div className="chat-avatar" style={{ backgroundColor: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                <MdPerson size={24} />
               </div>
               <div className="chat-info">
                 <div className="chat-name-time">
@@ -1146,26 +1360,35 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
           ))}
         </div>
 
-        {!isSelectionMode && onNavigate && (
-          <button 
-            className={`new-chat-fab ${isMobileChatOpen ? 'mobile-hidden' : ''}`}
-            onClick={() => onNavigate('contacts')}
-            title="Tambah Chat Baru"
-          >
-            <MdChat size={24} />
-          </button>
-        )}
-
         {isSelectionMode && (
           <div className="bulk-action-bar">
             <span>{selectedChats.length} Dipilih</span>
-            <button 
-              className="bulk-delete-btn" 
-              onClick={handleBulkDelete}
-              disabled={selectedChats.length === 0}
-            >
-              Hapus
-            </button>
+            {selectedChats.length > 0 ? (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  className="bulk-delete-btn" 
+                  onClick={() => setShowAssignFolderModal(true)}
+                  style={{ backgroundColor: 'var(--color-primary)' }}
+                  title="Tambahkan ke Folder"
+                >
+                  Ke Folder
+                </button>
+                <button 
+                  className="bulk-delete-btn" 
+                  onClick={handleBulkDelete}
+                >
+                  Hapus
+                </button>
+              </div>
+            ) : (
+              <button 
+                className="bulk-delete-btn" 
+                onClick={() => setIsSelectionMode(false)}
+                style={{ backgroundColor: '#4b5a64' }}
+              >
+                Batalkan
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -1174,6 +1397,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
       {/* Column 2: Chat Area */}
       <div className={`chat-area ${!isMobileChatOpen ? 'mobile-hidden' : ''}`}>
+        <div className="chat-pattern-bg" style={{ backgroundImage: `url(${waPatternBg})` }}></div>
         <div className="chat-header">
           <div
             className="chat-header-info"
@@ -1192,22 +1416,22 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             }}>
               <MdArrowBack size={24} />
             </button>
-            <div className="chat-avatar" style={{ backgroundColor: activeConversation?.handler === 'ai' ? 'var(--color-primary)' : '#EAB308' }}>
-              {(activeConversation?.customerName || activeConversation?.customerPhone || 'S').charAt(0)}
+            <div className="chat-avatar" style={{ backgroundColor: activeConversation?.handler === 'ai' ? 'var(--color-primary)' : '#EAB308', color: 'white' }}>
+              <MdPerson size={24} />
             </div>
-            <div>
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h3>{activeConversation ? (activeConversation.customerName || activeConversation.customerPhone) : 'Pilih percakapan'}</h3>
+                <h3 className="chat-header-title">
+                  {activeConversation ? (activeConversation.customerName || activeConversation.customerPhone) : 'Pilih percakapan'}
+                </h3>
                 {/* Tambah Kontak dipindah ke ContactPanel */}
               </div>
-              <span className="chat-status text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', fontSize: '12px' }}>
-                {isMultiView && account ? (
-                  <>
-                    <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: account.color }}></div>
-                    <span style={{ color: account.color, fontWeight: 500 }}>via {account.name}</span>
-                  </>
-                ) : null}
-              </span>
+              {isMultiView && account && (
+                <span className="chat-status text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', fontSize: '12px' }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: account.color }}></div>
+                  <span style={{ color: account.color, fontWeight: 500 }}>via {account.name}</span>
+                </span>
+              )}
             </div>
           </div>
           <div className="chat-header-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -1222,14 +1446,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             >
               <MdSearch size={20} />
             </button>
-            <button
-              className="icon-btn text-secondary"
-              onClick={() => setShowTemplateModal(true)}
-              title="Kirim Pesan Template Meta"
-              style={{ backgroundColor: 'var(--color-primary)', color: 'white', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-              <MdAutoAwesome size={20} />
-            </button>
+
             {account?.aiEnabled && (
               <div
                 className={`handler-switch ${activeConversation?.handler === 'human' ? 'is-human' : 'is-ai'}`}
@@ -1266,6 +1483,33 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
         )}
 
         <div className="chat-timeline" ref={timelineRef} onScroll={handleTimelineScroll}>
+          {floatingDate && (
+            <div style={{
+              position: 'sticky',
+              top: '-16px',
+              zIndex: 20,
+              display: 'flex',
+              justifyContent: 'center',
+              width: '100%',
+              pointerEvents: 'none',
+              opacity: isScrollingDate ? 1 : 0,
+              transition: 'opacity 0.3s ease',
+              marginBottom: '-28px'
+            }}>
+              <span style={{ 
+                backgroundColor: 'var(--color-surface)', 
+                padding: '4px 12px', 
+                borderRadius: '16px', 
+                fontSize: '11px', 
+                fontWeight: 500, 
+                color: 'var(--color-text-primary)', 
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                border: '1px solid var(--color-border)'
+              }}>
+                {floatingDate}
+              </span>
+            </div>
+          )}
           {latestOrder && (
             <div style={{
               alignSelf: 'center',
@@ -1315,8 +1559,21 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 return (
                   <React.Fragment key={m.id}>
                     {showDateSeparator && (
-                      <div style={{ display: 'flex', justifyContent: 'center', margin: '16px 0 8px', alignSelf: 'center' }}>
-                        <span style={{ backgroundColor: 'var(--color-bg-tertiary)', padding: '4px 12px', borderRadius: '16px', fontSize: '11px', fontWeight: 500, color: 'var(--color-text-secondary)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                      <div className="inline-date-separator" style={{ 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        margin: '16px 0 8px', 
+                        width: '100%'
+                      }}>
+                        <span style={{ 
+                          backgroundColor: 'var(--color-surface)', 
+                          padding: '4px 12px', 
+                          borderRadius: '8px', 
+                          fontSize: '11px', 
+                          fontWeight: 500, 
+                          color: 'var(--color-text-secondary)', 
+                          border: '1px solid var(--color-border)'
+                        }}>
                           {fmtDateSeparator(m.createdAt)}
                         </span>
                       </div>
@@ -1370,7 +1627,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                         {fmtTime(m.createdAt)}
                         {m.direction === 'out' && (
                           <span style={{ marginLeft: '4px', display: 'inline-flex', alignItems: 'center' }}>
-                            {m.status === 'read' && <MdDoneAll size={14} className="msg-ack read" style={{ color: '#3B82F6' }} />}
+                            {m.status === 'read' && <MdDoneAll size={14} className="msg-ack read" style={{ color: '#53BDEB' }} />}
                             {m.status === 'delivered' && <MdDoneAll size={14} className="msg-ack delivered" />}
                             {(!m.status || m.status === 'sent') && <MdCheck size={14} className="msg-ack sent" />}
                             {m.status === 'failed' && <MdErrorOutline size={14} className="msg-ack failed" style={{ color: '#EF4444' }} title={m.errorMessage || 'Gagal terkirim'} />}
@@ -1444,7 +1701,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 onClick={() => setShowTemplateModal(true)}
               >
                 <MdMessage size={20} />
-                Kirim Template Meta
+                <span className="expired-btn-text">Kirim Template</span>
               </button>
             </div>
           ) : (
@@ -1455,7 +1712,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 onEmojiClick={(emojiData) => setMessageText(prev => prev + emojiData.emoji)}
                 theme={Theme.DARK}
                 width="100%"
-                height={350}
+                height={450}
               />
             </div>
           )}
@@ -1486,6 +1743,22 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             </div>
           )}
 
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', paddingBottom: '6px' }}>
+            <button className="icon-btn text-secondary" style={{ transform: 'rotate(45deg)' }} onClick={handlePickFile} disabled={isUploading} title="Kirim lampiran">
+              <MdAttachFile size={26} />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*,audio/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
+            />
+            <button ref={emojiButtonRef} className="icon-btn text-secondary" onClick={() => setIsEmojiOpen(!isEmojiOpen)}>
+              <MdInsertEmoticon size={26} />
+            </button>
+          </div>
+
           <div className={`input-pill ${replyToMessage ? 'has-reply' : ''}`}>
             {replyToMessage && (
               <div className="reply-preview-container">
@@ -1497,9 +1770,6 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
               </div>
             )}
             <div className="input-row">
-              <button ref={emojiButtonRef} className="icon-btn text-secondary" onClick={() => setIsEmojiOpen(!isEmojiOpen)}>
-                <MdInsertEmoticon size={24} />
-              </button>
             {isRecording ? (
               <div className="recording-ui">
                 <div className="recording-indicator"></div>
@@ -1513,7 +1783,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 <textarea
                   className="message-input"
                   rows={1}
-                  placeholder="Ketik pesan..."
+                  placeholder="Ketik pesan"
                   value={messageText}
                   onChange={e => {
                     const val = e.target.value;
@@ -1585,39 +1855,39 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                     handleSendText();
                   }}
                 />
-                <button className="icon-btn text-secondary" style={{ transform: 'rotate(45deg)' }} onClick={handlePickFile} disabled={isUploading} title="Kirim lampiran">
-                  <MdAttachFile size={22} />
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,video/*,audio/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                  style={{ display: 'none' }}
-                  onChange={handleFileChange}
-                />
                 <button
                   className="icon-btn text-secondary"
-                  onClick={startRecording}
-                  title="Mulai Rekam Voice Note"
+                  onClick={() => setShowTemplateModal(true)}
+                  title="Kirim Pesan Template Meta"
+                  style={{ padding: '4px', marginBottom: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <MdMic size={24} />
+                  <FaMeta size={20} />
                 </button>
               </>
             )}
             </div>
           </div>
-          {isRecording ? (
-            <button className="btn-primary icon-only recording-send-btn" onClick={stopAndSendRecording} title="Kirim Voice Note">
-              <MdSend size={22} />
-            </button>
-          ) : (
-            <button className="btn-primary icon-only" onClick={handleSendText}><MdSend size={22} /></button>
-          )}
+
+          <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '6px' }}>
+            {isRecording ? (
+              <button className="icon-btn text-primary recording-send-btn" onClick={stopAndSendRecording} title="Kirim Voice Note">
+                <MdSend size={26} />
+              </button>
+            ) : (
+              messageText.trim() ? (
+                <button className="icon-btn text-primary" onClick={handleSendText}><MdSend size={26} /></button>
+              ) : (
+                <button className="icon-btn text-secondary" onClick={startRecording} title="Mulai Rekam Voice Note">
+                  <MdMic size={26} />
+                </button>
+              )
+            )}
+          </div>
             </>
           )}
         </div>
 
-        {toastMessage && <div className="custom-toast">{toastMessage}</div>}
+
 
         {/* Modal Image Preview */}
         {previewUrl && (
@@ -1752,74 +2022,78 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
       {/* Modal Template Meta */}
       {showTemplateModal && (
         <div className="inbox-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowTemplateModal(false); }}>
-          <div className="inbox-modal" style={{ maxWidth: '420px' }}>
-            <div className="inbox-modal-header">
-              <h3>Kirim Pesan Template Meta</h3>
-              <button className="inbox-modal-close-btn" onClick={() => setShowTemplateModal(false)}>
-                <MdClose size={20} />
+          <div className="inbox-modal" style={{ maxWidth: '500px', width: '90%', borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', overflow: 'visible' }}>
+            <div className="inbox-modal-header" style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FaMeta size={20} color="var(--color-primary)" />
+                Kirim Template Meta
+              </h3>
+              <button className="inbox-modal-close-btn" onClick={() => setShowTemplateModal(false)} style={{ padding: '4px' }}>
+                <MdClose size={24} />
               </button>
             </div>
             
-            <div className="inbox-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: '1.5' }}>
-                Gunakan ini untuk mengirim pesan pertama ke pelanggan atau mengirim pesan yang sudah di-approve oleh Meta.
-              </p>
-
+            <div className="inbox-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px' }}>
               {savedMetaTemplates.length === 0 ? (
                  <button 
                    onClick={() => handleSyncTemplates()} 
                    disabled={isSyncingTemplates}
-                   className="btn-secondary"
-                   style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '8px' }}
+                   className="btn-primary"
+                   style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '8px', padding: '12px', borderRadius: '8px' }}
                  >
-                   {isSyncingTemplates ? 'Mensinkronisasi...' : 'Tarik Template dari WhatsApp Meta'}
+                   {isSyncingTemplates ? 'Memuat Template...' : 'Tarik Template dari Meta'}
                  </button>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '13px', fontWeight: 600 }}>Cari & Pilih Template <span style={{color: 'var(--color-error)'}}>*</span></label>
+                    <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>Pilih Template <span style={{color: '#EF4444'}}>*</span></label>
                     <button 
                       onClick={() => handleSyncTemplates()} 
                       disabled={isSyncingTemplates}
-                      style={{ fontSize: '12px', background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      style={{ fontSize: '13px', background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', padding: 0 }}
                     >
-                      {isSyncingTemplates ? 'Memuat...' : '⟳ Sync Ulang'}
+                      {isSyncingTemplates ? 'Memuat...' : '⟳ Sinkronisasi'}
                     </button>
                   </div>
                   
                   <div 
                     className="chat-input"
                     style={{ 
-                      width: '100%', border: '1px solid var(--color-border)', borderRadius: '8px', minHeight: '40px', padding: '0 12px',
-                      display: 'flex', alignItems: 'center', cursor: 'pointer', justifyContent: 'space-between', backgroundColor: 'var(--color-bg-primary)'
+                      width: '100%', border: '2px solid var(--color-border)', borderRadius: '10px', minHeight: '44px', padding: '0 16px',
+                      display: 'flex', alignItems: 'center', cursor: 'pointer', justifyContent: 'space-between', backgroundColor: 'var(--color-surface)',
+                      transition: 'border-color 0.2s',
+                      borderColor: isTemplateDropdownOpen ? 'var(--color-primary)' : 'var(--color-border)'
                     }}
                     onClick={() => setIsTemplateDropdownOpen(!isTemplateDropdownOpen)}
                   >
-                    <span style={{ color: templateName ? 'inherit' : 'var(--color-text-secondary)' }}>
-                      {templateName ? `${templateName} (${templateLang})` : 'Pilih template...'}
+                    <span style={{ color: templateName ? 'inherit' : 'var(--color-text-secondary)', fontSize: '14px', fontWeight: 500 }}>
+                      {templateName ? `${templateName} (${templateLang})` : 'Klik untuk memilih template...'}
                     </span>
-                    <MdKeyboardArrowDown size={20} className="text-secondary" />
+                    <MdKeyboardArrowDown size={24} className="text-secondary" style={{ transform: isTemplateDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
                   </div>
 
                   {isTemplateDropdownOpen && (
                     <div style={{ 
-                      marginTop: '4px',
+                      marginTop: '8px',
                       backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', 
-                      borderRadius: '8px', overflow: 'hidden'
+                      borderRadius: '10px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                     }}>
-                      <div style={{ padding: '8px', borderBottom: '1px solid var(--color-border)' }}>
-                        <input 
-                          type="text" 
-                          value={templateSearchQuery}
-                          onChange={(e) => setTemplateSearchQuery(e.target.value)}
-                          placeholder="Ketik untuk mencari..."
-                          className="chat-input"
-                          style={{ width: '100%', height: '32px', borderRadius: '4px', border: '1px solid var(--color-border)', padding: '0 8px', fontSize: '13px' }}
-                          autoFocus
-                          onClick={e => e.stopPropagation()}
-                        />
+                      <div style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-container)' }}>
+                        <div style={{ position: 'relative' }}>
+                          <MdSearch size={20} className="text-secondary" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                          <input 
+                            type="text" 
+                            value={templateSearchQuery}
+                            onChange={(e) => setTemplateSearchQuery(e.target.value)}
+                            placeholder="Cari nama template..."
+                            className="chat-input"
+                            style={{ width: '100%', height: '36px', borderRadius: '8px', border: '1px solid var(--color-border)', padding: '0 12px 0 36px', fontSize: '14px', backgroundColor: 'var(--color-surface)' }}
+                            autoFocus
+                            onClick={e => e.stopPropagation()}
+                          />
+                        </div>
                       </div>
-                      <div style={{ maxHeight: '200px', overflowY: 'auto', padding: '4px 0' }}>
+                      <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
                         {savedMetaTemplates.filter(t => t.name.toLowerCase().includes(templateSearchQuery.toLowerCase())).map(t => (
                           <div 
                             key={t.name}
@@ -1830,25 +2104,20 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                               setTemplateSearchQuery('');
                             }}
                             style={{ 
-                              padding: '8px 12px', fontSize: '13px', cursor: 'pointer', 
-                              backgroundColor: templateName === t.name ? 'var(--color-surface-hover)' : 'transparent',
-                              display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                              padding: '12px 16px', fontSize: '14px', cursor: 'pointer', 
+                              backgroundColor: templateName === t.name ? 'var(--color-surface-container-high)' : 'transparent',
+                              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                              borderBottom: '1px solid var(--color-border)'
                             }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = templateName === t.name ? 'var(--color-surface-hover)' : 'transparent'}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface-container-high)'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = templateName === t.name ? 'var(--color-surface-container-high)' : 'transparent'}
                           >
-                            <span>{t.name} <span style={{ color: 'var(--color-text-secondary)', fontSize: '11px' }}>({t.lang})</span></span>
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); handleDeleteMetaTemplate(t.name); }} 
-                              style={{ background: 'none', border: 'none', color: 'var(--color-text-secondary)', cursor: 'pointer', padding: '2px' }}
-                              title="Hapus dari cache"
-                            >
-                              <MdClose size={14} />
-                            </button>
+                            <span style={{ fontWeight: templateName === t.name ? 600 : 400 }}>{t.name} <span style={{ color: 'var(--color-text-secondary)', fontSize: '12px', marginLeft: '4px' }}>({t.lang})</span></span>
+                            {templateName === t.name && <MdCheck size={18} color="var(--color-primary)" />}
                           </div>
                         ))}
                         {savedMetaTemplates.filter(t => t.name.toLowerCase().includes(templateSearchQuery.toLowerCase())).length === 0 && (
-                          <div style={{ padding: '12px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                          <div style={{ padding: '24px', textAlign: 'center', fontSize: '14px', color: 'var(--color-text-secondary)' }}>
                             Template tidak ditemukan
                           </div>
                         )}
@@ -1878,25 +2147,25 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
 
                 if (hasComponents) {
                   return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       <div style={{ 
-                        fontSize: '13px', 
-                        color: 'var(--color-text-secondary)', 
-                        padding: '12px', 
-                        backgroundColor: 'rgba(0,0,0,0.05)', 
-                        borderRadius: '8px',
+                        fontSize: '14px', 
+                        color: 'var(--color-text-primary)', 
+                        padding: '16px', 
+                        backgroundColor: 'var(--color-surface-container)', 
+                        borderRadius: '10px',
                         border: '1px solid var(--color-border)',
                         whiteSpace: 'pre-wrap',
-                        lineHeight: '1.5'
+                        lineHeight: '1.6'
                       }}>
-                        <div style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '6px', opacity: 0.7 }}>Preview Template:</div>
+                        <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--color-text-secondary)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.5px' }}>Pratinjau Pesan</div>
                         {bodyTextPreview}
                       </div>
 
-                      {numVars > 0 ? (
+                      {numVars > 0 && (
                         Array.from({ length: numVars }).map((_, idx) => (
-                          <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            <label style={{ fontSize: '13px', fontWeight: 600 }}>Variabel {idx + 1}</label>
+                          <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>Variabel {idx + 1}</label>
                             <input
                               type="text"
                               value={templateVarsArray[idx] || ''}
@@ -1907,54 +2176,40 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                               }}
                               placeholder={`Isi untuk variabel {{${idx + 1}}}`}
                               className="chat-input"
-                              style={{ width: '100%', border: '1px solid var(--color-border)', borderRadius: '8px', height: '40px', padding: '0 12px' }}
+                              style={{ width: '100%', border: '1px solid var(--color-border)', borderRadius: '8px', height: '44px', padding: '0 16px', fontSize: '14px' }}
                             />
                           </div>
                         ))
-                      ) : (
-                        <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
-                          Template ini tidak memerlukan variabel.
-                        </div>
                       )}
                     </div>
                   );
                 }
 
-                // Jika belum di-sync atau tidak ada komponen, tampilkan fallback input teks
-                return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '13px', fontWeight: 600 }}>Variabel Template (Opsional)</label>
-                    <textarea
-                      value={templateVariables}
-                      onChange={(e) => setTemplateVariables(e.target.value)}
-                      placeholder="Pisahkan dengan koma. Contoh: Budi, 12345"
-                      className="chat-input"
-                      style={{ width: '100%', border: '1px solid var(--color-border)', borderRadius: '8px', minHeight: '60px', padding: '12px', fontSize: '13px', resize: 'vertical' }}
-                    />
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-                      Gunakan ini jika isi template belum termuat, namun Anda yakin template ini butuh variabel.
+                // Fallback textarea if no components
+                if (templateName) {
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>Variabel Template (Opsional)</label>
+                      <textarea
+                        value={templateVariables}
+                        onChange={(e) => setTemplateVariables(e.target.value)}
+                        placeholder="Pisahkan dengan koma. Contoh: Budi, 12345"
+                        className="chat-input"
+                        style={{ width: '100%', border: '1px solid var(--color-border)', borderRadius: '8px', minHeight: '80px', padding: '12px 16px', fontSize: '14px', resize: 'vertical' }}
+                      />
                     </div>
-                  </div>
-                );
+                  );
+                }
+                return null;
               })()}
 
             </div>
 
-            <div style={{ padding: '16px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
-              <button 
-                className="btn-secondary" 
-                onClick={handleSaveMetaTemplate}
-                disabled={!templateName.trim()}
-                title="Simpan template ini"
-                style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '6px 10px', height: '36px' }}
-              >
-                <MdCheck size={16} /> Simpan
-              </button>
-              
+            <div style={{ padding: '16px 24px', display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-container)' }}>
               <button
                 className="btn-secondary"
                 onClick={() => setShowTemplateModal(false)}
-                style={{ height: '36px', fontSize: '13px', padding: '6px 16px' }}
+                style={{ height: '44px', fontSize: '14px', padding: '0 20px', borderRadius: '8px', fontWeight: 600 }}
               >
                 Batal
               </button>
@@ -1962,9 +2217,9 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
                 className="btn-primary"
                 onClick={handleSendTemplateMessage}
                 disabled={!templateName.trim()}
-                style={{ height: '36px', fontSize: '13px', padding: '6px 16px' }}
+                style={{ height: '44px', fontSize: '14px', padding: '0 24px', borderRadius: '8px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}
               >
-                Kirim
+                <MdSend size={18} /> Kirim Pesan
               </button>
             </div>
           </div>
@@ -1987,7 +2242,7 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
           >
             {/* Header khusus mobile */}
             <div className="context-menu-header">
-              <ProgressAvatar name={contextMenu.conv.customerName || contextMenu.conv.customerPhone} confidence={contextMenu.conv.confidence} handler={contextMenu.conv.handler} />
+              <ProgressAvatar name={contextMenu.conv.customerName || contextMenu.conv.customerPhone} confidence={contextMenu.conv.confidence} handler={contextMenu.conv.handler} aiEnabled={aiEnabled} />
               <div className="context-menu-header-info">
                 <span className="context-menu-name">{contextMenu.conv.customerName || contextMenu.conv.customerPhone}</span>
               </div>
@@ -2038,6 +2293,83 @@ const Inbox = ({ account, isMultiView = false, colWidth, onMobileChatOpenChange,
             >
               <MdDelete size={22} /> Tandai Hapus
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modals for Custom Folders */}
+      {showNewFolderModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ backgroundColor: 'var(--color-surface)', width: '90%', maxWidth: '400px', borderRadius: '12px', padding: '24px', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600 }}>Buat Folder Baru</h3>
+            <input 
+              type="text" 
+              placeholder="Nama Folder"
+              value={newFolderName}
+              onChange={e => setNewFolderName(e.target.value)}
+              style={{ width: '100%', padding: '12px', border: '1px solid var(--color-border)', borderRadius: '8px', marginBottom: '24px', backgroundColor: 'var(--color-surface-container)', color: 'var(--color-text-primary)' }}
+              autoFocus
+            />
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={() => { setShowNewFolderModal(false); setNewFolderName(''); }}
+                style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', fontWeight: 600, color: 'var(--color-text-secondary)' }}
+              >
+                Batal
+              </button>
+              <button 
+                onClick={() => {
+                  if (!newFolderName.trim() || !accountId) return;
+                  createFolder.mutate({ accountId, name: newFolderName.trim() });
+                  setShowNewFolderModal(false);
+                  setNewFolderName('');
+                }}
+                disabled={!newFolderName.trim() || createFolder.isPending}
+                style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', backgroundColor: 'var(--color-primary)', color: 'white', cursor: 'pointer', fontWeight: 600, opacity: (!newFolderName.trim() || createFolder.isPending) ? 0.6 : 1 }}
+              >
+                Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAssignFolderModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ backgroundColor: 'var(--color-surface)', width: '90%', maxWidth: '400px', borderRadius: '12px', padding: '24px', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600 }}>Masukkan ke Folder</h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', marginBottom: '24px' }}>
+              {chatFolders.length === 0 ? (
+                <div style={{ color: 'var(--color-text-secondary)', textAlign: 'center', padding: '16px 0' }}>Belum ada folder buatan Anda.</div>
+              ) : chatFolders.map(folder => (
+                <button
+                  key={folder.id}
+                  onClick={() => {
+                    if (!accountId) return;
+                    const newChatIds = Array.from(new Set([...folder.chatIds, ...selectedChats]));
+                    updateFolder.mutate({ accountId, folderId: folder.id, chatIds: newChatIds });
+                    setShowAssignFolderModal(false);
+                    setIsSelectionMode(false);
+                    setSelectedChats([]);
+                    toast.success(`Chat berhasil ditambahkan ke ${folder.name}`);
+                  }}
+                  style={{ padding: '12px', border: '1px solid var(--color-border)', borderRadius: '8px', backgroundColor: 'var(--color-surface-container)', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <MdMenu size={20} color="var(--color-primary)" />
+                  <span style={{ fontWeight: 500 }}>{folder.name}</span>
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={() => setShowAssignFolderModal(false)}
+                style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', backgroundColor: 'var(--color-surface-container-high)', cursor: 'pointer', fontWeight: 600, color: 'var(--color-text-primary)' }}
+              >
+                Batalkan
+              </button>
+            </div>
           </div>
         </div>
       )}

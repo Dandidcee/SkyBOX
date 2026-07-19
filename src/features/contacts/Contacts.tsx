@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MdAdd, MdEdit, MdDelete, MdClose, MdChat } from 'react-icons/md';
+import { toast } from 'sonner';
 import { useContacts, useContactMutations } from '../../hooks/useContacts';
 import type { Account, Contact } from '../../types/db';
 import api from '../../services/api';
@@ -42,7 +43,7 @@ const Contacts = ({ accounts, onOpenChat }: ContactsProps) => {
 
   const handleSave = () => {
     if (!form.name.trim() || !form.phone.trim()) {
-      alert('Nama dan nomor HP wajib diisi.');
+      toast.error('Nama dan nomor HP wajib diisi.');
       return;
     }
     if (editingId === null) {
@@ -71,7 +72,7 @@ const Contacts = ({ accounts, onOpenChat }: ContactsProps) => {
       onOpenChat(activeAccountId, res.data.id);
     } catch (err) {
       console.error(err);
-      alert('Gagal memulai chat dengan kontak ini.');
+      toast.error('Gagal memulai chat dengan kontak ini.');
     } finally {
       setStartingChat(null);
     }

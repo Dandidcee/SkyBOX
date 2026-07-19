@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  MdMail, MdLock, MdLogin, MdPersonAdd, MdVisibility, MdVisibilityOff, MdCheckCircle, MdArrowBack,
+  MdMail, MdLock, MdLogin, MdPersonAdd, MdVisibility, MdVisibilityOff, MdArrowBack,
 } from 'react-icons/md';
 import { FaWhatsapp, FaFacebook } from 'react-icons/fa';
 import { signIn, signUp, resetPassword } from '../../services/auth';
+import { toast } from 'sonner';
 import './Login.css';
 
 type Mode = 'login' | 'register' | 'forgot';
@@ -15,43 +16,43 @@ const Login = () => {
   const [registrationPassword, setRegistrationPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
+
+  useEffect(() => {
+    document.body.classList.add('is-login-page');
+    return () => document.body.classList.remove('is-login-page');
+  }, []);
 
   const switchMode = (m: Mode) => {
     setMode(m);
-    setError(null);
-    setInfo(null);
     setPassword('');
   };
 
   const friendlyError = (raw: string): string => {
-    if (raw.includes('Invalid login')) return 'Email atau password salah.';
+    if (raw.includes('401') || raw.includes('Invalid login')) return 'Email atau password salah.';
     if (raw.includes('Email not confirmed')) return 'Email belum dikonfirmasi. Cek inbox kamu untuk verifikasi.';
     if (raw.includes('already registered') || raw.includes('already been registered')) return 'Email sudah terdaftar. Silakan masuk atau gunakan Lupa Sandi.';
     if (raw.toLowerCase().includes('password')) return 'Password minimal 6 karakter.';
+    if (raw.includes('Network Error')) return 'Gagal terhubung ke server. Periksa koneksi internet Anda.';
     return raw;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setInfo(null);
 
     if (!email.trim()) {
-      setError('Email wajib diisi.');
+      toast.error('Email wajib diisi.');
       return;
     }
 
     // Validasi format email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      setError('Format email tidak valid.');
+      toast.error('Format email tidak valid.');
       return;
     }
     if (mode !== 'forgot' && !password) {
-      setError('Password wajib diisi.');
+      toast.error('Password wajib diisi.');
       return;
     }
 
@@ -59,28 +60,30 @@ const Login = () => {
     try {
       if (mode === 'login') {
         await signIn(email.trim(), password);
+        toast.success('Berhasil masuk!');
         // App pindah otomatis lewat listener onAuthChange.
       } else if (mode === 'register') {
         if (!registrationPassword.trim()) {
           setLoading(false);
-          setError('Sandi Pendaftaran wajib diisi untuk keamanan.');
+          toast.error('Sandi Pendaftaran wajib diisi untuk keamanan.');
           return;
         }
         const { needsConfirmation } = await signUp(email.trim(), password, registrationPassword.trim());
         if (needsConfirmation) {
-          setInfo('Akun dibuat. Cek email kamu untuk konfirmasi, lalu masuk.');
+          toast.success('Akun dibuat. Cek email kamu untuk konfirmasi, lalu masuk.');
           setMode('login');
           setPassword('');
         } else {
           // Auto login setelah registrasi berhasil
+          toast.success('Berhasil mendaftar dan masuk!');
           await signIn(email.trim(), password);
         }
       } else {
         await resetPassword(email.trim());
-        setInfo('Link reset password sudah dikirim ke email kamu. Cek inbox/spam.');
+        toast.success('Link reset password sudah dikirim ke email kamu. Cek inbox/spam.');
       }
     } catch (err) {
-      setError(friendlyError(err instanceof Error ? err.message : 'Terjadi kesalahan.'));
+      toast.error(friendlyError(err instanceof Error ? err.message : 'Terjadi kesalahan.'));
     } finally {
       setLoading(false);
     }
@@ -169,8 +172,7 @@ const Login = () => {
           </label>
         )}
 
-        {error && <div className="login-error">{error}</div>}
-        {info && <div className="login-info"><MdCheckCircle size={16} /> <span>{info}</span></div>}
+
 
         <button type="submit" className="login-btn" disabled={loading}>
           {t.icon}
@@ -192,8 +194,8 @@ const Login = () => {
             </button>
           )}
         </div>
-        <div style={{ marginTop: '24px', textAlign: 'center' }}>
-          <button type="button" className="login-link" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', textDecoration: 'underline' }} onClick={() => setIsTermsOpen(true)}>
+        <div style={{ marginTop: '24px', textAlign: 'left' }}>
+          <button type="button" className="login-link" style={{ fontSize: '12px', padding: 0 }} onClick={() => setIsTermsOpen(true)}>
             Syarat & Ketentuan
           </button>
         </div>

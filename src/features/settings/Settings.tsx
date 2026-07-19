@@ -1,14 +1,16 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import {
   MdDarkMode, MdLightMode, MdHub,
   MdPlayArrow, MdVolumeUp, MdVolumeOff, MdLock, MdCheck, MdVisibility, MdVisibilityOff,
+  MdNotificationsActive, MdNotificationsOff
 } from 'react-icons/md';
 import { updatePassword } from '../../services/auth';
 import api from '../../services/api';
 import { useEffect } from 'react';
 import { useSoundStore, type SoundEvent } from '../../lib/soundStore';
 import { TONES, playTone } from '../../lib/sound';
-import '../dashboard/Dashboard.css';
+
 import './Settings.css';
 
 interface SettingsProps {
@@ -52,6 +54,48 @@ const SoundRow = ({ event, label, desc }: { event: SoundEvent; label: string; de
   );
 };
 
+const PushNotificationSettings = () => {
+  const [permission, setPermission] = useState<NotificationPermission>(
+    'Notification' in window ? Notification.permission : 'denied'
+  );
+
+  const handleRequest = async () => {
+    if (!('Notification' in window)) {
+      toast.error('Browser tidak mendukung Push Notifikasi.');
+      return;
+    }
+    const perm = await Notification.requestPermission();
+    setPermission(perm);
+    if (perm === 'granted') {
+      toast.success('Push Notifikasi diaktifkan!');
+      // Kirim notif tes
+      new Notification('Skybox CRM', {
+        body: 'Notifikasi berhasil diaktifkan.',
+        icon: '/logo.png'
+      });
+    } else {
+      toast.error('Izin notifikasi ditolak.');
+    }
+  };
+
+  return (
+    <div className="settings-row">
+      <div>
+        <div className="settings-label">Notifikasi Browser</div>
+        <div className="settings-desc">Tampilkan pesan masuk sebagai pop-up di layar (layaknya aplikasi asli).</div>
+      </div>
+      <button 
+        className={`settings-btn ${permission === 'granted' ? 'primary' : ''}`}
+        onClick={handleRequest}
+        disabled={permission === 'granted'}
+      >
+        {permission === 'granted' ? <MdNotificationsActive size={18} /> : <MdNotificationsOff size={18} />}
+        <span>{permission === 'granted' ? 'Sudah Aktif' : 'Aktifkan Notifikasi'}</span>
+      </button>
+    </div>
+  );
+};
+
 const ChangePassword = () => {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -87,7 +131,7 @@ const ChangePassword = () => {
       <div className="settings-row">
         <div>
           <div className="settings-label">Ganti Password</div>
-          <div className="settings-desc">Ubah password akun admin kamu. Tidak perlu email.</div>
+          <div className="settings-desc">Ubah password akun admin.</div>
         </div>
       </div>
       <div className="change-password">
@@ -150,14 +194,14 @@ const ApiKeySettings = () => {
     <div className="settings-row" style={{ alignItems: 'flex-start' }}>
       <div style={{ flex: 1, paddingRight: '16px' }}>
         <div className="settings-label">API Key RajaOngkir</div>
-        <div className="settings-desc">Masukkan kunci API Komerce/RajaOngkir agar fitur Cek Ongkir berfungsi. Disimpan lokal di perangkat ini.</div>
+        <div className="settings-desc">Akses fitur Cek Ongkir. Disimpan secara lokal.</div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div className="settings-input-group">
           <input 
             type="password" 
             className="settings-input" 
-            style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-primary)' }}
+            style={{ flex: 1, padding: '8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-primary)', minWidth: 0 }}
             value={key}
             onChange={(e) => setKey(e.target.value)}
           />
@@ -193,7 +237,7 @@ const RegistrationPasswordSettings = () => {
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
       console.error(err);
-      alert('Gagal menyimpan sandi pendaftaran');
+        toast.error('Gagal menyimpan sandi pendaftaran');
     } finally {
       setLoading(false);
     }
@@ -203,15 +247,15 @@ const RegistrationPasswordSettings = () => {
     <div className="settings-row" style={{ alignItems: 'flex-start' }}>
       <div style={{ flex: 1, paddingRight: '16px' }}>
         <div className="settings-label">Sandi Pendaftaran</div>
-        <div className="settings-desc">Sandi rahasia ini akan ditanyakan saat pendaftaran admin baru agar tidak sembarang orang bisa mendaftar. Kosongkan jika tidak dipakai.</div>
+        <div className="settings-desc">Untuk pendaftaran admin baru. Kosongkan jika tidak perlu.</div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <div style={{ display: 'flex', flex: 1, position: 'relative' }}>
+        <div className="settings-input-group">
+          <div style={{ display: 'flex', flex: 1, position: 'relative', minWidth: 0 }}>
             <input 
               type={showPass ? "text" : "password"} 
               className="settings-input" 
-              style={{ flex: 1, padding: '8px', paddingRight: '36px', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-primary)' }}
+              style={{ flex: 1, padding: '8px', paddingRight: '36px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-primary)', minWidth: 0, width: '100%' }}
               value={password}
               placeholder="Masukkan sandi pendaftaran"
               onChange={(e) => setPassword(e.target.value)}
@@ -254,7 +298,7 @@ const Settings = ({ setActiveView }: SettingsProps) => {
         <div className="settings-row">
           <div>
             <div className="settings-label">Tema Tampilan</div>
-            <div className="settings-desc">Pilih mode terang atau gelap.</div>
+            <div className="settings-desc">Pilih tema aplikasi.</div>
           </div>
           <button className="settings-btn" onClick={toggleTheme}>
             {theme === 'light' ? <MdDarkMode size={18} /> : <MdLightMode size={18} />}
@@ -265,7 +309,7 @@ const Settings = ({ setActiveView }: SettingsProps) => {
         <div className="settings-row">
           <div>
             <div className="settings-label">Akun WhatsApp</div>
-            <div className="settings-desc">Kelola nomor, session, dan webhook N8N.</div>
+            <div className="settings-desc">Kelola akun dan webhook.</div>
           </div>
           <button className="settings-btn" onClick={() => setActiveView('integrations')}>
             <MdHub size={18} />
@@ -282,13 +326,18 @@ const Settings = ({ setActiveView }: SettingsProps) => {
 
       <h3 className="settings-section-title">Notifikasi Suara</h3>
       <div className="settings-card">
-        <SoundRow event="incoming" label="Pesan Masuk" desc="Bunyi saat ada chat baru dari pelanggan." />
-        <SoundRow event="lowConfidence" label="Confidence AI Rendah" desc="Bunyi saat chat dialihkan otomatis ke manusia." />
-        <SoundRow event="error" label="Error / Workflow Gagal" desc="Bunyi saat ada notifikasi error dari sistem." />
+        <SoundRow event="incoming" label="Pesan Masuk" desc="Bunyi saat ada pesan baru." />
+        <SoundRow event="lowConfidence" label="Confidence AI Rendah" desc="Bunyi saat CS ambil alih." />
+        <SoundRow event="error" label="Error / Workflow Gagal" desc="Bunyi saat terjadi error." />
       </div>
 
-      <div className="settings-about">
-        SkyBox CRM · by SkyFlowID · 1 CS multi-akun WhatsApp (WAHA → N8N → Supabase)
+      <h3 className="settings-section-title">Push Notifikasi</h3>
+      <div className="settings-card">
+        <PushNotificationSettings />
+      </div>
+
+      <div className="settings-about" style={{ textAlign: 'center' }}>
+        Skybox WhatsApp CRM by SkyflowId. All rights reserved.
       </div>
     </div>
   );

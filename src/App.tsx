@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { MdMenu } from 'react-icons/md';
 import api from './services/api';
 import Sidebar from './components/layout/Sidebar';
 import Inbox from './features/inbox/Inbox';
-import Dashboard from './features/dashboard/Dashboard';
 import Integrations from './features/integrations/Integrations';
 import Analytics from './features/analytics/Analytics';
 import Catalog from './features/catalog/Catalog';
@@ -18,6 +18,7 @@ import Templates from './features/templates/Templates';
 import Login from './features/auth/Login';
 import ResetPassword from './features/auth/ResetPassword';
 import NotificationHost from './components/NotificationHost';
+import LoadingScreen from './components/layout/LoadingScreen';
 import { useAccounts, useAccountMutations } from './hooks/useAccounts';
 import { useSystemNotifications } from './hooks/useSystemNotifications';
 import { useGlobalAlerts } from './hooks/useGlobalAlerts';
@@ -44,19 +45,31 @@ const stateStyle: React.CSSProperties = {
 };
 
 function App() {
-  const [activeView, setActiveView] = useState<string>(() => localStorage.getItem('skybox_active_view') || 'dashboard');
+  const [activeView, setActiveView] = useState<string>(() => {
+    const saved = localStorage.getItem('skybox_active_view');
+    return (saved === 'dashboard' ? 'analytics' : saved) || 'analytics';
+  });
   const [isSidebarVisible, setIsSidebarVisible] = useState(() => window.innerWidth > 768);
   const [activeAccountIds, setActiveAccountIds] = useState<string[]>([]);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [minLoadTimeMet, setMinLoadTimeMet] = useState(false);
   const [recovery, setRecovery] = useState(false);
   const [chatFocus, setChatFocus] = useState<{ accountId: string; conversationId: string } | null>(null);
 
   const queryClient = useQueryClient();
   const { data: accounts = [], isLoading: accountsLoading, isError: accountsError, refetch } = useAccounts(!!session);
   const { add, update, remove } = useAccountMutations();
+
+  useEffect(() => {
+    // Pastikan loading screen tampil minimal 2.5 detik sesuai animasi CSS
+    const timer = setTimeout(() => {
+      setMinLoadTimeMet(true);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, []);
 
 
   // Badge unread counts
@@ -180,7 +193,7 @@ function App() {
     }
 
     if (prev.length >= maxAccounts) {
-      alert(`Maaf, maksimal yang bisa dibuka di layar Anda sekarang adalah ${maxAccounts} akun.`);
+      toast.error(`Maaf, maksimal yang bisa dibuka di layar Anda sekarang adalah ${maxAccounts} akun.`);
       return;
     }
     setActiveAccountIds([...prev, id]);
@@ -217,13 +230,17 @@ function App() {
       })
       .catch(err => {
         console.error('Gagal memulai chat dari link', err);
-        alert('Gagal memulai chat otomatis. Pastikan format nomor benar (628...).');
+        toast.error('Gagal memulai chat otomatis. Pastikan format nomor benar (628...).');
       });
   }, [authReady, session, accounts.length, queryClient]);
 
-  // Belum siap cek auth → tampilkan loading singkat.
-  if (!authReady) {
-    return <div style={stateStyle}>Memuat…</div>;
+  // Hapus loader HTML bawaan index.html jika semua siap
+  const isAppReady = authReady && minLoadTimeMet && (!session || !accountsLoading);
+
+
+  // Selama loading belum selesai atau auth belum siap, render LoadingScreen React kita
+  if (!isAppReady) {
+    return <LoadingScreen />;
   }
 
   // Mode recovery (dari link reset password di email) → set sandi baru.
@@ -237,15 +254,26 @@ function App() {
   }
 
   return (
-    <div className={`app-layout ${mobileChatOpen ? 'mobile-chat-open' : ''}`}>
+    <div className={`app-layout ${mobileChatOpen ? 'mobile-chat-open' : ''} ${activeView === 'inbox' ? 'inbox-view' : ''}`}>
       <NotificationHost />
       
       {/* Header Khusus Mobile */}
       <div className="mobile-header">
-        <button className="hamburger-btn" onClick={() => setIsSidebarVisible(true)}>
+        <button className="hamburger-btn" onClick={() => setIsSidebarVisible(prev => !prev)}>
           <MdMenu />
         </button>
-        <span className="mobile-header-title">SkyBox Dashboard</span>
+        <span className="mobile-header-title">
+          {activeView === 'orders' ? 'Tracking Order' : 
+           activeView === 'analytics' ? 'Analytics' : 
+           activeView === 'catalog' ? 'Produk & Pengetahuan' : 
+           activeView === 'ongkir' ? 'Cek Ongkir' : 
+           activeView === 'quickreplies' ? 'Balasan Cepat' : 
+           activeView === 'templates' ? 'Template Ads' : 
+           activeView === 'contacts' ? 'Kontak' : 
+           activeView === 'notifications' ? 'Notifikasi' : 
+           activeView === 'settings' ? 'Pengaturan' : 
+           activeView === 'integrations' ? 'Pusat Koneksi' : 'SkyBox Dashboard'}
+        </span>
       </div>
 
       {/* Overlay untuk sidebar di mobile */}
@@ -269,9 +297,7 @@ function App() {
         unreadNotifs={unreadNotifs}
       />
       <main className="main-content">
-        {activeView === 'dashboard' ? (
-          <Dashboard accounts={accounts} />
-        ) : activeView === 'analytics' ? (
+        {activeView === 'analytics' ? (
           <Analytics accounts={accounts} />
         ) : activeView === 'catalog' ? (
           <Catalog accounts={accounts} />
@@ -298,7 +324,7 @@ function App() {
           />
         ) : activeView === 'inbox' ? (
           accountsLoading ? (
-            <div style={stateStyle}>Memuat akun…</div>
+            <LoadingScreen />
           ) : accountsError ? (
             <div style={stateStyle}>
               Gagal memuat akun.{' '}
@@ -316,6 +342,7 @@ function App() {
                 onMobileChatOpenChange={setMobileChatOpen}
                 initialConversationId={chatFocus?.accountId === account.id ? chatFocus.conversationId : undefined}
                 onNavigate={goView}
+                onMenuClick={() => setIsSidebarVisible(true)}
               />
             ))
           )

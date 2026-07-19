@@ -8,64 +8,56 @@
   padding: var(--spacing-lg);
   position: relative;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--color-primary) 22%, transparent), transparent 38%),
-    radial-gradient(circle at 88% 82%, color-mix(in srgb, var(--color-primary-dark) 20%, transparent), transparent 42%),
-    var(--color-background);
+  background-color: #efeae2; /* Warna khas background chat WA */
 }
 
-/* Garis abstrak diagonal (dua arah) — warna ikut tema, sangat halus. */
-.login-page::before {
-  content: '';
-  position: absolute;
-  inset: -10%;
-  background-image:
-    repeating-linear-gradient(
-      45deg,
-      color-mix(in srgb, var(--color-primary) 7%, transparent) 0 1px,
-      transparent 1px 34px
-    ),
-    repeating-linear-gradient(
-      -45deg,
-      color-mix(in srgb, var(--color-primary) 5%, transparent) 0 1px,
-      transparent 1px 46px
-    );
-  pointer-events: none;
+[data-theme='dark'] .login-page {
+  background-color: #0b141a; /* Warna dark mode chat WA */
 }
 
-/* Lengkung abstrak besar di pojok — tambah kesan "cantik". */
+/* Pattern doodle WA full screen */
 .login-page::after {
   content: '';
   position: absolute;
-  width: 520px;
-  height: 520px;
-  right: -160px;
-  top: -160px;
-  border-radius: 50%;
-  border: 1.5px solid color-mix(in srgb, var(--color-primary) 18%, transparent);
-  box-shadow:
-    0 0 0 60px color-mix(in srgb, var(--color-primary) 6%, transparent),
-    0 0 0 130px color-mix(in srgb, var(--color-primary) 3%, transparent);
+  inset: 0;
+  background-image: url('../../assets/wa-pattern.png');
+  background-repeat: repeat;
+  background-size: 412px;
+  opacity: 0.6;
+  mix-blend-mode: multiply; /* Efek menyatu dengan warna background beige */
   pointer-events: none;
+  z-index: 0;
+}
+
+[data-theme='dark'] .login-page::after {
+  opacity: 0.15;
+  mix-blend-mode: normal;
 }
 
 .login-card {
   width: 100%;
-  max-width: 380px;
-  background: var(--color-surface);
+  max-width: 400px;
+  background: var(--color-surface); /* Putih cerah di light mode, menyesuaikan gelap di dark mode */
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  padding: var(--spacing-2xl);
+  border-radius: 16px;
+  padding: 40px;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
   position: relative;
   z-index: 1;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+  animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .login-brand {
-  text-align: center;
+  text-align: left;
   margin-bottom: var(--spacing-sm);
 }
 
@@ -77,7 +69,7 @@
   letter-spacing: -0.5px;
 }
 
-/* Di halaman login (latar terang), Sky pakai warna gelap agar terbaca tanpa backdrop */
+/* Logo menyesuaikan tema */
 .login-logo .logo-sky { color: var(--color-text-primary); }
 .login-logo .logo-box { color: #25D366; }
 
@@ -143,6 +135,11 @@
   font-family: var(--font-family);
 }
 
+.login-input-wrap input::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.8;
+}
+
 .login-eye {
   border: none;
   background: transparent;
@@ -151,6 +148,16 @@
   display: flex;
   align-items: center;
   padding: 0;
+}
+
+/* Fix browser autofill background in standard theme */
+.login-input-wrap input:-webkit-autofill,
+.login-input-wrap input:-webkit-autofill:hover, 
+.login-input-wrap input:-webkit-autofill:focus, 
+.login-input-wrap input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--color-background) inset !important;
+  -webkit-text-fill-color: var(--color-text-primary) !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 .login-error {
@@ -210,7 +217,7 @@
 .login-switch {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: var(--spacing-sm);
   flex-wrap: wrap;
   margin-top: var(--spacing-xs);
@@ -230,7 +237,7 @@
   font-size: var(--font-size-sm);
   font-weight: 500;
   cursor: pointer;
-  padding: 4px;
+  padding: 0;
 }
 
 .login-link:hover {

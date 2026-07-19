@@ -1,27 +1,27 @@
 .ongkir-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-lg);
+  border-radius: var(--radius-md);
+  padding: 20px;
   width: 100%;
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: 16px;
 }
 
 .ongkir-warn {
   background: color-mix(in srgb, var(--color-warning) 14%, transparent);
   border: 1px solid color-mix(in srgb, var(--color-warning) 40%, transparent);
   color: var(--color-text-primary);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   padding: var(--spacing-md);
   font-size: var(--font-size-sm);
   width: 100%;
   margin-bottom: var(--spacing-md);
 }
 
-.ongkir-field { display: flex; flex-direction: column; gap: 6px; position: relative; }
+.ongkir-field { display: flex; flex-direction: column; gap: 4px; position: relative; }
 .ongkir-label { font-size: var(--font-size-caption); color: var(--color-text-secondary); font-weight: 500; }
 
 .ongkir-search, .ongkir-weight {
@@ -31,19 +31,24 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-background);
-  padding: 0 var(--spacing-md);
-  height: 40px;
+  padding: 0 4px 0 12px;
+  height: 36px;
+  transition: all 0.2s;
 }
-.ongkir-search:focus-within, .ongkir-weight:focus-within { border-color: var(--color-primary); }
+.ongkir-search:focus-within, .ongkir-weight:focus-within { 
+  border-color: var(--color-primary); 
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent); 
+}
 .ongkir-search input, .ongkir-weight input {
   flex: 1; border: none; outline: none; background: transparent;
-  font-size: var(--font-size-base); color: var(--color-text-primary); font-family: var(--font-family);
+  font-size: var(--font-size-sm); color: var(--color-text-primary); font-family: var(--font-family);
 }
 .ongkir-search button {
-  border: none; background: var(--color-primary); color: #fff;
-  width: 32px; height: 28px; border-radius: var(--radius-sm); cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
+  border: none; background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary-dark);
+  width: 28px; height: 28px; border-radius: var(--radius-sm); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s;
 }
+.ongkir-search button:hover:not(:disabled) { background: var(--color-primary); color: #fff; }
 
 .ongkir-picked {
   display: flex; align-items: center; justify-content: space-between;
@@ -59,25 +64,52 @@
   background: var(--color-surface);
   max-height: 200px; overflow-y: auto;
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  margin-top: 4px;
 }
 .ongkir-result-item { padding: 8px var(--spacing-md); font-size: var(--font-size-sm); cursor: pointer; }
 .ongkir-result-item:hover { background: var(--color-background); }
 
 .ongkir-couriers { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
-.ongkir-courier {
-  display: inline-flex; align-items: center; gap: 4px;
-  border: 1px solid var(--color-border); border-radius: 999px;
-  padding: 4px 12px; font-size: var(--font-size-caption); cursor: pointer; color: var(--color-text-secondary);
+.ongkir-courier-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-container-low);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
 }
-.ongkir-courier.on { border-color: var(--color-primary); color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 10%, transparent); }
-.ongkir-courier input { accent-color: var(--color-primary); }
+.ongkir-courier-btn:hover { background: var(--color-surface-container); }
+.ongkir-courier-btn.selected {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  color: var(--color-primary-dark);
+  font-weight: 600;
+  box-shadow: 0 2px 4px color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
 
 .ongkir-btn {
-  height: 40px; border: none; border-radius: var(--radius-md);
+  height: 36px; border: none; border-radius: var(--radius-sm);
   background: var(--color-primary); color: #fff; font-weight: 600;
-  font-size: var(--font-size-base); cursor: pointer; font-family: var(--font-family);
+  font-size: var(--font-size-sm); cursor: pointer; font-family: var(--font-family);
+  transition: all 0.2s; margin-top: 4px;
 }
-.ongkir-btn:hover:not(:disabled) { background: var(--color-primary-dark); }
+.ongkir-btn:hover:not(:disabled) { 
+  background: var(--color-primary-dark); 
+  transform: translateY(-1px); 
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary) 20%, transparent); 
+}
 .ongkir-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .ongkir-err { color: var(--color-error); font-size: var(--font-size-sm); }
@@ -149,4 +181,10 @@
   background: color-mix(in srgb, var(--color-text-secondary) 15%, transparent);
   padding: 2px 6px;
   border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+  .ongkir-card {
+    padding: 12px;
+  }
 }
