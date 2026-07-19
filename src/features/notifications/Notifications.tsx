@@ -78,7 +78,7 @@ const Notifications = ({ accounts, onOpenChat }: NotificationsProps) => {
   return (
     <div className="dashboard-container" style={{ display: 'flex', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: '800px', paddingTop: '20px' }}>
-        <div className="dashboard-header" style={{ marginBottom: '16px' }}>
+        <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '24px' }}>
           <h2 style={{ fontSize: '24px', fontWeight: 600, margin: 0, color: 'var(--color-text-primary)' }}>Notifikasi</h2>
           
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
